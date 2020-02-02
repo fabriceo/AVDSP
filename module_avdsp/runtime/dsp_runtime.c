@@ -7,31 +7,9 @@
  */
 
 #include "dsp_runtime.h"      // enum dsp codes, typedefs and QNM definition
-
-// file included below can be specific to a platform otherwise the STD version is included and a standard implementation is done
-#if defined(__XS2A__)
-int dsp_filters_biquads (
-    int input_sample,
-    int * filter_coeffs,
-    int * state_data,
-    int num_sections,
-    const int q_format,
-    int coefskip
-);
-
 #include "dsp_inlineSTD.h"
-// standard file at the moment
-#include "dsp_biquadSTD.h"  // basic implementation for biquad filter calculation, mutiple section
-#include "dsp_firSTD.h"     // basic implementation for fir filter
-#elif 1 == 0 // other platforme here like arm...
-#include "dsp_inlineXXX.h"
-#include "dsp_biquadXXX.h"
-#else
-#include "dsp_inlineSTD.h"  // some inline function to calculate or convert fixed point numbers with quotient and mantissa
-#include "dsp_biquadSTD.h"  // basic implementation for biquad filter calculation, mutiple section
-#include "dsp_firSTD.h"     // basic implementation for fir filter
-#endif
-
+#include "dsp_biquadSTD.h"
+#include "dsp_firSTD.h"
 
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
@@ -188,7 +166,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
     dspALU_t ALU2 = 0;
     dspALU_t ALU = 0;
     while (1) {
-        asm("#dspinterpreter":::"memory");
         int * cptr = (int*)ptr;
         short opcode = ptr->op.opcode;
         short skip = ptr->op.skip;
@@ -348,7 +325,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break; }
 
         case DSP_GAIN:{
-            asm volatile ("#labelGAIN");
             int offset = *cptr;
             dspParam_t * gainPtr = (dspParam_t*)ptr+offset;
             dspParam_t gain = *gainPtr;
@@ -387,7 +363,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break;}
 
         case DSP_LOAD_STORE: {
-            asm("#dsphandling_move");
             int max = skip-1;   // length in words
             dspprintf2("LOAD_STORE (%d)",max);
             while (max) {
@@ -417,7 +392,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break; }
 
         case DSP_DELAY: {   // TODO all bad
-            asm("#dsphandling_delay");
             dspprintf2("DELAY ...");    // TODO
             unsigned  maxSize = *cptr++;                // maximum size in number of samples, OR delay in uSec
             int offset  = *cptr++;                      // adress of data table for storage
@@ -457,7 +431,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break;}
 
         case DSP_DELAY_DP: {   // TODO all bad
-            asm("#dsphandling_delay");
             dspprintf2("DELAY ...");    // TODO
             unsigned maxSize = *cptr++;                      // maximum size in number of samples, OR delay in uSec
             int offset  = *cptr++;                      // adress of data table for storage
@@ -490,7 +463,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break;}
 
         case DSP_BIQUADS: {
-            asm("#dsphandling_filters");
             dspprintf2("BIQUAD ");
             int offset = *cptr++;  // pointer on the array of state data accumulated
             dspSample_t * dataPtr = (dspSample_t*)rundataPtr+offset;
@@ -499,7 +471,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             unsigned short num = *numPtr++ ;
             dspprintf2("%d sections\n",num);
             dspParam_t * coefPtr = (dspParam_t*)numPtr+dspBiquadFreqOffset;
-            asm("#labelBIQUADS");
             #if DSP_ALU_INT64
                 // ALU is expected to contain the sample in 0.31, otherwise convertion happens to reduce DP to 0.31
                 #if 0//  defined(__XS2A__)
@@ -510,22 +481,19 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     ALU = dsp_calc_biquads(ALU, coefPtr, dataPtr, num, DSP_MANTBQ, dspBiquadFreqSkip);
                 #endif
             #else // DSP_ALU_FLOAT
-                ALU = dsp_calc_biquads_float(ALU, coefPtr, dataPtr, num, dspBiquadFreqSkip);
+                ALU = dsp_calc_biquads_float(ALU, coefPtr, dataPtr, num,dspBiquadFreqSkip);
             #endif
             break; }
 
         case DSP_PARAM: {
-            asm("#dsphandling_dataraw");
             dspprintf2("PARAM");
             break; }
 
         case DSP_PARAM_NUM: {
-            asm("#dsphandling_paramnum");
             dspprintf2("PARAM_NUM ...");    // TODO
             break; }
 
         case DSP_SERIAL:{    //
-            asm("#dsphandling_data");
             //int serial= *cptr++;  // supposed to be the serial number of the product, or a specif magic code TBD
             //dspprintf2("SERIAL %d",serial);
             //int check = *cptr++;
@@ -614,7 +582,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break; }
 
         case DSP_DATA_TABLE: {  // Index should be store in rundata TODO
-            asm("#dsphandling_dataread");
             dspprintf2("DATA_TABLE");
             //int offset=*cptr++;      // get adress ofset for data
             int gain = *cptr++;      // 0_31 format and 0x7FFFFFFF = 1
