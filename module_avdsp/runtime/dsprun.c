@@ -5,94 +5,105 @@
  * gcc -o testdsp testdsp.c dsp_engine.c
  */
 #include <stdio.h>      // import printf functions
+#include <string.h>
+#include <stdlib.h>
+#include "dsp_fileaccess.h" // for loading the opcodes in memory
+#include "alsa.h"
 
-#ifndef DSP_FORMAT
-#warning "DSP_FORMAT not defined : by default the format will be INT64"
-#endif
+#define DSP_FORMAT DSP_FORMAT_INT64
 
 #include "dsp_runtime.h"
 
 #define opcodesMax 10000
 #define inputOutputMax 32
 
-dspSample_t inputOutput[inputOutputMax];        // table containing the input an output samples treated by the dsp_engine
+static dspSample_t inputOutput[inputOutputMax];         // table containing the input an output samples treated by the dsp_engine
+static opcode_t opcodes[opcodesMax];           		// table for dsp code
 
-
-#include "dsp_fileaccess.h" // for loading the opcodes in memory
-#include <string.h>
-#include <stdlib.h>
+static void usage() {
+	dspprintf("dsprun alsainname alsaoutname nbchin nbchout dspprog.bin fs\n");
+	exit(-1);
+}
 
 int main(int argc, char **argv) {
 
-    char * fileName = "dspprogram.bin";
+    char* dspfilename;
+    char* alsainname,*alsaoutname;
+    int nbchin, nbchout;
+    int fs;
 
-    printf("command line options:\n");
-    printf("-inputfile <filename>\n");
-    for (int i=1; i<argc; i++) {
-        if (strcmp(argv[i],"-inputfile") == 0) {
-            i++;
-            if (argc>i) {
-                fileName = argv[i];
-                continue; } }
-    }
-    printf("input file = %s\n",fileName);
+    int size,result;
+    int nbcores;
+    int *dataPtr;
+    opcode_t *codeStart[4];
 
-    opcode_t opcodes[opcodesMax];           // table for dsp code
+    // parse and check args 
+    if(argc<7) usage();
+    alsainname=argv[1];
+    alsaoutname=argv[2];
+    nbchin=atoi(argv[3]); if(nbchin <=0) usage();
+    nbchout=atoi(argv[4]); if(nbchin <=0) usage();
+    dspfilename=argv[5];
+    fs=atoi(argv[6]); if(fs<=0) usage();
 
-    opcode_t * codePtr;
-    if ((unsigned long long)&opcodes[0] & 4) codePtr = &opcodes[1];
-    else codePtr = &opcodes[0];
-
-    int size = dspReadBuffer(fileName, (int*)codePtr, opcodesMax);
-
+    // load dsp prog
+    size = dspReadBuffer(dspfilename, (int*)opcodes, opcodesMax);
     if (size < 0) {
         dspprintf("FATAL ERROR trying to load opcode.\n");
         exit(-1);
     }
 
-    int result = dspRuntimeInit(codePtr, opcodesMax, 96000);   // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
-
+    // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
+    result = dspRuntimeInit(opcodes, size, fs);
     if (result < 0) {
         dspprintf("FATAL ERROR: problem with opcode header or compatibility\n");
         exit(-1);
     }
-    int * dataPtr = (int*)codePtr + result;           // runing data area just after the program code
+    // runing data area just after the program code
+    dataPtr = (int*)opcodes + result;
 
-    opcode_t * codeStart1 = dspFindCore(codePtr, 1);             // search for code Start for core 1
-    if (codeStart1)
-        dspprintf("First core starts at : %d\n",(int)((int*)codeStart1-(int*)codePtr))
-    else {
-        dspprintf("FATAL ERROR : no core found in dsp program.\n");
+    // find cores
+    for(nbcores=0;nbcores<4; nbcores++) {
+       codeStart[nbcores] = dspFindCore(opcodes, nbcores+1);
+       if (codeStart[nbcores]==0)
+	break;
+    }
+
+
+    if(initAlsaIO(alsainname, nbchin, alsaoutname, nbchout, fs)) {
+        dspprintf("Alsa init error\n");
         exit(-1);
     }
 
-    opcode_t * codeStart2 = dspFindCore(codePtr, 2);
-    if (codeStart2)
-        dspprintf("Second core starts at : %d\n",(int)((int*)codeStart2-(int*)codePtr));
+    // main infinite loop
+    while(1) {
+	int nc,i,ch;
+	int sz;
+	int *inbuffer,*outbuffer;
 
-#if DSP_SAMPLE_FLOAT
-    samples[8] = -0.3;
-    printf("io(8) = %f\n",samples[8]);
-    samples[9] = 0.5;
-    printf("io(9) = %f\n",samples[9]);
-#else
-    inputOutput[8] = DSP_Q31(-0.3);
-    printf("io(8) = 0x%X\n",inputOutput[8]);
-    inputOutput[9] = DSP_Q31(0.5);
-    printf("io(9) = 0x%X\n",inputOutput[9]);
-#endif
+	inbuffer=(int*)malloc(sizeof(int)*nbchout*8192);
+	outbuffer=(int*)malloc(sizeof(int)*nbchout*8192);
 
-    DSP_RUNTIME_FORMAT(dspRuntime)(codeStart1, dataPtr, &inputOutput[0]);    // simulate 1 fs cycle in the first task
-    if (codeStart2) {
-        dspprintf("next core\n");
-        DSP_RUNTIME_FORMAT(dspRuntime)(codeStart2, dataPtr, &inputOutput[0]);    // simulate 1 fs cycle in the second task
+	sz=(int)readAlsa(inbuffer , 8192) ;
+	if(sz<0) break;
+
+	for (i=0;i < sz ; i++) {
+
+        	// input 0-7 
+        	for(ch=0;ch<nbchin;ch++)
+    			inputOutput[ch] = inbuffer[i*nbchin+ch];
+		
+		for(nc=0;nc<nbcores;nc++) 
+    			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
+
+        	// outputs 8-15
+        	for(ch=0;ch<nbchout;ch++)
+    			outbuffer[i*nbchout+ch]=inputOutput[ch+8] ;
+	}
+
+	writeAlsa(outbuffer , sz) ;
     }
 
-#if DSP_SAMPLE_FLOAT
-    dspprintf("io(10) = %f\n",inputOutput[10]);
-#else
-    dspprintf("io(10) = %f\n",DSP_F31(inputOutput[10]));
-#endif
     return 0;
 }
 
