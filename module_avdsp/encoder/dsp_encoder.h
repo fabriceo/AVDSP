@@ -62,7 +62,7 @@ int  paramAlign8();
  int  dspMem_Location();
 
 
- int  dsp_PARAM();
+extern  int  dsp_PARAM();
  int  dsp_PARAM_NUM(int num);
  int  dsp_DATAN(int * data,int n);
  int  dsp_DATA2(int a,int b);

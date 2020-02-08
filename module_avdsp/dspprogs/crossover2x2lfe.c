@@ -1,19 +1,9 @@
-
+#include <stdlib.h>
+#include <string.h>
 #include "dsp_encoder.h"
 
-int fcross = 1000;  // default crossover frequency for the demo
-int distance = 100; // defaut distance between low and high. (positive means high in front)
-int flfe = 80;
-int subdelay = 745;
 
-/*
- * this is the DSP user program.
- * each call to the below function will generate propers op codes, or list of data
- * the returned value is the total size of the program including header and final code (0)
- * if -1 then an error occured and has probably been printed on the console
- */
-
-void prefilterLowpass(int in, int mem, int flow){
+static void prefilterLowpass(int in, int mem, int flow){
     dsp_PARAM_NUM(in*2);
     int defaultGain =
         dspGain_Default(1.0);
@@ -34,7 +24,7 @@ void prefilterLowpass(int in, int mem, int flow){
     dsp_STORE_MEM(mem);
 }
 
-void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, float highgain){
+static void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, float highgain){
 
     dsp_PARAM_NUM(in*2+1);
 
@@ -68,8 +58,8 @@ void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, float highg
     dsp_STORE(outhigh);
 }
 
-void LFEChannel(int mem1,int mem2, int out, int dist){
-    dsp_PARAM(10);
+static void LFEChannel(int mem1,int mem2, int out, int dist){
+    dsp_PARAM(16);
     int filterlfe = dspBiquad_Sections(4);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
@@ -90,8 +80,8 @@ void LFEChannel(int mem1,int mem2, int out, int dist){
     dsp_STORE(out);
 }
 
-int StereoCrossOverLFE(int left, int right, int outs, int fx, int dist, int flfe){
-    dsp_PARAM();
+static int StereoCrossOverLFE(int left, int right, int outs, int fx, int dist, int flfe){
+    dsp_PARAM(16);
     int mem1 = dspMem_Location(1);
     int mem2 = dspMem_Location(1);
 
@@ -107,3 +97,43 @@ int StereoCrossOverLFE(int left, int right, int outs, int fx, int dist, int flfe
     return dsp_END_OF_CODE();
 }
 
+/*
+ * this is the DSP user program.
+ * each call to the below function will generate propers op codes, or list of data
+ * the returned value is the total size of the program including header and final code (0)
+ * if -1 then an error occured and has probably been printed on the console
+ */
+
+int dspProg(int argc, char **argv){
+   int fcross = 1000;  // default crossover frequency for the demo
+   int distance = 100; // defaut distance between low and high. (positive means high in front)
+   int flfe = 80;
+
+   for(int i=0 ; i<argc;i++) {
+	// parse USER'S command line parameters 
+
+                 if (strcmp(argv[i],"-fx") == 0) {
+                     i++;
+                     if (argc>i) {
+                         fcross = strtol(argv[i], NULL,10);
+                         printf("crossover fx = %d\n",fcross);
+                         continue; } }
+
+                 if (strcmp(argv[i],"-dist") == 0) {
+                     i++;
+                     if (argc>i) {
+                         distance = strtol(argv[i], NULL,10);
+                         printf("distance = %d\n",distance);
+                         continue; } }
+
+                 if (strcmp(argv[i],"-lfe") == 0) {
+                     i++;
+                     if (argc>i) {
+                         flfe = strtol(argv[i], NULL,10);
+                         printf("crossover freq = %d\n",flfe);
+                         continue; } }
+	}
+
+    return StereoCrossOverLFE(0,1,8,fcross,distance,flfe);
+
+}

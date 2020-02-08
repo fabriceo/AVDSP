@@ -119,7 +119,7 @@ int dspCreateBuffer(char * name, int * buff, int size){
     return size;
 }
 
-int dspCreateIntFile(char * name, int * buff, int size, char * begin, char * end){
+int dspCreateIntFile(char * name, int * buff, int size, const char *begin, const char *end){
     dspFileName = name;
     if (0 != dspfopenWrite("w")) return -1;
     fprintf(dspFile,"%s\n",begin);
