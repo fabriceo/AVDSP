@@ -1,4 +1,18 @@
-#make -f dspcreate.mak all
+INCLUDES = -I../encoder -I../runtime 
+CFLAGS = -DDSP_PRINTF=3 -Ofast  -fPIC  -Wall $(INCLUDES)
+LIBS = -lm -ldl
+OBJS = ../encoder/dspcreate.o ../encoder/dsp_encoder.o ../encoder/dsp_filters.o ../encoder/dsp_fileaccess.o 
 
-all:
-	gcc -o dspcreate ../encoder/dspcreate.c ../dspprogs/crossover2x2lfe.c ../encoder/dsp_encoder.c ../encoder/dsp_filters.c ../encoder/dsp_fileaccess.c -I../encoder -I../runtime -DDSP_PRINTF=3 #see dsp_header.h
+all:	dspcreate dspprogs
+
+dspcreate:	 $(OBJS)
+	$(CC) $^ -Wl,--export-dynamic -o $@ $(LIBS)
+
+dspprogs:
+	@cd ../dspprogs; make
+
+clean:
+	@rm -f $(OBJS) dspcreate
+	@cd ../dspprogs ; make clean
+
+
