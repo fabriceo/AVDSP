@@ -7,8 +7,10 @@
 #include <stdio.h>      // import printf functions
 #include <string.h>
 #include <stdlib.h>
-#include "dsp_fileaccess.h" // for loading the opcodes in memory
+#include <sndfile.h>
 #include "alsa.h"
+
+#include "dsp_fileaccess.h" // for loading the opcodes in memory
 
 #define DSP_FORMAT DSP_FORMAT_INT64
 
@@ -29,6 +31,7 @@ int main(int argc, char **argv) {
 
     char* dspfilename;
     char* alsainname,*alsaoutname;
+    char* impulsename = NULL ;
     int nbchin, nbchout;
     int fs;
 
@@ -37,10 +40,17 @@ int main(int argc, char **argv) {
     int *dataPtr;
     opcode_t *codeStart[4];
 
+    int nc,n,ch;
+
     // parse and check args 
     if(argc<7) usage();
-    alsainname=argv[1];
-    alsaoutname=argv[2];
+
+    if(strcmp(argv[1],"-i") == 0 )  {
+	impulsename = argv[2];
+    } else {
+    	alsainname=argv[1];
+    	alsaoutname=argv[2];
+    }
     nbchin=atoi(argv[3]); if(nbchin <=0) usage();
     nbchout=atoi(argv[4]); if(nbchin <=0) usage();
     dspfilename=argv[5];
@@ -69,39 +79,77 @@ int main(int argc, char **argv) {
 	break;
     }
 
+    if(impulsename) {
+	 int n;
+	 SNDFILE *outsnd;
+	 SF_INFO infsnd;
 
-    if(initAlsaIO(alsainname, nbchin, alsaoutname, nbchout, fs)) {
-        dspprintf("Alsa init error\n");
-        exit(-1);
-    }
+         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+         infsnd.samplerate = fs;
+         infsnd.channels = nbchout;
 
-    // main infinite loop
-    while(1) {
-	int nc,i,ch;
-	int sz;
+         outsnd= sf_open(impulsename, SFM_WRITE, &infsnd);
+         if (outsnd == NULL) {
+               	fprintf(stderr, "could not open %s\n ",impulsename);
+               	exit(1);
+         }
+
+	// impulse
+        for(ch=0;ch<nbchin;ch++) {
+    		inputOutput[ch] = INT32_MAX/2;
+	}
+	
+	for(nc=0;nc<nbcores;nc++) 
+    		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
+
+    	sf_write_int(outsnd,&(inputOutput[8]),1);
+
+	// then fs/2 0 samples
+        for(ch=0;ch<nbchin;ch++)
+    		inputOutput[ch] = 0;
+	
+	for(n=0;n<fs/2;n++) {
+		for(nc=0;nc<nbcores;nc++) 
+    			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
+
+    		sf_write_int(outsnd,&(inputOutput[8]),1);
+	}
+	sf_close(outsnd);
+
+    } else {
 	int *inbuffer,*outbuffer;
+
+    	if(initAlsaIO(alsainname, nbchin, alsaoutname, nbchout, fs)) {
+        	dspprintf("Alsa init error\n");
+        	exit(-1);
+    	}
 
 	inbuffer=(int*)malloc(sizeof(int)*nbchout*8192);
 	outbuffer=(int*)malloc(sizeof(int)*nbchout*8192);
 
-	sz=(int)readAlsa(inbuffer , 8192) ;
-	if(sz<0) break;
+    	// infinite loop
+    	while(1) {
+		int sz;
 
-	for (i=0;i < sz ; i++) {
+		sz=(int)readAlsa(inbuffer , 8192) ;
+		if(sz<0) break;
 
-        	// input 0-7 
-        	for(ch=0;ch<nbchin;ch++)
-    			inputOutput[ch] = inbuffer[i*nbchin+ch];
+		for (n=0;n < sz ; n++) {
+
+        		// input 0-7 
+        		for(ch=0;ch<nbchin;ch++)
+    				inputOutput[ch] = inbuffer[n*nbchin+ch];
 		
-		for(nc=0;nc<nbcores;nc++) 
-    			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
+			for(nc=0;nc<nbcores;nc++) 
+    				DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
-        	// outputs 8-15
-        	for(ch=0;ch<nbchout;ch++)
-    			outbuffer[i*nbchout+ch]=inputOutput[ch+8] ;
-	}
+        		// outputs 8-15
+        		for(ch=0;ch<nbchout;ch++)
+    				outbuffer[n*nbchout+ch]=inputOutput[ch+8] ;
+		}
 
-	writeAlsa(outbuffer , sz) ;
+		writeAlsa(outbuffer , sz) ;
+    	}
     }
 
     return 0;
