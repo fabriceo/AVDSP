@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
 	 SNDFILE *outsnd;
 	 SF_INFO infsnd;
 
-         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_32;
          infsnd.samplerate = fs;
          infsnd.channels = nbchout;
 
@@ -103,7 +103,12 @@ int main(int argc, char **argv) {
 	for(nc=0;nc<nbcores;nc++) 
     		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
+#if DSP_SAMPLE_INT
     	sf_write_int(outsnd,&(inputOutput[8]),nbchout);
+#endif
+#if DSP_SAMPLE_FLOAT
+    	sf_write_float(outsnd,&(inputOutput[8]),nbchout);
+#endif
 
 	// then fs/2 0 samples
         for(ch=0;ch<nbchin;ch++)
@@ -113,7 +118,13 @@ int main(int argc, char **argv) {
 		for(nc=0;nc<nbcores;nc++) 
     			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
+#if DSP_SAMPLE_INT
     		sf_write_int(outsnd,&(inputOutput[8]),nbchout);
+#endif
+#if DSP_SAMPLE_FLOAT
+    		sf_write_float(outsnd,&(inputOutput[8]),nbchout);
+#endif
+
 	}
 	sf_close(outsnd);
 
