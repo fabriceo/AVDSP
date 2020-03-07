@@ -23,7 +23,8 @@ static dspSample_t inputOutput[inputOutputMax];         // table containing the 
 static opcode_t opcodes[opcodesMax];           		// table for dsp code
 
 static void usage() {
-	dspprintf("dsprun alsainname alsaoutname nbchin nbchout dspprog.bin fs\n");
+	fprintf(stderr,"dsprun alsainname alsaoutname nbchin nbchout dspprog.bin fs\n");
+	fprintf(stderr,"or : \ndsprun -i impulsefilename nbchin nbchout dspprog.bin fs\n");
 	exit(-1);
 }
 
@@ -102,7 +103,7 @@ int main(int argc, char **argv) {
 	for(nc=0;nc<nbcores;nc++) 
     		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
-    	sf_write_int(outsnd,&(inputOutput[8]),1);
+    	sf_write_int(outsnd,&(inputOutput[8]),nbchout);
 
 	// then fs/2 0 samples
         for(ch=0;ch<nbchin;ch++)
@@ -112,7 +113,7 @@ int main(int argc, char **argv) {
 		for(nc=0;nc<nbcores;nc++) 
     			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
-    		sf_write_int(outsnd,&(inputOutput[8]),1);
+    		sf_write_int(outsnd,&(inputOutput[8]),nbchout);
 	}
 	sf_close(outsnd);
 
