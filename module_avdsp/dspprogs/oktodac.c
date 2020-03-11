@@ -1,7 +1,5 @@
 #include "dsp_encoder.h"
 
-extern int fcross;  // default crossover frequency for the demo
-extern int subdelay;
 
 #define DACOUT(x) (x)               // DAC outputs are stored at the begining of the samples table
 #define ADCIN(x)  (8  + x )         // SPDIF receiver stored with an offset of 8
@@ -64,5 +62,41 @@ int dspProgDACSTEREO(){
         dspLoadStore_Data( USBOUT(1), DACOUT(7) );
 
     return dsp_END_OF_CODE();
+}
+
+void dspNoProg(){
+    return dsp_END_OF_CODE();
+}
+
+int dspProg(int argc,char **argv){
+   int fcross = 1000;  
+   int subdelay = 745; 
+   int prog = 0;
+   
+   for(int i=0 ; i<argc;i++) {
+        // parse USER'S command line parameters
+
+                 if (strcmp(argv[i],"-dac8pro") == 0) {
+                     i++;
+                     if (argc>i) {
+                         printf("factory dsp program for dac8pro\n");
+                         prog = 1;
+                         continue; } }
+
+                 if (strcmp(argv[i],"-dacstereo") == 0) {
+                     i++;
+                     if (argc>i) {
+                         printf("factory dsp program for dacstereo\n");
+                         prog = 2;
+                         continue; } }
+
+
+        }
+
+	switch (prog) {
+	case 1:  return dspProgDAC8PRO();
+	case 2:  return dspProgDACSTEREO();
+	default: return dspNoProg();
+	}
 }
 

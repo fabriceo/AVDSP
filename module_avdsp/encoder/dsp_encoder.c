@@ -319,10 +319,12 @@ static int dspFormatInt(){
     // return 1 if the DSP ALU is integer
     return (dspFormat == 1)||(dspFormat == 2);
 }
+/* not used
 static int dspFormatInt64(){
     // return 1 if the DSP ALU is integer 64bits size
     return (dspFormat == 2);
 }
+*/
 static int dspFormatDouble(){
     // return 1 if the DSP ALU is double float
     return (dspFormat == 4)||(dspFormat == 6);
@@ -1128,7 +1130,7 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     if (-1 == dspfopenRead("r"))
         dspFatalError("cant open impulse file.");
 
-    int old = addCode(length);
+    addCode(length);
     float * codePtr = (float *)opcodeIndexPtr();
     int tmp = dspfreadImpulse(codePtr, length);
     if (tmp == -1) {

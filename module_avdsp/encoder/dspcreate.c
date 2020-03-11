@@ -22,11 +22,6 @@
 const char * hexBegin = "const unsigned int dspFactory[] = {";
 const char * hexEnd = "};";
 
-#include "_oktodacprog.h"
-#include "_HCcocoon.h"
-#include "_testallfunction.h"
-#include "_crossoverLV6.h"
-
 void usage() {
     fprintf(stderr,"command line options:\n");
     fprintf(stderr,"-dspprog name \n");
@@ -93,7 +88,7 @@ int main(int argc, char **argv) {
                 if (argc>i) {
                     defaultType = strtol(argv[i], &perr,10);
                     continue; } }
-
+#if 0
 // code below is temporary but needed when not using dynamic link
             // specific parameters for OKTO RESEARCH, to generate default programs
             if (strcmp(argv[i],"-prog") == 0) {
@@ -132,7 +127,7 @@ int main(int argc, char **argv) {
                     }
                 } 
             }
-
+#endif
 	    break;
     }
 /*
@@ -167,8 +162,8 @@ int main(int argc, char **argv) {
                     myDspMin, myDspMax, // list of frequencies treated by runtime. used to pre-generate biquad coef and delay lines
                     inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
 
-    
-
+	size = dspProg(argc-i,&argv[i]);     
+#if 0
     switch(progNum) {
     case 0:  size = dspProg(argc-i,&argv[i]); 
     case 1:  size = dspProgDAC8PRO(); break;
@@ -177,7 +172,7 @@ int main(int argc, char **argv) {
     case 4:  size = dspProg_HCcocoon(); break;
     case 5:  size = dspProg_crossoverLV6(); break;
     }
-
+#endif
 
     if (size > 0) {
         dspprintf("DSP program file successfully generated \n");
