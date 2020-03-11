@@ -11,6 +11,11 @@
 **/run_*.log
 **/.metadata/*
 .metadata/*
+*.dSYM
+*.dSYM/*
+**/*.dSYM/*
+*.dylib
+*.so
 *.o
 *.xe
 **/*.xe

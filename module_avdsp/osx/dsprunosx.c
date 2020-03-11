@@ -63,10 +63,10 @@ int main(int argc, char **argv) {
     }
 
 #if DSP_SAMPLE_FLOAT
-    samples[8] = -0.3;
-    printf("io(8) = %f\n",samples[8]);
-    samples[9] = 0.5;
-    printf("io(9) = %f\n",samples[9]);
+    inputOutput[8] = -0.3;
+    printf("io(8) = %f\n",inputOutput[8]);
+    inputOutput[9] = 0.5;
+    printf("io(9) = %f\n",inputOutput[9]);
 #else
     inputOutput[8] = DSP_Q31(-0.3);
     printf("io(8) = 0x%X\n",inputOutput[8]);

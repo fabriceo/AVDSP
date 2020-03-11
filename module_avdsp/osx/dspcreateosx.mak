@@ -13,8 +13,9 @@ dspprogs:
 
 dspcreate:	 $(OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+	@rm -f *.dSYM
 
 clean:
 	@rm -f $(OBJS) dspcreate
-	@cd ../dspprogs ; make clean
-	@cd ../encoder ; make clean
+#	@cd ../dspprogs ; make clean
+#	@cd ../encoder ; make clean
