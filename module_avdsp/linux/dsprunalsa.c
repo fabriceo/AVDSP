@@ -54,7 +54,7 @@ int main(int argc, char **argv) {
     }
 
     // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
-    result = dspRuntimeInit(opcodes, size, fs);
+    result = dspRuntimeInit(opcodes, size, fs, 0);	// 0 for random seed to be changed by a gettime type of function
     if (result < 0) {
         dspprintf("FATAL ERROR: problem with opcode header or compatibility\n");
         exit(-1);
