@@ -38,7 +38,7 @@
 
 // Convert from floating point to fixed point Q format.
 // The number indicates the fractional bits or the position of the binary point
-#define Q31(f) ((f >= 1.0 )? (int)0x7FFFFFFF : (f <= -1.0) ? (int)(-1) : (int)((signed long long)((f) * ((unsigned long long)1 << (31+20)) + (1<<19)) >> 20))
+#define Q31(f) ((f >= 1.0 )? (int)0x7FFFFFFF : (f <= -1.0) ? (int)(0x80000001) : (int)((signed long long)((f) * ((unsigned long long)1 << (31+20)) + (1<<19)) >> 20))
 #define Q30(f) ((f >= 2.0 )? (int)0x3FFFFFFF : (int)((signed long long)((f) * ((unsigned long long)1 << (30+20)) + (1<<19)) >> 20))
 #define Q29(f) (int)((signed long long)((f) * ((unsigned long long)1 << (29+20)) + (1<<19)) >> 20)
 #define Q28(f) (int) ( (signed long long)( (f) * ( (unsigned long long)1 << (28+20)) + (1<<19)) >> 20)
