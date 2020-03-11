@@ -10,7 +10,7 @@ static int subdelay;
 
 
 
-int dspProg_test(){
+int dspProg_testallfunction(){
     dspprintf("test program \n");
 
     dsp_PARAM();

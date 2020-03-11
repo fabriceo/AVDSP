@@ -93,7 +93,7 @@ void dspFilter2ndOrder( int type,
     cw0 = cos(w0);
     sw0 = sin(w0);
     tw2 = tan(w0/2.0);
-    if (Q != 0.0) alpha = sw0 / 2.0 / Q;
+    if (Q != 0.0) alpha = sw0 / 2.0 / Q; else alpha = 1;
     a0 = (1.0 + alpha);
     *a1 = -(-2.0 * cw0) / a0;
     *a2 = -(1.0 - alpha ) / a0;

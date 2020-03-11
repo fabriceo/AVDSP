@@ -6,6 +6,9 @@ SLIBS = oktoprog.so  crossover2x2lfe.so
 
 %.so:	%.o 
 	$(CC) -shared $^ -o $*.so  
+	
+_*.c:
+	$(CC) $^
 
 all:	$(SLIBS)
 

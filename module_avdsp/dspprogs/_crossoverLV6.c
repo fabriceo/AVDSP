@@ -10,7 +10,7 @@ static int subdelay;
 
 
 
-int dspProg_test(){
+int dspProg_crossoverLV6(){
     dspprintf("test program for okto dac\n");
 
     dsp_PARAM();

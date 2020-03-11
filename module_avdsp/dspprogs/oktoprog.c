@@ -17,18 +17,25 @@ int oktoProg(int fcross, int subdelay){
 
     dsp_CORE();  // first core
 
-    dsp_LOAD(USBOUT(0));
-    dsp_COPYXY();
+    dsp_LOAD(USBOUT(0));    // load 0.31 sample
+    dsp_COPYXY();           // make a copy for the next stage
+    
     dsp_DELAY_FixedMicroSec(subdelay);
-    dsp_SWAPXY();   // move delayed signa in Y and restore original sample
-    dsp_BIQUADS(lowpass);
-    dsp_STORE(USBIN(0));
-    dsp_SWAPXY();
-    dsp_SUBXY();            // 12db/oct High pass, with LP BES6
-    dsp_STORE(USBIN(2));
+    dsp_GAIN(1.0);          //scale 0.31 to 5.59 by multiplying with a gain
+    dsp_SWAPXY();           // move delayed signal in Y and restore original sample in X
+    
+    dsp_GAIN(1.0);          //scale 0.31 to 5.59 by multiplying with a gain
+    dsp_BIQUADS(lowpass);   // execute bessel 6th order
+    dsp_SUBYX();            // calculate high pass : Y = Y - X
+    dsp_SAT0DB();           // saturate result within -1.0/+1.0 and reduce format to 0.31 bits
+    dsp_STORE(USBIN(0));    // store sample
+    
+    dsp_SWAPXY();           // get back calculated high pass
+    dsp_SAT0DB();           // saturate and scale down
+    dsp_STORE(USBIN(2));    // store sample
 
 
-    dsp_LOAD(USBOUT(1));
+    dsp_LOAD(USBOUT(1));    // loop back for rew
     dsp_STORE(USBIN(1));
 
     return dsp_END_OF_CODE();

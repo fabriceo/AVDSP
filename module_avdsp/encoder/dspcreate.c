@@ -22,9 +22,10 @@
 const char * hexBegin = "const unsigned int dspFactory[] = {";
 const char * hexEnd = "};";
 
-#include "oktodacprog.h"
-#include "HCcocoon.h"
-
+#include "_oktodacprog.h"
+#include "_HCcocoon.h"
+#include "_testallfunction.h"
+#include "_crossoverLV6.h"
 
 void usage() {
     fprintf(stderr,"command line options:\n");
@@ -60,8 +61,8 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i],"-dspprog") == 0) {
                 i++;
                 if (argc>i) {
-			dspProgName = argv[i];
-			continue; } }
+			         dspProgName = argv[i];
+			         continue; } }
         if (strcmp(argv[i],"-binfile") == 0) {
                 i++;
                 if (argc>i) {
@@ -122,7 +123,15 @@ int main(int argc, char **argv) {
                         binFileName = "dsphccocoon.bin";
                         outFileType |= 1;
                         progNum = 4;
-                    } 
+                    } else
+                    if (num == 5) {
+                        printf("crossover LV6 test test program for DAC8PRO\n");
+                        binFileName = "dspcrosslv6.bin";
+                        outFileType |= 1;
+                        progNum = 3;
+                    }
+                } 
+            }
 
 	    break;
     }
@@ -164,8 +173,9 @@ int main(int argc, char **argv) {
     case 0:  size = dspProg(argc-i,&argv[i]); 
     case 1:  size = dspProgDAC8PRO(); break;
     case 2:  size = dspProgDACSTEREO(); break;
-    case 3:  size = dspProgDAC8PRO_test(); break;
+    case 3:  size = dspProg_testallfunction(); break;
     case 4:  size = dspProg_HCcocoon(); break;
+    case 5:  size = dspProg_crossoverLV6(); break;
     }
 
 
@@ -176,7 +186,7 @@ int main(int argc, char **argv) {
             dspprintf("stored in-> %s\n",binFileName);
         }
         if (outFileType & 2) {
-            dspCreateIntFile(hexFileName, (int*)opcodes, size,hexBegin,hexEnd);
+            dspCreateIntFile(hexFileName, (int*)opcodes, size, (char*)hexBegin, (char*)hexEnd);
             dspprintf("stored in-> %s\n",hexFileName);
         }
         if (outFileType & 4) {
