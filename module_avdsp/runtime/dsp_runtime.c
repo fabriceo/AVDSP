@@ -11,6 +11,7 @@
 #include "dsp_biquadSTD.h"
 #include "dsp_firSTD.h"
 
+//#define DSP_SINGLE_CORE 1 // set this define if only 1 core available on the target arch
 
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
@@ -160,9 +161,15 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         switch (opcode) { // efficiently managed with a jump table
 
         case DSP_END_OF_CODE:
-        case DSP_CORE:
             dspprintf2("END");
             return 0;
+        case DSP_CORE:
+            dspprintf2("CORE");
+#if defined( DSP_SINGLE_CORE ) && ( DSP_SINGLE_CORE == 1 )
+            break;
+#else
+            return 0;
+#endif
 
         case DSP_NOP:
             dspprintf2("NOP");
