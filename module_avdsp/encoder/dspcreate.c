@@ -27,7 +27,6 @@ void usage() {
     fprintf(stderr,"-dspprog name \n");
     fprintf(stderr,"-dspformat <2..6> \n");
     fprintf(stderr,"-binfile <filename> -hexfile <filename> -dumpfile <filename>\n");
-    fprintf(stderr,"-prog <x>\n");
     fprintf(stderr,"[dsprogs paramaters ...] \n");
 }
 

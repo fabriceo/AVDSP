@@ -13,6 +13,8 @@ else
 	CFLAGS = -DLINUX
 endif
 
+#this libraries are not really needed. just to check compilation errors for each DSP_FORMAT
+
 INCLUDES = -I../runtime
 CFLAGS = -Ofast -fPIC -Wall $(INCLUDES)
 CC = gcc -g
@@ -24,7 +26,6 @@ all:
 	$(CC) $(CFLAGS) -dynamiclib -DDSP_FORMAT=4 dsp_*.c -o libavdspruntimedouble.dylib
 	$(CC) $(CFLAGS) -dynamiclib -DDSP_FORMAT=5 dsp_*.c -o libavdspruntimefloatfloat.dylib
 	$(CC) $(CFLAGS) -dynamiclib -DDSP_FORMAT=6 dsp_*.c -o libavdspruntimedoublefloat.dylib
-#	@rmdir -p *.dSYM 
 	
 clean:
 	@rm -f *.dylib 

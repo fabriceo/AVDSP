@@ -13,9 +13,10 @@ else
 	CFLAGS = -DLINUX
 endif
 
+#not satisfied with dsp_*c to be changed in a later version
+
 INCLUDES = -I../encoder -I../runtime
 CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
-CC = gcc -g
 
 ifeq ($(uname_S), Darwin)
 all:

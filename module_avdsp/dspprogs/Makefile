@@ -15,19 +15,19 @@ endif
 
 INCLUDES = -I../encoder -I../runtime
 CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
-CC = gcc -g
-ENC_C = ../encoder/dsp_*.c
 
 ifeq ($(uname_S), Darwin)
-SLIBS = oktoprog.dylib oktodac.dylib crossover2x2lfe.dylib
+LIB = -L../encoder -lavdspencoder
+
+PROGS = oktoprog.dylib oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib
 
 %.dylib:	%.c
-	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(ENC_C)
+	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(LIB)
 	
-all:	 $(SLIBS)
+all:	 $(PROGS)
 
 clean:
-	@rm -f $(SLIBS) 
+	@rm -f $(PROGS) 
 
 else
 ifeq ($(uname_S), Windows)
@@ -36,15 +36,16 @@ all:
 clean:
 
 else	#linux
-SLIBS = oktoprog.so oktodac.so crossover2x2lfe.so
+PROGS = oktoprog.so oktodac.so crossover2x2lfe.so crossoverLV6.so
 
-all:	$(SLIBS)
+all:	$(PROGS)
 
-%.so:	%.c
-	$(CC) $(CFLAGS) -shared $^ -o $*.so $(ENC_C)
+%.so:	%.o
+	$(CC) $(CFLAGS) -shared $^ -o $*.so
 	
 clean:
-	@rm -f *.so 
+	@rm -f *.so
+	
 endif
 endif
 
