@@ -1,11 +1,10 @@
-
-INCLUDES = -I../encoder -I../runtime
+INCLUDES = -I../encoder -I../runtime -L../encoder
 CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 
-SLIBS = oktoprog.so oktodac.so crossover2x2lfe.so
+SLIBS = oktoprog.dylib oktodac.dylib crossover2x2lfe.dylib
 
-%.so:	%.o 
-	$(CC) -shared $^ -o $*.so  
+%.dylib:	%.c
+	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib -lavdspencoder #-shared
 	
 all:	 $(SLIBS)
 

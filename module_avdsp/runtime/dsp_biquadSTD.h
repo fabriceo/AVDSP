@@ -2,7 +2,7 @@
  * dsp_biquadSTD.c
  *
  *  Created on: 11 janv. 2020
- *      Author: Fabrice
+ *      Author: Fabriceo
  */
 
 

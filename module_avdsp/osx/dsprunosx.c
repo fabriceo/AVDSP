@@ -6,17 +6,12 @@
  */
 #include <stdio.h>      // import printf functions
 
-#ifndef DSP_FORMAT
-#warning "DSP_FORMAT not defined : by default the format will be INT64"
-#endif
-
 #include "dsp_runtime.h"
 
 #define opcodesMax 10000
 #define inputOutputMax 32
 
 dspSample_t inputOutput[inputOutputMax];        // table containing the input an output samples treated by the dsp_engine
-
 
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
 #include <string.h>

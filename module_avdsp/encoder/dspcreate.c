@@ -43,7 +43,6 @@ int main(int argc, char **argv) {
     int outFileType = 0;
     int defaultType = DSP_FORMAT_INT64;
     int i,size;
-    int progNum = 0;   // by default, will use dynamic linkage
 
     opcode_t opcodes[opcodesMax];       // temporary table for dsp code
     const int max = opcodesMax;
@@ -88,46 +87,6 @@ int main(int argc, char **argv) {
                 if (argc>i) {
                     defaultType = strtol(argv[i], &perr,10);
                     continue; } }
-#if 0
-// code below is temporary but needed when not using dynamic link
-            // specific parameters for OKTO RESEARCH, to generate default programs
-            if (strcmp(argv[i],"-prog") == 0) {
-                i++;
-                if (argc>i) {
-                    int num = strtol(argv[i], &perr,10);
-                    if (num == 1) {
-                        printf("OKTO basic program for DAC8PRO\n");
-                        hexFileName = "dspdac8pro.h";
-                        outFileType |= 2;
-                        progNum = 1;
-                    } else
-                    if (num == 2) {
-                        printf("OKTO basic program for DACSTEREO\n");
-                        hexFileName = "dspdacstereo.h";
-                        outFileType |= 2;
-                        progNum = 2;
-                    } else
-                    if (num == 3) {
-                        printf("OKTO filter test program for DAC8PRO\n");
-                        binFileName = "dsptestokto.bin";
-                        outFileType |= 1;
-                        progNum = 3;
-                    } else
-                    if (num == 4) {
-                        printf("HC-COCOON 3way crossover for DAC8PRO\n");
-                        binFileName = "dsphccocoon.bin";
-                        outFileType |= 1;
-                        progNum = 4;
-                    } else
-                    if (num == 5) {
-                        printf("crossover LV6 test test program for DAC8PRO\n");
-                        binFileName = "dspcrosslv6.bin";
-                        outFileType |= 1;
-                        progNum = 3;
-                    }
-                } 
-            }
-#endif
 	    break;
     }
 /*
@@ -137,23 +96,21 @@ int main(int argc, char **argv) {
 	exit(-1);
     }
 */
-    if (progNum == 0) {
-        if(dspProgName == NULL) {
-        	fprintf(stderr,"-dspprog name Needed\n\n");
-    	usage();
-    	exit(-1);
-        }
+    if(dspProgName == NULL) {
+    	fprintf(stderr,"-dspprog name Needed\n\n");
+	usage();
+	exit(-1);
+    }
 
-        if (!( dspproglib = dlopen (dspProgName, RTLD_LAZY))) {
-        	fprintf(stderr,"Could not load %s\n",dspProgName);
-         usage();
-         exit (-1);
-        }
-        if (!(dspProg = dlsym (dspproglib, "dspProg"))) {
-         fprintf(stderr,"%s linking problem\n",dspProgName);
-         dlclose (dspproglib);
-         exit (-1);
-        }
+    if (!( dspproglib = dlopen (dspProgName, RTLD_LAZY))) {
+    	fprintf(stderr,"Could not load %s\n",dspProgName);
+     usage();
+     exit (-1);
+    }
+    if (!(dspProg = dlsym (dspproglib, "dspProg"))) {
+     fprintf(stderr,"%s linking problem\n",dspProgName);
+     dlclose (dspproglib);
+     exit (-1);
     }
 
     dspEncoderInit( opcodes,            // table where we store the generated opcodes
@@ -163,16 +120,6 @@ int main(int argc, char **argv) {
                     inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
 
 	size = dspProg(argc-i,&argv[i]);     
-#if 0
-    switch(progNum) {
-    case 0:  size = dspProg(argc-i,&argv[i]); 
-    case 1:  size = dspProgDAC8PRO(); break;
-    case 2:  size = dspProgDACSTEREO(); break;
-    case 3:  size = dspProg_testallfunction(); break;
-    case 4:  size = dspProg_HCcocoon(); break;
-    case 5:  size = dspProg_crossoverLV6(); break;
-    }
-#endif
 
     if (size > 0) {
         dspprintf("DSP program file successfully generated \n");

@@ -266,7 +266,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 ALU += dspTpdfScaled;
                 dspSaturate64_031( &ALU );
             #else // ALU float
-                ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << bit));
+                ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << dspTpdfBits));
                 dspSaturateFloat( &ALU );
             #endif
             break;}
@@ -296,7 +296,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 dspSaturate64_031( &ALU );
             #else // DSP_SAMPLE_FLOAT
                 ALU *= gain;
-                ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << bit));
+                ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << dspTpdfBits));
                 dspSaturateFloat( &ALU );
             #endif
             break; }
@@ -590,11 +590,12 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     if (index >= delay) index = 0;
                     *(--dataPtr) = index;
                 } else {
-                    dspParam_t * coefPtr = (dspParam_t*)tablePtr;
                     if (length > 0) {
                     #if DSP_ALU_INT64
+                        dspParam_t * coefPtr = (dspParam_t*)tablePtr;
                         ALU = dsp_calc_fir(ALU, coefPtr, dataPtr, length);
                     #else // float
+                        // TODO
                     #endif
                     }
                 }

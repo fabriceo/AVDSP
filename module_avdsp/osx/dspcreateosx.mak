@@ -1,16 +1,20 @@
-INCLUDES = -I../encoder -I../runtime
+INCLUDES = -I../encoder -I../runtime -L../encoder
 CFLAGS = -DDSP_PRINTF=3 -Ofast  -fPIC  -Wall $(INCLUDES)
-LIBS = -lm -ldl
-OBJS = ../encoder/dspcreate.o ../encoder/dsp_encoder.o ../encoder/dsp_filters.o ../encoder/dsp_fileaccess.o 
+LIBS = -lm -ldl -lavdspencoder
+OBJS = ../encoder/dspcreate.o
 
-all:	dspcreate dspprogs
+all:	avdspencoder dspprogs dspcreate
 
-dspcreate:	 $(OBJS)
-	$(CC) $^ -rdynamic -o $@ $(LIBS)
+avdspencoder:
+	@cd ../encoder; make
 
 dspprogs:
 	@cd ../dspprogs; make
 
+dspcreate:	 $(OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS)
+
 clean:
 	@rm -f $(OBJS) dspcreate
 	@cd ../dspprogs ; make clean
+	@cd ../encoder ; make clean

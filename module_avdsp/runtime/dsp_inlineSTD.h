@@ -132,9 +132,11 @@ static const unsigned short crc16Table[256]=
 static int dspTpdfRandomSeed;       // random number changed at every sample
 static int dspTpdfValue;            // tpdf value = 1/0/-1 => -1/1/3
 static long long dspTpdfScaled;     // scalled up in 4.28 format, ready for addition
+static int dspTpdfBits;             // bit position for the tpdf dithering
 
 // shall be called only once, by the main task, at the begining of the Core code
 static inline void dspCalcTpdf(int bits) {
+     dspTpdfBits = bits;
      int      tpdf;
 #ifndef DSP_ARCH
      unsigned short seed   = dspTpdfRandomSeed;

@@ -1,3 +1,5 @@
+#include <stdlib.h>
+#include <string.h>
 #include "dsp_encoder.h"
 
 
@@ -64,13 +66,11 @@ int dspProgDACSTEREO(){
     return dsp_END_OF_CODE();
 }
 
-void dspNoProg(){
+int dspNoProg(){
     return dsp_END_OF_CODE();
 }
 
 int dspProg(int argc,char **argv){
-   int fcross = 1000;  
-   int subdelay = 745; 
    int prog = 0;
    
    for(int i=0 ; i<argc;i++) {
