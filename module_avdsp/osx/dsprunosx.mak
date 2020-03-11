@@ -11,5 +11,5 @@ all:
 	$(CC) $(CFLAGS) $(SOURCES) -DDSP_FORMAT=4 -o dsprundouble
 	$(CC) $(CFLAGS) $(SOURCES) -DDSP_FORMAT=5 -o dsprunfloatfloat
 	$(CC) $(CFLAGS) $(SOURCES) -DDSP_FORMAT=6 -o dsprundoublefloat
-	@rm -f *.dSYM
+	
 
