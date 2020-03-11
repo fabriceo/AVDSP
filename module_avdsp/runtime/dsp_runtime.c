@@ -82,7 +82,7 @@ static inline int dspFindFrequencyIndex(int freq){
 
 
 // make the basic sanity check, predefined some FS related variable
-// DOES NOT CLEAR THE DATA AREA
+// DOES CLEAR THE DATA AREA from end of program to max_code_size
 // to be run once before dspRuntime() and at EACH sampling frequency change.
 int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
                     int maxSize,                    // size of the opcode table available in memory including data area
@@ -127,8 +127,9 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         if ((size+length) > maxSize){
             dspprintf("ERROR : total size (program+data = %d) is over the allowed size (%d).\n",length+size, maxSize);
             return -6; }
-        //int * intPtr = (int*)codePtr + length;  // point on data
-        //for (int i = 0; i < size; i++) *(intPtr+i) = 0;
+        // now clear the data area, just after the program area
+        int * intPtr = (int*)codePtr + length;  // point on data space
+        for (int i = 0; i < size; i++) *(intPtr+i) = 0;
         dspTpdfRandomSeed = random;
         return length;  // ok
     } else {
