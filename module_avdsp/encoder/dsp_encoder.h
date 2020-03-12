@@ -24,63 +24,84 @@ int  addCode(int code);
 int  addFloat(float value);
 int  opcodeIndex();
 int  opcodeIndexAligned8();
-int  paramAlign8();
+int  paramAligned8();
 
  int  dsp_END_OF_CODE();
  void dsp_NOP();
  void dsp_CORE();
+ void dsp_SERIAL(int N);
+
  void dsp_SWAPXY();
  void dsp_COPYXY();
  void dsp_CLRXY();
+ void dsp_TPDF(int bits);
+
  void dsp_ADDXY();
  void dsp_SUBXY();
+ void dsp_SUBYX();
  void dsp_MULXY();
  void dsp_DIVXY();
  void dsp_SQRTX();
+ void dsp_NEGX();
+
+ //saturate the ALU to keep value between -1..+1 and transform to 0.31 format (for int64 ALU)
  void dsp_SAT0DB();
+ //apply a gain before saturation
+ void dsp_SAT0DB_GAIN(int paramAddr);
+ void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain);
+ //apply a TPDF dither between 8 and 24 bits (bit parameter) before saturation
+ void dsp_SAT0DB_TPDF();
+ void dsp_SAT0DB_TPDF_GAIN(int paramAddr);
+ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain);
 
- void dsp_SERIAL(int N);
+ void dsp_SHIFT(int bits);
 
- void dsp_TPDF(int bits);
-
+// load the ALU with the raw sample 0.31. ALU is 33.31 and can be used only for delay or store.
  void dsp_LOAD(int IO);
+// load a sample in 0.31 and apply a gain (4.28) result is 8.56 result
+ void dsp_LOAD_GAIN(int IO, int paramAddr);
+ void dsp_LOAD_GAIN_Fixed(int IO, dspGainParam_t gain);
+
+ //load many sample from many inputs and apply a gain (4.28) for each, resulting in a 8.56 result
+ void dsp_LOAD_MUX(int paramAddr);
+ int  dspLoadMux_Inputs(int number);
+ int  dspLoadMux_Data(int in, dspGainParam_t gain);
+
+ // store a 0.31 sample from ALU lsb
  void dsp_STORE(int IO);
- void dsp_STORE_TPDF(int IO, int bits);
 
-#if (DSP_FORMAT == DSP_FORMAT_INT64)
- void dsp_LOAD_DP(int mem);
- void dsp_STORE_DP(int mem);
-#endif
-
-
+// load inputs and store them imediately (32 bits)
  void dsp_LOAD_STORE();
  void dspLoadStore_Data(int memin, int memout);
 
-
+// load a memory (64 bits) location in the ALU
  void dsp_LOAD_MEM(int paramAddr);
+ //store ALU (64 bits) in memory location
  void dsp_STORE_MEM(int paramAddr);
  int  dspMem_Location();
 
-
-extern  int  dsp_PARAM();
+// initialize an area of data (biquad, gain, delay line, matrix...)
+ int  dsp_PARAM();
  int  dsp_PARAM_NUM(int num);
- int  dsp_DATAN(int * data,int n);
- int  dsp_DATA2(int a,int b);
- int  dsp_DATA4(int a,int b, int c, int d);
- int  dsp_DATA6(int a,int b, int c, int d, int e, int f);
- int  dsp_DATA8(int a,int b, int c, int d, int e, int f, int g, int h);
 
+ int  dspDataN(int * data, int n);
+ int  dspData2(int a,int b);
+ int  dspData4(int a,int b, int c, int d);
+ int  dspData6(int a,int b, int c, int d, int e, int f);
+ int  dspData8(int a,int b, int c, int d, int e, int f, int g, int h);
+ int  dspGeneratorSine(int samples);
+
+ //apply a gain (4.28) on the ALU . result is 8.56
+ void dsp_GAIN_Fixed(dspGainParam_t gain);
  void dsp_GAIN(int paramAddr);
  int  dspGain_Default(dspGainParam_t gain);
- void dsp_GAIN_Fixed(dspGainParam_t gain);
 
- void dsp_GAIN0DB(int paramAddr);
- int  dspGain0DB_Default(dspGainParam_t gain);
- void dsp_GAIN0DB_Fixed(dspGainParam_t gain);
+ //load a 4.28 value in the ALU (previous ALU moved to ALU2)
+ void dsp_VALUE_Fixed(float value);
+ void dsp_VALUE(int paramAddr);
+ int  dspValue_Default(float value);
 
- void dsp_COPY();
- void dsp_COPY_Data(int memin,int memout);
-
+// swap the ALU lsb (32 bits) with a delay line. to be used just before store.
  void dsp_DELAY(int paramAddr);
  int  dspDelay_MicroSec_Max(int maxus);
  int  dspDelay_MicroSec_Max_Default(int maxus, int us);
@@ -96,19 +117,16 @@ extern  int  dsp_PARAM();
  void dsp_DELAY_DP_FixedMilliMeter(int mm,int speed);
 #endif
 
+ // used to read a predefined wave form.
  void dsp_DATA_TABLE(int dataPtr, dspGainParam_t gain, int divider, int size);
 
- int  dspMacc_Inputs(int number);
- int  dspMacc_Data(int memin, dspGainParam_t gain);
- void dsp_MACC(int paramAddr);
-
- int  dspMux0DB_Inputs(int number);
- int  dspMux0DB_Data(int memin, dspGainParam_t gain);
- void dsp_MUX0DB(int paramAddr, int num);
-
- int  dspBiquad_Sections(int number);
+// calculate cascaded biquad
  void dsp_BIQUADS(int paramAddr);
+ //define the list of biquad within a PARAM structure
+ //each filters to be declared below. Number is the number of biquad cell (1storder = 2ndOrder = 1cell)
+ int  dspBiquad_Sections(int number);
 
+ // not tested yet
  int dsp_FIR(int paramAddr);
  int dspFir_Impulses();
  int dspFir_Delay(int value);

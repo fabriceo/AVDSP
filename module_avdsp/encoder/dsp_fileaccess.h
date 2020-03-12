@@ -36,7 +36,7 @@ extern int dspfreadFloat(float * value);
 extern int dspfreadImpulse(float * coefPtr, int sizeMax);
 
 extern int dspCreateBuffer(char * name, int * buff, int size);
-extern int dspCreateIntFile(char * name, int * buff, int size, const char *begin, const char *end);
+extern int dspCreateIntFile(char * name, int * buff, int size, char * begin, char * end);
 int dspCreateAssemblyFile(char * name, int * buff, int size);
 extern int dspReadBuffer(char * name, int * buff, int size);
 

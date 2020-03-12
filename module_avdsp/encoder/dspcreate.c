@@ -32,7 +32,11 @@ void usage() {
 
 int main(int argc, char **argv) {
     char *perr;
-    char *outFileName = NULL;
+    char * binFileName  = "dspcreate.bin";
+    char * hexFileName  = "dspcreate.hex";
+    char * asmFileName  = "dspcreate.asm";
+
+//    char *outFileName = NULL;
     char *dumpFileName = NULL;
     char *dspProgName = NULL;
     int outFileType = 0;
@@ -50,24 +54,24 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i],"-dspprog") == 0) {
                 i++;
                 if (argc>i) {
-			dspProgName = argv[i];
-			continue; } }
+			         dspProgName = argv[i];
+			         continue; } }
         if (strcmp(argv[i],"-binfile") == 0) {
                 i++;
                 if (argc>i) {
-                    outFileName = argv[i];
+                    binFileName = argv[i];
                     outFileType |= 1;
                     continue; } }
             if (strcmp(argv[i],"-hexfile") == 0) {
                 i++;
                 if (argc>i) {
-                    outFileName = argv[i];
+                    hexFileName = argv[i];
                     outFileType |= 2;
                     continue; } }
             if (strcmp(argv[i],"-asmfile") == 0) {
                 i++;
                 if (argc>i) {
-                    outFileName = argv[i];
+                    asmFileName = argv[i];
                     outFileType |= 4;
                     continue; } }
             if (strcmp(argv[i],"-dumpfile") == 0) {
@@ -84,13 +88,13 @@ int main(int argc, char **argv) {
                     continue; } }
 	    break;
     }
-
+/*
     if( dumpFileName == NULL) {
     	fprintf(stderr,"-dumpfile name Needed\n\n");
 	usage();
 	exit(-1);
     }
-
+*/
     if(dspProgName == NULL) {
     	fprintf(stderr,"-dspprog name Needed\n\n");
 	usage();
@@ -114,20 +118,22 @@ int main(int argc, char **argv) {
                     myDspMin, myDspMax, // list of frequencies treated by runtime. used to pre-generate biquad coef and delay lines
                     inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
 
-    size = dspProg(argc-i,&argv[i]); 
+	size = dspProg(argc-i,&argv[i]);     
 
     if (size > 0) {
         dspprintf("DSP program file successfully generated \n");
         if (outFileType & 1) {
-            dspCreateBuffer(outFileName, (int*)opcodes, size); // write bin file
+            dspCreateBuffer(binFileName, (int*)opcodes, size); // write bin file
+            dspprintf("stored in-> %s\n",binFileName);
         }
         if (outFileType & 2) {
-            dspCreateIntFile(outFileName, (int*)opcodes, size,hexBegin,hexEnd);
+            dspCreateIntFile(hexFileName, (int*)opcodes, size, (char*)hexBegin, (char*)hexEnd);
+            dspprintf("stored in-> %s\n",hexFileName);
         }
         if (outFileType & 4) {
-            dspCreateAssemblyFile(outFileName, (int*)opcodes, size);
+            dspCreateAssemblyFile(asmFileName, (int*)opcodes, size);
+            dspprintf("stored in-> %s\n",asmFileName);
         }
-        dspprintf("stored in-> %s\n",outFileName);
 
         if (outFileType & 8) dspprintf("Dump file -> %s\n",dumpFileName);
     } else {

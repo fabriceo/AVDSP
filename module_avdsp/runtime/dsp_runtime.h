@@ -104,9 +104,16 @@
 #define XCunsafe
 #endif
 
+#if defined(DSP_ARCH) && defined( DSP_XS2A )     // specific for xmos xs2 architecture
+// fast biquad assembly routine inspired from https://github.com/xmos/lib_dsp/blob/master/lib_dsp/src/dsp_biquad.S
+// value for DSP_MANTBQ is defined INSIDE the assembly file and must be updated according to dsp_header.h
+extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspSample_t * dataPtr, int num);
+#endif
+
+
 //prototypes
 opcode_t * XCunsafe dspFindCore(opcode_t * XCunsafe ptr, const int numCore);
-int dspRuntimeInit(opcode_t * XCunsafe codePtr, int maxSize, const int fs);
+int dspRuntimeInit(opcode_t * XCunsafe codePtr, int maxSize, const int fs, int random);
 int DSP_RUNTIME_FORMAT(dspRuntime)(opcode_t * XCunsafe ptr, int * XCunsafe rundataPtr, dspSample_t * XCunsafe sampPtr);
 
 #endif /* DSP_RUNTIME_H_ */

@@ -4,109 +4,160 @@
  *  Created on: 11 janv. 2020
  *      Author: Fabrice
  */
-#ifndef __XC__
-
-// some maths in fixed point
 
 
-// used in DSP_MULXY
-static inline void dspmul64_64QNM(long long * a,long long *b, int mant){ // example mant = 56 for 8.56 original format
-    // a = a * b -> 8.56 * 8.56 = 16.112 converted back into 8.56
-    // simplified version
-    *a >>= (mant/2);
-    *b >>= (mant/2);
-    *a *= *b;
+// some basic maths in fixed point with flexible mantissa
 
-}
-
-// used in DSP_GAIN, DSP_GAIN0DB and DATA_TABLE
-static inline long long dspmul64_32QNM(long long a, int b, int mant){
-
-    // simplified version
-    a >>= mant;    // reduce precision of ALU to fit the multiplication impact
-    a *= b;
-    return a;
-
-}
-
-//used in DSP_GAIN, DSP_GAIN0DB and dsp_MUX0DB and DSP_MACC
-static inline long long dspmul031_32QNM(int a, int b, const int mant, const int mantdp){
-    int shift = mantdp-(mant+31);   // compiler will treat all this as const
-    long long res;
-    res = (long long)a * b;
-    if (shift > 0) res <<= shift;
-    else
-        if (shift < 0) res >>= (-shift);
-    return res;
-
-}
-
-
-// used in DSP_DIVXY
-static inline void dspdiv64_64QNM( long long * a, long long * b, int mantdp){
-    // simplified approach by reducing precision of b
-    long long tmp = (*b >> (mantdp/2)); // convert  to 4.28
-    *a /= tmp;                // 8.56 / 4.28 => 4.28
-    *a <<= (mantdp/2);              // convert back to 8.56
-}
-
-// used in DSP_SQRT
-static inline void dspsqrt64QNM( long long *a, int mantdp){
-    // TODO ...
-}
-
-// used in DSP_FIR to be confirmed
-static inline int dspconv64_32QNM(long long a, int mant){  // 8.56 will be converted in 4.28 if mant = 28
-    return a >> mant;
-}
-
-// used in DSP_FIR to be confirmed
-static inline long long dsp32QNM_to64(int a, int mant){  // 4.28 will be converted to 8.56 if mant = 28
-    return (long long)a << mant;
-}
-
-// used in DSP_SAT0DB, DSP_STORE_DP, DSP_DEALY and DSP_BIQUAD
-static inline int dsp64QNM_to031(long long a, int mantdp){  // 8.56 will be converted in 0.31 if mant = 56
-    long long satpos = ((long long)1<<mantdp)-1;
-    long long satneg = -satpos-1;
-    if (a > satpos ) a = 0x7FFFFFFF;
-    else
-        if (a < satneg) a = -1;
-        else a >>= (mantdp-32+1);
-    return a;
-}
-
-// used in DSP_LOAD_DP
-static inline long long dsp031_to64QNM(int a, int mantdp){  // 0.31 will be converted to 8.56 if mant = 56
-    return (long long)a << (mantdp-32+1);
-}
-
-// used in DSP_BIQUAD
-static inline int dsp64QNM_to031check(long long a, int mantdp){
-    if (a>>32) return a >> (mantdp-32+1);
-    else return a;
-}
-
-// compute 32bit x 32 bits = 64 bits and returns only 32bits msb (not used)
-static inline int dspmul32_32_32(int a, int b){
-    long long res = ((long long) a)*b;
-    return res >> 32;
-}
-
-// compute 32bit x 32 bits = 64 bits and returns only 32bits msb
+// compute unsigned 32bit x 32 bits = 64 bits and returns only 32bits msb
 // USED in DSP_DELAY and DSP_DELAY_DP
 static inline unsigned int dspmulu32_32_32(unsigned int a, unsigned int b){
-    long long res = ((long long) a)*b;
+#ifndef DSP_ARCH  // default treatment
+    unsigned long long res = (unsigned long long)a * b;
     return res >> 32;
+#elif DSP_XS2A  // specific for xmos xs2 architecture
+    int z = 0;
+    asm("lmul %0,%1,%2,%3,%4,%5":"=r"(a),"=r"(b):"r"(a),"r"(b),"r"(z),"r"(z));
+    return a;
+#endif
 }
 
-// not used
-static inline int dspconvfloat_QNM( float x, int q )
+
+static inline int dspmuls32_32_32(int a, int b){
+#ifndef DSP_ARCH  // default treatment
+    long long res = (long long)a * b;
+    return res >> 32;
+#elif DSP_XS2A  // specific for xmos xs2 architecture
+    int ah;
+    unsigned al;
+    asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
+    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    return ah;
+#endif
+}
+
+// used in DSP_LOAD_GAIN, and DSP_LOAD_MUX
+static inline void dspmacs64_32_32(long long *alu, int a, int b){
+#ifndef DSP_ARCH  // default treatment
+    long long res = (long long)a * b;
+    *alu += res;
+#elif DSP_XS2A  // specific for xmos xs2 architecture
+    int ah = (*alu)>>32;
+    unsigned al = *alu;
+    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    *alu = ((long long)ah << 32) | al;
+#endif
+}
+
+
+// used in DSP_SAT0DB, DSP_SAT0DB_TPDF, DSP_SAT0DB_GAIN, DSP_SAT0DB_TPDF_GAIN
+static inline void dspSaturate64_031(long long *a){  // double precision will be saturated then converted in 0.31
+#ifndef DSP_ARCH
+    long long satpos = 1ULL << (DSP_MANT+31);
+    long long satneg = -satpos;
+    if ((*a) >= satpos ) *a = DSP_Q31(1.0); else
+    if ((*a) <= satneg) *a = DSP_Q31(-1.0);
+    else (*a) >>= DSP_MANT;
+#elif DSP_XS2A
+    unsigned int al = *a;
+    signed   int ah = *a >> 32;
+    asm("lsats %0,%1,%2":"+r"(ah),"+r"(al):"r"(DSP_MANT));
+    asm("lextract %0,%1,%2,%3,32":"=r"(al):"r"(ah),"r"(al),"r"(DSP_MANT));
+    *a = al;
+#endif
+}
+
+void dspSaturateFloat(dspALU_t *ALU){
+    if ((*ALU) > 1.0)  *ALU =  1.0; else
+    if ((*ALU) < -1.0) *ALU = -1.0;
+}
+
+// basically used to remove 28 bits of precision
+//used in DSP_SAT0DB_GAIN, DSP_SAT0DB_TPDF_GAIN
+static inline void dspShiftMant(long long *a){
+    (*a) >>= DSP_MANT;
+}
+
+// used in DSP biquad to fasten sample extraction
+static inline int dspShiftInt(long long a, int mant){
+#ifndef DSP_ARCH
+    return a >> mant;
+#elif DSP_XS2A
+    int ah = a>>32; unsigned int al = a;
+    asm("lextract %0,%1,%2,%3,32":"=r"(al):"r"(ah),"r"(al),"r"(mant));
+    return al;
+#endif
+}
+
+
+static const unsigned short crc16Table[256]=
 {
-    if( x < 0 ) return (((double)(1<<q)) * x - 0.5);
-    else if( x > 0 ) return (((double)((1<<q)-1)) * x + 0.5);
-    return 0;
+    0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
+    0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
+    0x1231,0x0210,0x3273,0x2252,0x52b5,0x4294,0x72f7,0x62d6,
+    0x9339,0x8318,0xb37b,0xa35a,0xd3bd,0xc39c,0xf3ff,0xe3de,
+    0x2462,0x3443,0x0420,0x1401,0x64e6,0x74c7,0x44a4,0x5485,
+    0xa56a,0xb54b,0x8528,0x9509,0xe5ee,0xf5cf,0xc5ac,0xd58d,
+    0x3653,0x2672,0x1611,0x0630,0x76d7,0x66f6,0x5695,0x46b4,
+    0xb75b,0xa77a,0x9719,0x8738,0xf7df,0xe7fe,0xd79d,0xc7bc,
+    0x48c4,0x58e5,0x6886,0x78a7,0x0840,0x1861,0x2802,0x3823,
+    0xc9cc,0xd9ed,0xe98e,0xf9af,0x8948,0x9969,0xa90a,0xb92b,
+    0x5af5,0x4ad4,0x7ab7,0x6a96,0x1a71,0x0a50,0x3a33,0x2a12,
+    0xdbfd,0xcbdc,0xfbbf,0xeb9e,0x9b79,0x8b58,0xbb3b,0xab1a,
+    0x6ca6,0x7c87,0x4ce4,0x5cc5,0x2c22,0x3c03,0x0c60,0x1c41,
+    0xedae,0xfd8f,0xcdec,0xddcd,0xad2a,0xbd0b,0x8d68,0x9d49,
+    0x7e97,0x6eb6,0x5ed5,0x4ef4,0x3e13,0x2e32,0x1e51,0x0e70,
+    0xff9f,0xefbe,0xdfdd,0xcffc,0xbf1b,0xaf3a,0x9f59,0x8f78,
+    0x9188,0x81a9,0xb1ca,0xa1eb,0xd10c,0xc12d,0xf14e,0xe16f,
+    0x1080,0x00a1,0x30c2,0x20e3,0x5004,0x4025,0x7046,0x6067,
+    0x83b9,0x9398,0xa3fb,0xb3da,0xc33d,0xd31c,0xe37f,0xf35e,
+    0x02b1,0x1290,0x22f3,0x32d2,0x4235,0x5214,0x6277,0x7256,
+    0xb5ea,0xa5cb,0x95a8,0x8589,0xf56e,0xe54f,0xd52c,0xc50d,
+    0x34e2,0x24c3,0x14a0,0x0481,0x7466,0x6447,0x5424,0x4405,
+    0xa7db,0xb7fa,0x8799,0x97b8,0xe75f,0xf77e,0xc71d,0xd73c,
+    0x26d3,0x36f2,0x0691,0x16b0,0x6657,0x7676,0x4615,0x5634,
+    0xd94c,0xc96d,0xf90e,0xe92f,0x99c8,0x89e9,0xb98a,0xa9ab,
+    0x5844,0x4865,0x7806,0x6827,0x18c0,0x08e1,0x3882,0x28a3,
+    0xcb7d,0xdb5c,0xeb3f,0xfb1e,0x8bf9,0x9bd8,0xabbb,0xbb9a,
+    0x4a75,0x5a54,0x6a37,0x7a16,0x0af1,0x1ad0,0x2ab3,0x3a92,
+    0xfd2e,0xed0f,0xdd6c,0xcd4d,0xbdaa,0xad8b,0x9de8,0x8dc9,
+    0x7c26,0x6c07,0x5c64,0x4c45,0x3ca2,0x2c83,0x1ce0,0x0cc1,
+    0xef1f,0xff3e,0xcf5d,0xdf7c,0xaf9b,0xbfba,0x8fd9,0x9ff8,
+    0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
+};
+
+
+// global variable. no need for volatile :
+// can be accessed in read mode by any task.
+
+static int dspTpdfRandomSeed;       // random number changed at every sample
+static int dspTpdfValue;            // tpdf value = 1/0/-1 => -1/1/3
+static long long dspTpdfScaled;     // scalled up in 4.28 format, ready for addition
+static int dspTpdfBits;             // bit position for the tpdf dithering
+
+// shall be called only once, by the main task, at the begining of the Core code
+static inline void dspCalcTpdf(int bits) {
+     dspTpdfBits = bits;
+     int      tpdf;
+#ifndef DSP_ARCH
+     unsigned short seed   = dspTpdfRandomSeed;
+     seed =  (seed << 8) ^ crc16Table[((seed >> 8)) ]; // very basic but fast randomizer ...
+#elif DSP_XS2A
+     unsigned seed   = dspTpdfRandomSeed;
+     asm ("crc32 %0,%1,%2":"+r"(seed):"r"(-1),"r"(0xEB31D82E));
+#endif
+     dspTpdfRandomSeed = seed;
+     if ((seed & 1) )
+         if (seed & 2)
+              tpdf = 3;
+         else tpdf = 1;
+     else
+         if (seed & 4)
+              tpdf = 1;
+         else tpdf = -1 ;
+     dspTpdfValue = tpdf;
+     long long res = (1<<DSP_MANT);// scalling factor
+     res *= tpdf<<(31-1-bits);      // -1 because tpdf is -1/1/3 for 0.5 rounding
+     dspTpdfScaled = res;
 }
 
 
-#endif // __XC__

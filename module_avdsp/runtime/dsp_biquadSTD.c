@@ -9,25 +9,27 @@
 
 #if DSP_ALU_INT32
 #error biquad 16x16=32 not implemented
-dspALU_t dsp_calc_biquads_32_16( dspALU_t ALU, dspParam_t * coefPtr, dspSample_t * dataPtr, int num, int skip, int q) {
+dspALU_t dsp_calc_biquads_short( dspALU_t ALU, dspParam_t * coefPtr, dspSample_t * dataPtr, int num, const int mantbq, int skip) {
     return ALU;
 }
 #endif
 
-#if DSP_ALU_INT64 // TESTED and OK !
-dspALU_t dsp_calc_biquads( dspSample_t x, dspParam_t * coefPtr, dspSample_t * dataPtr, int num, const int mantbq, int skip) {
-    dspALU_t xn = x;
+#if DSP_ALU_INT64 // TESTED and OK with matissa reintegration and a1 minus 1.0 ! missing code for Saturation
+dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspSample_t * dataPtr, short num, const int mantbq, int skip) {
+    //xn >>= mantbq;  done in the caller
     dspALU_t ALU;
-    while (num--){
+    while (num--) {
         dspParam_t * cPtr = coefPtr;
-        dspParam_t b0 = * coefPtr++; // format is 4.28
+        dspParam_t b0 = * coefPtr++;
         dspParam_t b1 = * coefPtr++;
         dspParam_t b2 = * coefPtr++;
         dspParam_t a1 = * coefPtr++;
         dspParam_t a2 = * coefPtr++;
-        coefPtr = cPtr + skip;  // becaue we have many coef depending on frequency span
-        // dataptr map : xn-1, xn-2, yn-1, yn-2
-        ALU = (xn * b0);
+        coefPtr = cPtr + skip;  // because we have many coef depending on frequency span
+        // dataptr map : prevlsb, prevmsb, xn-1, xn-2, yn-1, yn-2
+        dspALU_t* p = (dspALU_t*)dataPtr;
+        ALU = *p; dataPtr += 2;      // load latest value of the biquad
+        ALU += (xn * b0);
         dspALU_t prev = (*dataPtr); //load xn-1
         ALU += (prev * b1);         // b1*xn-1
         (*dataPtr++) = xn;          // store xn => xn-1
@@ -39,16 +41,18 @@ dspALU_t dsp_calc_biquads( dspSample_t x, dspParam_t * coefPtr, dspSample_t * da
         prev = (*dataPtr);          // load yn-2
         ALU += (prev * a2);         //yn-2*a2
         (*dataPtr--) = xn;          // store yn-1 => yn-2 and point on yn-1
-        xn = ALU >> (mantbq);       // convert 8.56 to original format
-        (*dataPtr++) = xn;          // store yn => yn-1     //4->6
+        xn = ALU >> (mantbq);       // convert 8.56 to original format by removing mantissa from biquad coeficcients
+        (*dataPtr++) = xn;          // store yn => yn-1
         dataPtr++;
+        *p = ALU;                   // store last biquad compute in "prev" for mantissa reintegration
     }
-    return xn;
+    //return xn;    prefer returning scaled value
+    return ALU;                     // the result is scaled with the biquad precision (28) that was removed before the call
 }
 #endif
 
 #if DSP_ALU_FLOAT // not tested
-dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspSample_t * dataPtrParam, int num, int skip) {
+dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspSample_t * dataPtrParam, short num, int skip) {
 #if (DSP_ALU_FLOAT32 == 1)
     float * dataPtr = (float*)dataPtrParam;
 #else
@@ -57,7 +61,7 @@ dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspSample_t
     dspALU_t xn = x;    // x is float (single precision)
     dspALU_t ALU;
 
-    for (int n=0; n< num; n++){
+    while (num--) {
         dspParam_t * cPtr = coefPtr;
         dspParam_t b0 = * coefPtr++;
         dspParam_t b1 = * coefPtr++;
@@ -82,7 +86,7 @@ dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspSample_t
         (*dataPtr++) = xn;          // store yn => yn-1     //4->6
         dataPtr++;
     }
-    return ALU;
+    return xn;
 }
 
 #endif
