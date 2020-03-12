@@ -6,8 +6,7 @@ endif
 
 ifeq ($(uname_S), Windows)
     CFLAGS = -DWIN32
-endif
-ifeq ($(uname_S), Darwin)
+else ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
 	CFLAGS = -DLINUX
@@ -25,14 +24,12 @@ all:
 clean:
 	@rm -f *.dylib 
 
-else
-ifeq ($(uname_S), Windows)
-    
+else ($(uname_S), Windows)
+#windows compile here    
 else
 all:
 	$(CC) $(CFLAGS) -shared -o libavdspencoder.so dsp_*.c 
 clean:
 	@rm -f *.so 
-endif
 endif
 

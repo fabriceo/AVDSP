@@ -10,14 +10,12 @@ endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
-	CFLAGS = -DLINUX
+	CFLAGS = -DLINUX 
 endif
-
 #this libraries are not really needed. just to check compilation errors for each DSP_FORMAT
 
 INCLUDES = -I../runtime
-CFLAGS = -Ofast -fPIC -Wall $(INCLUDES)
-CC = gcc -g
+CFLAGS += -Ofast -fPIC -Wall $(INCLUDES)
 
 ifeq ($(uname_S), Darwin)
 all:
@@ -29,8 +27,8 @@ all:
 	
 clean:
 	@rm -f *.dylib 
-else
-ifeq ($(uname_S), Windows)
+	
+else ($(uname_S), Windows)
 #windows compilation here
     
 else
@@ -45,5 +43,4 @@ all:
 clean:
 	@rm -f *.so
 
-endif
 endif
