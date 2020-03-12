@@ -24,7 +24,8 @@ all:
 	$(CC) $(CFLAGS) -dynamiclib -DDSP_FORMAT=4 dsp_*.c -o libavdspruntimedouble.dylib
 	$(CC) $(CFLAGS) -dynamiclib -DDSP_FORMAT=5 dsp_*.c -o libavdspruntimefloatfloat.dylib
 	$(CC) $(CFLAGS) -dynamiclib -DDSP_FORMAT=6 dsp_*.c -o libavdspruntimedoublefloat.dylib
-	
+	@rm -f -r *.dSYM
+
 clean:
 	@rm -f *.dylib 
 	

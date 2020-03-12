@@ -1,22 +1,27 @@
 INCLUDES = -I../encoder -I../runtime
 CFLAGS = -DDSP_PRINTF=3 -Ofast  -fPIC  -Wall $(INCLUDES)
 LIBS = -lm -ldl
-LIB2 = -L../encoder -lavdspencoder
-OBJS2 = ../encoder/dsp_encoder.o ../encoder/dsp_filters.c ../encoder/dsp_fileaccess.o
+LIBS2 = $(LIBS) -L../encoder -lavdspencoder
+OBJS2 = ../encoder/dspcreate.o ../encoder/dsp_encoder.o ../encoder/dsp_filters.o ../encoder/dsp_fileaccess.o
 OBJS1 = ../encoder/dspcreate.o
 
-all:	avdspencoder dspprogs dspcreate
+all:	libencoder libdspprogs libcopy dspcreate
 
-avdspencoder:
+libencoder:
 	@cd ../encoder; make
 
-dspprogs:
+libdspprogs:
 	@cd ../dspprogs; make
 
-dspcreate:	 $(OBJS1)
-	$(CC) $(CFLAGS) $^ -o $@ $(LIBS) $(LIB2)
+libcopy:
+	@cp -f ../encoder/*.dylib ../osx
+	@cp -f ../dspprogs/*.dylib ../osx
 
+dspcreate:	 $(OBJS1)
+	$(CC) $(CFLAGS) $^ -o $@ $(LIBS2)
+	@rm -f -r *.dSYM
+	
 clean:
-	@rm -f $(OBJS) dspcreate
+	@rm -f $(OBJS) dspcreate *.dylib
 	@cd ../dspprogs ; make clean
 	@cd ../encoder ; make clean

@@ -20,6 +20,7 @@ CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 ifeq ($(uname_S), Darwin)
 all:
 	$(CC) $(CFLAGS) -dynamiclib  -o libavdspencoder.dylib dsp_*.c
+	@rm -f -r *.dSYM
 	
 clean:
 	@rm -f *.dylib 
@@ -29,6 +30,7 @@ else ($(uname_S), Windows)
 else
 all:
 	$(CC) $(CFLAGS) -shared -o libavdspencoder.so dsp_*.c 
+	
 clean:
 	@rm -f *.so 
 endif

@@ -17,13 +17,14 @@ INCLUDES = -I../encoder -I../runtime
 CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 
 ifeq ($(uname_S), Darwin)
-LIB = -L../encoder -lavdspencoder
+LIBS = -L../encoder -lavdspencoder
 
 PROGS = oktoprog.dylib oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib
 
 %.dylib:	%.c
-	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(LIB)
-	
+	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(LIBS)
+	@rm -f -r *.dSYM
+
 all:	 $(PROGS)
 
 clean:
