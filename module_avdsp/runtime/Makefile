@@ -29,7 +29,8 @@ all:
 clean:
 	@rm -f *.dylib 
 	
-else ($(uname_S), Windows)
+else 
+ifeq ($(uname_S), Windows)
 #windows compilation here
     
 else
@@ -44,4 +45,5 @@ all:
 clean:
 	@rm -f *.so
 
+endif
 endif

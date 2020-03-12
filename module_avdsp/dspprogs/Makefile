@@ -30,7 +30,8 @@ all:	 $(PROGS)
 clean:
 	@rm -f $(PROGS) 
 
-else($(uname_S), Windows)
+else
+ifeq ($(uname_S), Windows)
 all:
 
 clean:
@@ -46,5 +47,6 @@ all:	$(PROGS)
 clean:
 	@rm -f *.so
 	
+endif
 endif
 

@@ -6,10 +6,12 @@ endif
 
 ifeq ($(uname_S), Windows)
     CFLAGS = -DWIN32
-else ($(uname_S), Darwin)
+else 
+ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
 	CFLAGS = -DLINUX
+endif
 endif
 
 #not satisfied with dsp_*c to be changed in a later version
@@ -25,7 +27,8 @@ all:
 clean:
 	@rm -f *.dylib 
 
-else ($(uname_S), Windows)
+else 
+ifeq ($(uname_S), Windows)
 #windows compile here    
 else
 all:
@@ -34,4 +37,4 @@ all:
 clean:
 	@rm -f *.so 
 endif
-
+endif
