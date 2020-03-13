@@ -1,8 +1,8 @@
 
 INCLUDES = -I../runtime -I../encoder
 CFLAGS = -Ofast   -Wall $(INCLUDES)
-LIBS = -lm -lasound
-OBJS = ../runtime/alsa.o  ../runtime/dsp_biquadSTD.o  ../runtime/dsp_firSTD.o  ../runtime/dsprun.o  ../runtime/dsp_runtime.o ../encoder/dsp_fileaccess.o
+LIBS = -lm -lasound -lsndfile
+OBJS = ../runtime/dsp_biquadSTD.o  ../runtime/dsp_firSTD.o  ../runtime/dsp_runtime.o ../encoder/dsp_fileaccess.o ../linux/alsa.o  ../linux/dsprun.o 
 
 dsprun:	 $(OBJS)
 	$(CC) $^ -o $@ $(LIBS)
