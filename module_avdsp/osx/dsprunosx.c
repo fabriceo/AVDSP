@@ -17,6 +17,13 @@ dspSample_t inputOutput[inputOutputMax];        // table containing the input an
 #include <string.h>
 #include <stdlib.h>
 
+// print the fatal error message and quit encoder
+void dspFatalError(char *msg) {
+    dspprintf("FATAL ERROR: %s\n",msg);
+    exit(1);    // from stdlib.h
+}
+
+
 int main(int argc, char **argv) {
 
     char * fileName = "dspprogram.bin";
@@ -48,19 +55,21 @@ int main(int argc, char **argv) {
     // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
     int result = dspRuntimeInit(codePtr, 96000, opcodesMax, 0);   
 
-    if (result < 0) {
-        dspprintf("FATAL ERROR: problem with opcode header or compatibility\n");
-        exit(-1);
-    }
+    if (result < 0) 
+        dspFatalError("Problem with opcode header or compatibility.");
+    
     int * dataPtr = (int*)codePtr + result;           // runing data area just after the program code
 
-    opcode_t * codeStart = dspFindCore(codePtr, 1);             // search for code Start for core 1
-    if (codeStart)
-        dspprintf("First core starts at : %d\n",(int)((int*)codeStart-(int*)codePtr))
-    else {
-        dspprintf("FATAL ERROR : no core found in dsp program.\n");
-        exit(-1);
+    int nbcores;
+    opcode_t *codeStart[8];
+
+    for(nbcores=0;nbcores<8; nbcores++) {
+           codeStart[nbcores] = dspFindCore(codePtr, nbcores+1);
+           if (codeStart[nbcores]==0)  break;
     }
+
+    if (nbcores == 0) 
+        dspFatalError("No core found in dsp program");
 
 #if DSP_SAMPLE_FLOAT
     inputOutput[8] = -0.3;
@@ -74,7 +83,8 @@ int main(int argc, char **argv) {
     printf("io(9) = 0x%X\n",inputOutput[9]);
 #endif
 
-    DSP_RUNTIME_FORMAT(dspRuntime)(codeStart, dataPtr, &inputOutput[0]);    // simulate 1 fs cycle in the first task
+    for(int nc=0; nc<nbcores; nc++) 
+        DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput);    // simulate 1 fs cycle in the first task
 
 #if DSP_SAMPLE_FLOAT
     dspprintf("io(10) = %f\n",inputOutput[10]);
