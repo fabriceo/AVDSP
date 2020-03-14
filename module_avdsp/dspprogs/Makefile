@@ -19,7 +19,7 @@ CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 ifeq ($(uname_S), Darwin)
 LIBS = -L../encoder -lavdspencoder
 
-PROGS = oktoprog.dylib oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib
+PROGS = oktoprog.dylib oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib 
 
 %.dylib:	%.c
 	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(LIBS)

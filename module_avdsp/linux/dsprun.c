@@ -19,12 +19,10 @@
 #define opcodesMax 10000
 #define inputOutputMax 32
 
-static dspSample_t inputOutput[inputOutputMax];         // table containing the input an output samples treated by the dsp_engine
-static opcode_t opcodes[opcodesMax];           		// table for dsp code
 
 static void usage() {
-	fprintf(stderr,"dsprun alsainname alsaoutname nbchin nbchout dspprog.bin fs\n");
-	fprintf(stderr,"or : \ndsprun -i impulsefilename nbchin nbchout dspprog.bin fs\n");
+	fprintf(stderr,"dsprun alsainname alsaoutname dspprog.bin fs\n");
+	fprintf(stderr,"or : \ndsprun -i impulsefilename  dspprog.bin fs\n");
 	exit(-1);
 }
 
@@ -33,18 +31,22 @@ int main(int argc, char **argv) {
     char* dspfilename;
     char* alsainname,*alsaoutname;
     char* impulsename = NULL ;
-    int nbchin, nbchout;
     int fs;
 
-    int size,result;
-    int nbcores;
+    dspSample_t inputOutput[inputOutputMax];
+    opcode_t opcodes[opcodesMax];
+
     int *dataPtr;
     opcode_t *codeStart[4];
+    dspHeader_t *hptr;
+    int nbcores;
+    int nbchin, nbchout;
 
-    int nc,n,ch;
+    int size,result;
+    int nc,n,ch,o;
 
     // parse and check args 
-    if(argc<7) usage();
+    if(argc<5) usage();
 
     if(strcmp(argv[1],"-i") == 0 )  {
 	impulsename = argv[2];
@@ -52,10 +54,8 @@ int main(int argc, char **argv) {
     	alsainname=argv[1];
     	alsaoutname=argv[2];
     }
-    nbchin=atoi(argv[3]); if(nbchin <=0) usage();
-    nbchout=atoi(argv[4]); if(nbchin <=0) usage();
-    dspfilename=argv[5];
-    fs=atoi(argv[6]); if(fs<=0) usage();
+    dspfilename=argv[3];
+    fs=atoi(argv[4]); if(fs<=0) usage();
 
     // load dsp prog
     size = dspReadBuffer(dspfilename, (int*)opcodes, opcodesMax);
@@ -80,10 +80,18 @@ int main(int argc, char **argv) {
 	break;
     }
 
+    // compute nbchin and nbchout;
+    nbchin=nbchout=0;
+    hptr=(dspHeader_t*)opcodes;
+    for(ch=0;ch<32;ch++) {
+	if(hptr->usedInputs & (1<<ch)) nbchin++;
+	if(hptr->usedOutputs & (1<<ch)) nbchout++;
+    }
+    
     if(impulsename) {
-	 int n;
 	 SNDFILE *outsnd;
 	 SF_INFO infsnd;
+    	 dspSample_t Outputs[inputOutputMax];
 
          infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_32;
          infsnd.samplerate = fs;
@@ -96,36 +104,51 @@ int main(int argc, char **argv) {
          }
 
 	// impulse
-        for(ch=0;ch<nbchin;ch++) {
-    		inputOutput[ch] = INT32_MAX/2;
-	}
+        for(ch=0;ch<32;ch++) 
+		if(hptr->usedInputs & (1<<ch)) {
+    			inputOutput[ch] = INT32_MAX/2;
+		}
 	
 	for(nc=0;nc<nbcores;nc++) 
     		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
+       	for(ch=0,o=0;ch<32;ch++)
+		if(hptr->usedOutputs & (1<<ch)) {
+    			Outputs[o]=inputOutput[ch];
+			o++;
+		}
+
 #if DSP_SAMPLE_INT
-    	sf_write_int(outsnd,&(inputOutput[8]),nbchout);
+    	sf_write_int(outsnd,Outputs,nbchout);
 #endif
 #if DSP_SAMPLE_FLOAT
-    	sf_write_float(outsnd,&(inputOutput[8]),nbchout);
+    	sf_write_float(outsnd,Outputs,nbchout);
 #endif
 
 	// then fs/2 0 samples
-        for(ch=0;ch<nbchin;ch++)
-    		inputOutput[ch] = 0;
+        for(ch=0;ch<32;ch++)
+		if(hptr->usedInputs & (1<<ch))
+    			inputOutput[ch] = 0;
 	
 	for(n=0;n<fs/2;n++) {
 		for(nc=0;nc<nbcores;nc++) 
     			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
+       		for(ch=0,o=0;ch<32;ch++)
+			if(hptr->usedOutputs & (1<<ch)) {
+    				Outputs[o]=inputOutput[ch];
+				o++;
+			}
+
 #if DSP_SAMPLE_INT
-    		sf_write_int(outsnd,&(inputOutput[8]),nbchout);
+    		sf_write_int(outsnd,Outputs,nbchout);
 #endif
 #if DSP_SAMPLE_FLOAT
-    		sf_write_float(outsnd,&(inputOutput[8]),nbchout);
+    		sf_write_float(outsnd,Outputs,nbchout);
 #endif
 
 	}
+
 	sf_close(outsnd);
 
     } else {
@@ -136,7 +159,7 @@ int main(int argc, char **argv) {
         	exit(-1);
     	}
 
-	inbuffer=(int*)malloc(sizeof(int)*nbchout*8192);
+	inbuffer=(int*)malloc(sizeof(int)*nbchin*8192);
 	outbuffer=(int*)malloc(sizeof(int)*nbchout*8192);
 
     	// infinite loop
@@ -149,15 +172,21 @@ int main(int argc, char **argv) {
 		for (n=0;n < sz ; n++) {
 
         		// input 0-7 
-        		for(ch=0;ch<nbchin;ch++)
-    				inputOutput[ch] = inbuffer[n*nbchin+ch];
+        		for(ch=0;ch<32;ch++)
+				if(hptr->usedInputs & (1<<ch)) {
+    					inputOutput[ch] = inbuffer[n*nbchin+o];
+					o++;
+				}
 		
 			for(nc=0;nc<nbcores;nc++) 
     				DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
         		// outputs 8-15
-        		for(ch=0;ch<nbchout;ch++)
-    				outbuffer[n*nbchout+ch]=inputOutput[ch+8] ;
+        		for(ch=0,o=0;ch<32;ch++)
+				if(hptr->usedOutputs & (1<<ch)) {
+    					outbuffer[n*nbchout+o]=inputOutput[ch] ;
+					o++;
+				}
 		}
 
 		writeAlsa(outbuffer , sz) ;
