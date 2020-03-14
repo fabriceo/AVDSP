@@ -127,10 +127,11 @@ int  paramAligned8();
  int  dspBiquad_Sections(int number);
 
  // not tested yet
- int dsp_FIR(int paramAddr);
- int dspFir_Impulses();
- int dspFir_Delay(int value);
- int dspFir_ImpulseFile(char * name, int length);
+ void dsp_FIR(int paramAddr);
+ int  dspFir_Impulses();
+ int  dspFir_Delay(int value);
+ int  dspFir_ImpulseFile(char * name, int length);
 
+ void dsp_RMS(int timems, int delayLine);
 
 #endif /* DSP_ENCODER_H_ */

@@ -1057,8 +1057,6 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
     return tmp;
 }
 
-
-
 int dspFir_Impulses(){
     startParamSection(DSP_FIR, numberFrequencies);
     int pos = opcodeIndexMisAligned8();
@@ -1068,7 +1066,7 @@ int dspFir_Impulses(){
 
 // create an opcode for executing a fir filter based on several impulse located at "paramAddr"
 // minFreq and maxFreq informs on the number of impulse and supported frequencies (should require SRC for other frequencies...in later version)
-int dsp_FIR(int paramAddr){    // possibility to restrict the number of impulse, not all frequencies covered
+void dsp_FIR(int paramAddr){    // possibility to restrict the number of impulse, not all frequencies covered
 
     int end = checkInParamSpace(paramAddr,2*numberFrequencies);
 
@@ -1102,7 +1100,6 @@ int dsp_FIR(int paramAddr){    // possibility to restrict the number of impulse,
         // generate list of offset for each frequency supported by the dsp runtime
         addCodeOffset(tableFreq[f], base);
     addDataSpace(lengthMax);                    // request a data space in the data area corresponding to the largest impulse discovered
-    return base;
 }
 
 
@@ -1146,3 +1143,22 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
 #endif
     return pos;
 }
+
+// integrate a 0.31 sample during x miliseconds. then moving average in delay line
+void dsp_RMS(int timems, int delayLine){
+    dspprintf3("DSP_RMS %dms\n",timems);
+    if (timems <10)
+        dspFatalError("time parameter too small, 10ms integration time as minimum.");
+    if (timems>1000000) // 10 0000 seconds !
+        dspFatalError("time parameter too large.");  
+    float timef = timems *0.001;
+    float timeInteg = timef / delayLine;
+    float max32bits = 65536.0; max32bits *= max32bits; // 1<<32
+    int count =  max32bits * timeInteg; // just multiply this by the FS    
+    addOpcodeLength(DSP_RMS);
+    addCode(count);
+    addCode(delayLine);
+    addDataSpaceAligned8(1+1+2+2+delayLine*2); // 
+}
+
+

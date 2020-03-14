@@ -13,12 +13,14 @@
 
 //#define DSP_SINGLE_CORE 1 // set this define if only 1 core available on the target arch
 
+int dspSamplingFreq;
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
 int dspNumSamplingFreq;
 int dspSamplingFreqIndex;
 int dspBiquadFreqSkip;
 static int dspDelayLineFactor;
+static int dspRmsFactorFS;
 static int dspBiquadFreqOffset;
 
 
@@ -74,6 +76,17 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
         dspDelayFactor*705600, dspDelayFactor*768000
 };
 
+#define dspRmsFactor 1000.0  // 2^32/10^6 TODO
+const unsigned int dspTableRmsFactor[FMAXpos] = {
+        dspRmsFactor/8000.0, dspRmsFactor/16000.0,
+        dspRmsFactor/24000.0, dspRmsFactor/32000.0,
+        dspRmsFactor/44100.0, dspRmsFactor/48000.0,
+        dspRmsFactor/88200.0, dspRmsFactor/96000.0,
+        dspRmsFactor/176400.0,dspRmsFactor/192000.0,
+        dspRmsFactor/352800.0,dspRmsFactor/384000.0,
+        dspRmsFactor/705600.0, dspRmsFactor/768000.0
+};
+
 
 static inline int dspFindFrequencyIndex(int freq){
     for (int i=0; i<FMAXpos; i++)
@@ -103,6 +116,7 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
              dspprintf("ERROR : supported sampling freq not compatible with dsp program.\n");
              return -2; }
         //printf("INIT ** frequencies : min %d, max %d, num %d, index %d\n",min, max, max-min+1,freqIndex - min);
+        dspSamplingFreq = freqIndex;
         dspMinSamplingFreq = min;
         dspMaxSamplingFreq = max;
         dspSamplingFreqIndex = freqIndex - min;
@@ -110,6 +124,7 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         dspBiquadFreqSkip = 2+6*dspNumSamplingFreq;   // 3 words for filter user params (type+freq, Q, gain) + 5 coef alligned per biquad
         dspBiquadFreqOffset = 5+6*dspSamplingFreqIndex; // skip also the 1+1+3 first words
         dspDelayLineFactor = dspTableDelayFactor[freqIndex];
+        dspRmsFactorFS = dspTableRmsFactor[freqIndex];
 
         unsigned sum ;
         int numCores ;
@@ -602,7 +617,46 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             }
             break; }
 
-
+        case DSP_RMS: {
+            dspprintf2("DSP_RMS");
+            unsigned factor = *cptr++;   // to compute the number of  sum.square count before delaying/average
+            int delay = *cptr++;    // number of steps in the delayLine
+            int offset = *cptr;     // where are the data
+            int * dataPtr = rundataPtr+offset;
+            int fs = dspTableFreq[dspSamplingFreq];
+            unsigned maxCounter = dspmulu32_32_32((unsigned)fs,factor);    //dynamic calculation of max count (not expensive!)
+            int counter = *dataPtr++;
+            int index = *dataPtr++; // current position in the delay line
+            dspALU_t *sumSquarePtr = (dspALU_t*)dataPtr--;   // current 64bits sum.square
+            int sample = dspmuls32_32_32(ALU,dspRmsFactorFS);   // scale sample according to FS
+            ALU = *sumSquarePtr;
+            dspmacs64_32_32(&ALU, sample, sample);
+            counter ++;
+            if (counter >= maxCounter) {
+                dspALU_t *averagePtr = sumSquarePtr+1;  // position of the averaged sum.square
+                dspALU_t *delayPtr = sumSquarePtr+2;    // start of the delay line
+                dspALU_t value = *averagePtr;
+                value -= *(delayPtr+index);             // remove oldest value
+                *(delayPtr+index) = ALU;                // store newest
+                ALU += value;                           // use it in the result
+                *averagePtr = ALU;                      // memorize it
+                index++;                                // prepare for next position in the delay line
+                if (index >= delay) index = 0;
+                *dataPtr-- = index;                     // memorize futur position
+                *dataPtr = 0;                           // reset counter of sum.squre
+                *sumSquarePtr = 0;                      // reset sum.square
+            } 
+            else {
+                *sumSquarePtr = ALU;                    // memorize sumsquare
+                *dataPtr = counter;                     // and new incremented counter
+                if (counter == 1) {
+                    //scale back ALU due to dspRmsFactorFS
+                } else
+                if (counter == 2) {
+                    // opportunity to compute sqrt here, to balance cpu load on each cycle
+                }
+            }
+            break; }
 
         } // switch (opcode)
 

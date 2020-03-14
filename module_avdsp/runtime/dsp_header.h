@@ -144,6 +144,8 @@ enum dspOpcodesEnum {
 
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
 
+    DSP_RMS,            // compute sum of square during a given period then compute moving overage and sqrt
+
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version
 };
 

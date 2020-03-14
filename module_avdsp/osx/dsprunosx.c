@@ -47,11 +47,9 @@ int main(int argc, char **argv) {
 
     int size = dspReadBuffer(fileName, (int*)codePtr, opcodesMax);
 
-    if (size < 0) {
-        dspprintf("FATAL ERROR trying to load opcode.\n");
-        exit(-1);
-    }
-
+    if (size < 0) 
+        dspFatalError("Cant load opcode file.");
+ 
     // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
     int result = dspRuntimeInit(codePtr, 96000, opcodesMax, 0);   
 
@@ -67,9 +65,6 @@ int main(int argc, char **argv) {
            codeStart[nbcores] = dspFindCore(codePtr, nbcores+1);
            if (codeStart[nbcores]==0)  break;
     }
-
-    if (nbcores == 0) 
-        dspFatalError("No core found in dsp program");
 
 #if DSP_SAMPLE_FLOAT
     inputOutput[8] = -0.3;
