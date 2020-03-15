@@ -44,6 +44,7 @@ int dspProgDACSTEREO(int outs, int dither){
 	    for (int i=0; i<2; i++) {
 	    	dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
 	    	dsp_SAT0DB_TPDF();
+	    	dsp_RMS(60000,60);
 	    	dsp_STORE( USBIN(i) );
 		}
 	} else {

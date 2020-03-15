@@ -1144,21 +1144,62 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     return pos;
 }
 
-// integrate a 0.31 sample during x miliseconds. then moving average in delay line
-void dsp_RMS(int timems, int delayLine){
-    dspprintf3("DSP_RMS %dms\n",timems);
-    if (timems <10)
+// integrate a 0.31 sample during x miliseconds. then moving average in delay line, no sqrt
+// result is 0.63 => for sum.square(1.0) result is 1.0 in double precision, future sqrt will bring it to 0.31
+void dsp_RMS(int timetot, int delayLine){
+    dspprintf3("DSP_RMS %dms\n",timetot);
+    if (timetot <10)
         dspFatalError("time parameter too small, 10ms integration time as minimum.");
-    if (timems>1000000) // 10 0000 seconds !
-        dspFatalError("time parameter too large.");  
-    float timef = timems *0.001;
-    float timeInteg = timef / delayLine;
-    float max32bits = 65536.0; max32bits *= max32bits; // 1<<32
-    int count =  max32bits * timeInteg; // just multiply this by the FS    
+    if (timetot>7200000) // 2 hours !
+        dspFatalError("time parameter too large, 2 hours max.");
+
+    if (delayLine < 1)
+        dspFatalError("delay line should be minimum 10ms.");
+
+    //int base =
     addOpcodeLength(DSP_RMS);
-    addCode(count);
-    addCode(delayLine);
-    addDataSpaceAligned8(1+1+2+2+delayLine*2); // 
+    addDataSpaceAligned8(5+6+delayLine*2); //
+    // 1 counter    (0)
+    // 1 index      (1)
+    // 1 lastsqrt   (2)
+    // 1 sqrtwip    (3)
+    // 1 sqrtbit    (4)
+    // 2 sumsquare  (5)
+    // 2 movingavg  (+1)
+    // 2 sqrtinput  (+2)
+    // 2xN delayLine(+3)
+
+
+    double twoP32 = 1ULL<<32;
+    //int maxFreq = dspTableFreq[dspMaxSamplingFreq];
+    double delayf = delayLine;
+    double timesecf = timetot; timesecf /= 1000.0;
+
+    for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
+        // generate list of optimized divisor and counter depending on delayline
+        int fs = dspTableFreq[f];
+        double fsf = fs;
+
+        double maxCounterf = fsf * timesecf / delayf;
+        int maxCounter = maxCounterf;
+        addCode(maxCounter);
+
+        fsf /= 2.0;
+        float multf = twoP32 / sqrt(fsf) / sqrt(delayf) + 1.0;
+        int mult = multf;
+        addCode( mult);
+        addCode( delayf);
+        dspprintf2("F = %d, count = %d, mult = %d\n",fs,maxCounter,mult);
+    }
 }
 
+void dsp_CIC_I(int delay){
+    dspprintf3("DSP_CIC_I %d samples\n",delay);
+    addOpcodeParam(DSP_CIC_I, delay);
+}
+
+void dsp_CIC_D(int delay){
+    dspprintf3("DSP_CIC_D %d samples\n",delay);
+    addOpcodeParam(DSP_CIC_D, delay);
+}
 

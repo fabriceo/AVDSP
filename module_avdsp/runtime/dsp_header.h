@@ -104,6 +104,7 @@ enum dspOpcodesEnum {
     DSP_SQRTX,          // perfomr X = sqrt(x)
     DSP_SHIFT,          // perform shift left or right if param is negative
     DSP_VALUE,          // load an imediate 32bit value in 4.28 format
+    DSP_DIVINT,         // perform X = X / n where n is an integer number
 
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in 0.31 format
@@ -144,7 +145,10 @@ enum dspOpcodesEnum {
 
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
 
-    DSP_RMS,            // compute sum of square during a given period then compute moving overage and sqrt
+/* workin progress only */
+    DSP_RMS,            // compute sum of square during a given period then compute moving overage but no sqrt
+    DSP_CIC_D,           // decimator CIC filter delay D as parameter
+    DSP_CIC_I,           // interpolator CIC filter delay D as parameter
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version
 };

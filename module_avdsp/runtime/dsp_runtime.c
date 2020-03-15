@@ -617,46 +617,81 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             }
             break; }
 
+/* WORK IN POGRESS ONLY */
         case DSP_RMS: {
             dspprintf2("DSP_RMS");
-            unsigned factor = *cptr++;   // to compute the number of  sum.square count before delaying/average
-            int delay = *cptr++;    // number of steps in the delayLine
-            int offset = *cptr;     // where are the data
+            // data
+            // triplet : counter - index - factor
+#if DSP_ALU_INT64
+            int offset = *cptr++;           // where are the data
             int * dataPtr = rundataPtr+offset;
-            int fs = dspTableFreq[dspSamplingFreq];
-            unsigned maxCounter = dspmulu32_32_32((unsigned)fs,factor);    //dynamic calculation of max count (not expensive!)
-            int counter = *dataPtr++;
-            int index = *dataPtr++; // current position in the delay line
-            dspALU_t *sumSquarePtr = (dspALU_t*)dataPtr--;   // current 64bits sum.square
-            int sample = dspmuls32_32_32(ALU,dspRmsFactorFS);   // scale sample according to FS
+            int freq = dspSamplingFreqIndex * 3;    //3words per frequences
+            int * tablePtr = (int*)cptr+freq;       // point on the offset to be used for the current frequency
+            int maxCounter = *tablePtr++;           // get the max number of counts before delayline
+            int maxIndex   = *tablePtr++;           // size of delay line
+            int factor     = *tablePtr;             // get the magic factor to apply to each sample, to avoid 64bits sat
+            // 1 counter    (0)
+            // 1 index      (1)
+            // 1 lastsqrt   (2)
+            // 1 sqrtwip    (3)
+            // 1 sqrtbit    (4)
+            // 2 sumsquare  (5)
+            // 2 movingavg  (+1)
+            // 2 sqrtinput  (+2)
+            // 2xN delayLine(+3)
+            int counter = *dataPtr;                     // retreive counter actual value
+            int index   = *(dataPtr+1);                 // retreive current position in the delay line
+            dspALU_t *sumSquarePtr = (dspALU_t*)(dataPtr+5);   // current 64bits sum.square
+            dspALU_t *averagePtr = sumSquarePtr+1;      // position of the averaged sum.square
+            dspALU_t *sqrtInput  = sumSquarePtr+2;      // position of the averaged sum.square
+            int sample = dspmuls32_32_32(ALU,factor);   // scale sample according to fs and table
             ALU = *sumSquarePtr;
-            dspmacs64_32_32(&ALU, sample, sample);
+            dspmacs64_32_32(&ALU, sample, sample);      // ALU += sample^2
             counter ++;
             if (counter >= maxCounter) {
-                dspALU_t *averagePtr = sumSquarePtr+1;  // position of the averaged sum.square
-                dspALU_t *delayPtr = sumSquarePtr+2;    // start of the delay line
-                dspALU_t value = *averagePtr;
+                dspALU_t *delayPtr = sumSquarePtr+3;    // start of the delay line
+                dspALU_t value = *averagePtr;           // retreive current average
                 value -= *(delayPtr+index);             // remove oldest value
-                *(delayPtr+index) = ALU;                // store newest
+                *(delayPtr+index) = ALU;                // overwrite oldest and store newest
                 ALU += value;                           // use it in the result
-                *averagePtr = ALU;                      // memorize it
+                *averagePtr = ALU;                      // memorize new averaged value
+                *sqrtInput  = ALU;                      // this will trigger a sqrt calculation
                 index++;                                // prepare for next position in the delay line
-                if (index >= delay) index = 0;
-                *dataPtr-- = index;                     // memorize futur position
+                if (index >= maxIndex) index = 0;
+                *(dataPtr+1) = index;                   // memorize futur position
                 *dataPtr = 0;                           // reset counter of sum.squre
                 *sumSquarePtr = 0;                      // reset sum.square
-            } 
-            else {
+            } else {
                 *sumSquarePtr = ALU;                    // memorize sumsquare
                 *dataPtr = counter;                     // and new incremented counter
-                if (counter == 1) {
-                    //scale back ALU due to dspRmsFactorFS
-                } else
-                if (counter == 2) {
-                    // opportunity to compute sqrt here, to balance cpu load on each cycle
+
+                int bit = *(dataPtr+4);                 // read sqrt iteration bit (from 0x800000 to 0)
+                if (bit == 0) {
+                    bit = 1ULL<<31;                     // rearm sqrt iteration bit
+                    ALU = *(dataPtr+3);                 // get last calculation result
+                    *(dataPtr+2) = ALU;                 // set sqrt value with last calculation
+                    *(dataPtr+3) = 0;                   // reset temporary sqrt value
+                } else {
+                    int temp = *(dataPtr+3) | bit;      // last calculation result
+                    dspALU_t value = 0;
+                    dspmacs64_32_32(&value,temp,temp);  // value = temp^2
+                    if (*sqrtInput >= value)
+                        *(dataPtr+3) = temp;
+                    bit >>= 1;                          // next iteration
+                    ALU = *(dataPtr+2);                 // read previous sqrt value
                 }
+                *(dataPtr+4) = bit;                     // memorize sqrt iteration bit for next cycle
             }
+#endif
             break; }
+
+        case DSP_CIC_D: {
+            //int delay = *cptr;
+        break; }
+
+        case DSP_CIC_I:{
+            //int delay = *cptr;
+        break; }
 
         } // switch (opcode)
 
@@ -667,3 +702,14 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 } // while(1)
 
 
+unsigned sqrt32algo(unsigned x)
+{
+    unsigned res = 0;
+    unsigned add = 0x80000000;
+    while (add){
+        unsigned long long temp = res | add;
+        unsigned long long g2 = temp * temp;
+        if ( x >= g2 ) res = temp;
+        add >>= 1; }
+    return res;
+}

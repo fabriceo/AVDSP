@@ -132,6 +132,10 @@ int  paramAligned8();
  int  dspFir_Delay(int value);
  int  dspFir_ImpulseFile(char * name, int length);
 
+ //sum square with combined accumulation and moving average over a delay line of N Samples
+ // the period of accumulation is dependent of the sampling rate and ajusted so that the integration time fit the parameter
  void dsp_RMS(int timems, int delayLine);
+ void dsp_CIC_I(int delay);
+ void dsp_CIC_D(int delay);
 
 #endif /* DSP_ENCODER_H_ */
