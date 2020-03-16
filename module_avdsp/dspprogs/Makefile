@@ -10,11 +10,11 @@ endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
-	CFLAGS = -DLINUX
+   CFLAGS = -DLINUX
 endif
 
 INCLUDES = -I../encoder -I../runtime
-CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
+CFLAGS = -DDSP_PRINTF=3 -g -fPIC -Wall $(INCLUDES)
 
 ifeq ($(uname_S), Darwin)
 LIBS = -L../encoder -lavdspencoder
@@ -37,7 +37,7 @@ all:
 clean:
 
 else	#linux
-PROGS = oktoprog.so oktodac.so crossover2x2lfe.so crossoverLV6.so
+PROGS = oktoprog.so oktodac.so crossover2x2lfe.so crossoverLV6.so REWgenericEQ.so
 
 all:	$(PROGS)
 
