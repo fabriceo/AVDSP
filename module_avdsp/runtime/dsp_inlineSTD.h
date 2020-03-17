@@ -21,7 +21,19 @@ static inline unsigned int dspmulu32_32_32(unsigned int a, unsigned int b){
 #endif
 }
 
+// used in DSP_RMS
+static inline unsigned long long dspmulu64_32_32(unsigned int a, unsigned int b){
+#ifndef DSP_ARCH  // default treatment
+    return (unsigned long long)a * b;;
+#elif DSP_XS2A  // specific for xmos xs2 architecture
+    int z = 0;
+    asm("lmul %0,%1,%2,%3,%4,%5":"=r"(a),"=r"(b):"r"(a),"r"(b),"r"(z),"r"(z));
+    return ((unsigned long long)a<<32) | b;
+#endif
+}
 
+
+// used in DSP_RMS to scale the sample with a 31 bit factor
 static inline int dspmuls32_32_32(int a, int b){
 #ifndef DSP_ARCH  // default treatment
     long long res = (long long)a * b;
@@ -30,12 +42,12 @@ static inline int dspmuls32_32_32(int a, int b){
     int ah;
     unsigned al;
     asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
-    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
     return ah;
 #endif
 }
 
-// used in DSP_LOAD_GAIN, and DSP_LOAD_MUX
+// used in  DSP_LOAD_MUX, DSP_RMS
 static inline void dspmacs64_32_32(long long *alu, int a, int b){
 #ifndef DSP_ARCH  // default treatment
     long long res = (long long)a * b;
@@ -43,11 +55,23 @@ static inline void dspmacs64_32_32(long long *alu, int a, int b){
 #elif DSP_XS2A  // specific for xmos xs2 architecture
     int ah = (*alu)>>32;
     unsigned al = *alu;
-    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
     *alu = ((long long)ah << 32) | al;
 #endif
 }
 
+//used in DSP_LOAD_GAIN, DSP_DATA_TABLE and dsp_RMS
+static inline void dspmacs64_32_32_0(long long *alu, int a, int b){
+#ifndef DSP_ARCH  // default treatment
+    *alu = (long long)a * b;
+#elif DSP_XS2A  // specific for xmos xs2 architecture
+    int ah;// = (*alu)>>32;
+    unsigned al;// = *alu;
+    asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
+    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    *alu = ((long long)ah << 32) | al;
+#endif
+}
 
 // used in DSP_SAT0DB, DSP_SAT0DB_TPDF, DSP_SAT0DB_GAIN, DSP_SAT0DB_TPDF_GAIN
 static inline void dspSaturate64_031(long long *a){  // double precision will be saturated then converted in 0.31
@@ -77,7 +101,7 @@ static inline void dspShiftMant(long long *a){
     (*a) >>= DSP_MANT;
 }
 
-// used in DSP biquad to fasten sample extraction
+// used in DSP_BIQUAD to fasten sample extraction
 static inline int dspShiftInt(long long a, int mant){
 #ifndef DSP_ARCH
     return a >> mant;
@@ -129,7 +153,7 @@ static const unsigned short crc16Table[256]=
 // global variable. no need for volatile :
 // can be accessed in read mode by any task.
 
-static int dspTpdfRandomSeed;       // random number changed at every sample
+static unsigned int dspTpdfRandomSeed;       // random number changed at every sample
 static int dspTpdfValue;            // tpdf value = 1/0/-1 => -1/1/3
 static long long dspTpdfScaled;     // scalled up in 4.28 format, ready for addition
 static int dspTpdfBits;             // bit position for the tpdf dithering
@@ -139,8 +163,8 @@ static inline void dspCalcTpdf(int bits) {
      dspTpdfBits = bits;
      int      tpdf;
 #ifndef DSP_ARCH
-     unsigned short seed   = dspTpdfRandomSeed;
-     seed =  (seed << 8) ^ crc16Table[((seed >> 8)) ]; // very basic but fast randomizer ...
+     unsigned int seed   = dspTpdfRandomSeed;
+     seed =  (seed << 8) ^ crc16Table[(seed >> 8) & 0xFF ]; // very basic but fast randomizer ...
 #elif DSP_XS2A
      unsigned seed   = dspTpdfRandomSeed;
      asm ("crc32 %0,%1,%2":"+r"(seed):"r"(-1),"r"(0xEB31D82E));

@@ -44,7 +44,6 @@ int dspProgDACSTEREO(int outs, int dither){
 	    for (int i=0; i<2; i++) {
 	    	dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
 	    	dsp_SAT0DB_TPDF();
-	    	dsp_RMS(60000,60);
 	    	dsp_STORE( USBIN(i) );
 		}
 	} else {
@@ -118,6 +117,33 @@ int dspProgUsbLoopBack(int outs, int dither){
     return dsp_END_OF_CODE();
 }
 
+
+int dspProgTest(){
+
+        dsp_PARAM();
+        //int mem0 = dspMem_Location();
+        //int mem1 = dspMem_Location();
+
+        int lr4 = dspBiquad_Sections(2);
+                  dsp_LP_LR4(1000);
+
+        dsp_TPDF(24);   // calculate tpdf value for dithering
+
+        dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
+        dsp_BIQUADS(lr4);
+        dsp_SAT0DB_TPDF();
+        dsp_STORE( USBIN(0) );
+        dsp_RMS_MilliSec(100,20);
+        dsp_STORE( USBIN(2) );
+
+        dsp_LOAD_STORE();
+        dspLoadStore_Data( USBOUT(1), USBIN(1) );   // loopback REW
+
+    return dsp_END_OF_CODE();
+}
+
+
+
 int dspProg(int argc,char **argv){
    int prog = 0;
    int dither = 0;
@@ -180,6 +206,12 @@ int dspProg(int argc,char **argv){
                     outs = 8;
                     continue; }
 
+                 if (strcmp(argv[i],"-testrew") == 0) {
+                    dspprintf("test program for dac8pro and rew\n");
+                    prog = 4;
+                    outs = 8;
+                    continue; }
+
                 if (strcmp(argv[i],"-dithering") == 0) {
                  	dither = 24;
                      if (argc>=i) {
@@ -193,6 +225,7 @@ int dspProg(int argc,char **argv){
 	case 1:  return dspProgDAC8PRO(dither);
 	case 2:  return dspProgDACSTEREO(outs, dither);
 	case 3:  return dspProgUsbLoopBack(outs, dither);
+    case 4:  return dspProgTest();
 	default: return dspNoProg();
 	}
 }

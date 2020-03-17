@@ -516,31 +516,47 @@ void dsp_COPYXY(){ addSingleOpcode(DSP_COPYXY); }
 // perform ALU X = X + Y
 void dsp_ADDXY(){ addSingleOpcode(DSP_ADDXY); }
 
+// perform ALU2 Y = X + Y
+void dsp_ADDYX(){ addSingleOpcode(DSP_ADDYX); }
+
 // perform ALU X = X - Y
 void dsp_SUBXY(){ addSingleOpcode(DSP_SUBXY); }
 
-// perform ALU X = Y - X
+// perform ALU Y = Y - X
 void dsp_SUBYX(){ addSingleOpcode(DSP_SUBYX); }
 
 // perform ALU X = X * Y
 void dsp_MULXY(){ addSingleOpcode(DSP_MULXY); }
 
-// perform ALY X = X / Y (X must be larger)
+// perform ALU X = X / Y
 void dsp_DIVXY(){ addSingleOpcode(DSP_DIVXY); }
+
+// perform ALU2 Y = Y / X
+void dsp_DIVYX(){ addSingleOpcode(DSP_DIVYX); }
+
+// perform ALU X = X / Y
+void dsp_AVGXY(){ addSingleOpcode(DSP_AVGXY); }
+
+// perform ALU2 Y = Y / X
+void dsp_AVGYX(){ addSingleOpcode(DSP_AVGYX); }
 
 // perform ALU X = sqrt(X)
 void dsp_SQRTX(){ addSingleOpcode(DSP_SQRTX); }
 
 void dsp_NEGX(){ addSingleOpcode(DSP_NEGX); }
 
+void dsp_NEGY(){ addSingleOpcode(DSP_NEGY); }
+
 void dsp_SAT0DB() {
     addSingleOpcode(DSP_SAT0DB);
     ALUformat = 0;
+    dspprintf3("DSP_SAT0DB\n");
 }
 
 void dsp_SAT0DB_TPDF() {
     addSingleOpcode(DSP_SAT0DB_TPDF);
     ALUformat = 0;
+    dspprintf3("DSP_SAT0DB_TPDF\n");
 }
 
 void dsp_SAT0DB_TPDF_GAIN_(int paramAddr, int tpdf){
@@ -581,8 +597,11 @@ void dsp_TPDF(int bits){
 
 
 void dsp_SHIFT(int bits){
-    addOpcodeParam(DSP_SHIFT, bits);
-    dspprintf3("DSP_SHIFT %d bits\n",bits);
+    addOpcodeParam(DSP_SHIFT_VALINT, bits);
+    dspprintf3("DSP_SHIFT_VALINT %d bits\n",bits);
+}
+void dsp_SHIFT_FixedInt(int bits){
+    dsp_SHIFT(bits);
 }
 
 
@@ -631,6 +650,7 @@ void dsp_LOAD_MUX(int paramAddr){
         dspFatalError("Number of section not provided in the PARAM.");
     int tmp = addOpcodeLength(DSP_LOAD_MUX);
     addCodeOffset(paramAddr, tmp);
+    dspprintf3("DSP_LOAD_MUX\n");
 }
 
 // must be used to start and list a group of IO-gain
@@ -711,6 +731,7 @@ void dsp_GAIN(int paramAddr){
     checkInParamSpace(paramAddr,1);
     int tmp = addOpcodeLength(DSP_GAIN);
     addCodeOffset(paramAddr, tmp);
+    dspprintf3("DSP_GAIN\n");
 }
 
 // can be used only in a param section
@@ -725,6 +746,7 @@ void dsp_GAIN_Fixed(dspGainParam_t gain){
     int tmp = addOpcodeLength(DSP_GAIN);
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(gain);
+    dspprintf3("DSP_GAIN\n");
 }
 
 void dsp_VALUE_Fixed(float value){
@@ -732,12 +754,22 @@ void dsp_VALUE_Fixed(float value){
     int tmp = addOpcodeLength(DSP_VALUE);
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(value);
+    dspprintf3("DSP_VALUE\n");
 }
+void dsp_VALUE_FixedInt(int value){
+    ALUformat = 1;
+    int tmp = addOpcodeLength(DSP_VALUE);
+    addCodeOffset(0, tmp);  // value is just below
+    addCode(value);
+    dspprintf3("DSP_VALUE\n");
+}
+
 void dsp_VALUE(int paramAddr){
     ALUformat = 1;
     checkInParamSpace(paramAddr,1);
     int tmp = addOpcodeLength(DSP_VALUE);
     addCodeOffset(paramAddr, tmp);
+    dspprintf3("DSP_VALUE\n");
 }
 
 int  dspValue_Default(float value){
@@ -745,12 +777,41 @@ int  dspValue_Default(float value){
     return addGainCodeQNM(value);
 }
 
+int  dspValue_DefaultInt(int value){
+    checkInParamNum();
+    return addCode(value);
+}
 
+
+void dsp_DIV_Fixed(float value){
+    ALUformat = 1;
+    addOpcodeLength(DSP_DIV_VALUE);
+    addGainCodeQNM(value);
+    dspprintf2("DSP_DIV_VALUE %f\n",value);
+}
+void dsp_DIV_FixedInt(int value){
+    ALUformat = 1;
+    addOpcodeParam(DSP_DIV_VALUE, value);
+    dspprintf2("DSP_DIV_VALUE %d\n",value);
+}
+
+void dsp_MUL_Fixed(float value){
+    ALUformat = 1;
+    addOpcodeLength(DSP_MUL_VALUE);
+    addGainCodeQNM(value);
+    dspprintf2("DSP_MUL_VALUE %f\n",value);
+}
+void dsp_MUL_FixedInt(int value){
+    ALUformat = 1;
+    addOpcodeParam(DSP_MUL_VALUE, value);
+    dspprintf2("DSP_MUL_VALUE %d\n",value);
+}
 
 
 void dsp_DELAY_1(){
     addOpcodeLength(DSP_DELAY_1);
     addDataSpaceAligned8(2);    // 2 words for supporting 64bits alu
+    dspprintf3("DSP_DELAY_1\n");
 }
 
 // DSP_SERIAL
@@ -758,6 +819,7 @@ void dsp_SERIAL(int N) {
     addOpcodeLength(DSP_SERIAL);
     addCode(N);
     addCode(~N);
+    dspprintf3("DSP_SERIAL\n");
 }
 
 // can be used only in a param space for declaring a list of datas (for example to be used by DATA_TABLE)
@@ -853,6 +915,7 @@ int dspMem_Location() {
 static void dsp_DELAY_(int paramAddr, int opcode){
     checkInParamSpace(paramAddr, 1);
     int tmp = addOpcodeLength(opcode);
+    dspprintf3("DSP_DELAY\n");
     int size = opcodePtr(paramAddr)->s16.high;   // get max delay line in samples
     //opcodePtr(paramAddr)->s16.high = 0;        // cleanup parameter and only keep LSB (default delay value in uSec)
     addCode(size);                          // store the max size of the delay line for runtime to check due to user potential changes
@@ -957,10 +1020,10 @@ void dsp_DELAY_DP_FixedMilliMeter(int mm,int speed){
 //DSP_DATA_TABLE
 
 void dsp_DATA_TABLE(int dataPtr, dspGainParam_t gain, int divider, int size){
-    dspprintf3("DSP_DATA_TABLE (%d)\n",size);
     ALUformat = 0;
     if (dataPtr) checkInParamSpace(dataPtr,size);
     int tmp = addOpcodeLength(DSP_DATA_TABLE);
+    dspprintf3("DSP_DATA_TABLE (%d)\n",size);
     setLastMissingParamIf0(dataPtr,size+4);
     addGainCodeQNM(gain);
     addCode(divider);
@@ -994,9 +1057,9 @@ int dspGeneratorSine(int samples){
 int dspBiquad_Sections(int number){
     startParamSection(DSP_BIQUADS, number); // check and initialize conditions for the follwoing data in the PARAM section
     int pos = opcodeIndexMisAligned8();
-    dspprintf3("%4d : ",pos);
+    dspprintf3("%4d : biquad section\n",pos);
     addOpcodeValue(DSP_BIQUADS, number);    // store the number of following sections
-    addCode(1);                             // bypass parameter (old memory location for gain...)
+    addCode(1);                             // bypass parameter (reusing old memory location for gain...)
     return pos;
 }
 
@@ -1073,6 +1136,7 @@ void dsp_FIR(int paramAddr){    // possibility to restrict the number of impulse
     int tableFreq[FMAXpos];
 
     int base = addOpcodeLength(DSP_FIR);
+    dspprintf3("DSP_FIR\n");
     if (opcodePtr(paramAddr++)->op.opcode != DSP_FIR)
         dspFatalError("Error in providing Fir impulse section address.");
 
@@ -1144,62 +1208,84 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     return pos;
 }
 
-// integrate a 0.31 sample during x miliseconds. then moving average in delay line, no sqrt
-// result is 0.63 => for sum.square(1.0) result is 1.0 in double precision, future sqrt will bring it to 0.31
-void dsp_RMS(int timetot, int delayLine){
-    dspprintf3("DSP_RMS %dms\n",timetot);
-    if (timetot <10)
-        dspFatalError("time parameter too small, 10ms integration time as minimum.");
-    if (timetot>7200000) // 2 hours !
-        dspFatalError("time parameter too large, 2 hours max.");
+void checkInRange(int val,int min, int max){
+    if ((val<min)||(val>max))
+        dspFatalError("value not in reasonable range");
+}
 
-    if (delayLine < 1)
-        dspFatalError("delay line should be minimum 10ms.");
+// integrate a 0.31 sample during x miliseconds. then moving average in delay line and Sqrt
+// result is 0.31. should be used after dsp_STORE or dsp_LOAD or dsp_SAT0DB or dsp_DELAY
+void dsp_RMS_(int timetot, int delay, int delayInSteps){
 
-    //int base =
     addOpcodeLength(DSP_RMS);
-    addDataSpaceAligned8(5+6+delayLine*2); //
+    dspprintf3("DSP_RMS %dms total integration time, ",timetot);
+    checkInRange(timetot, 10, 7200000);
+
+    double twoP32 = 1ULL<<32;
+    double timesecf = timetot; timesecf /= 1000.0;
+    if (delayInSteps == 0) {
+        checkInRange(delay, 1, timetot);
+        delay = timetot / delay;
+    }
+    checkInRange(delay, 0, 1000);   // max 1000 steps in the delay line
+    dspprintf3("averaged %d time\n",delay);
+
+    double stepsf = delay;
+    addDataSpaceMisAligned8( 5 + 4 + delay*2); //
     // 1 counter    (0)
     // 1 index      (1)
-    // 1 lastsqrt   (2)
+    // 1 sqrtlatest (2)
     // 1 sqrtwip    (3)
     // 1 sqrtbit    (4)
     // 2 sumsquare  (5)
     // 2 movingavg  (+1)
-    // 2 sqrtinput  (+2)
-    // 2xN delayLine(+3)
-
-
-    double twoP32 = 1ULL<<32;
-    //int maxFreq = dspTableFreq[dspMaxSamplingFreq];
-    double delayf = delayLine;
-    double timesecf = timetot; timesecf /= 1000.0;
+    // 2xN delayLine(+2)
+    addCode( delay);
 
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of optimized divisor and counter depending on delayline
         int fs = dspTableFreq[f];
         double fsf = fs;
+        double maxCounterf;
+        if (delay) maxCounterf= fsf * timesecf / stepsf;
+        else       maxCounterf= fsf * timesecf;
 
-        double maxCounterf = fsf * timesecf / delayf;
         int maxCounter = maxCounterf;
         addCode(maxCounter);
+        fsf = maxCounter;
 
-        fsf /= 2.0;
-        float multf = twoP32 / sqrt(fsf) / sqrt(delayf) + 1.0;
+        float multf;    // each sample is multiplied by multf before being squared, in order to scale result to 64bit
+        if (delay)
+             multf = twoP32 / sqrt(fsf*delay) + 0.5;
+        else multf = twoP32 / sqrt(fsf) + 0.5;
         int mult = multf;
         addCode( mult);
-        addCode( delayf);
-        dspprintf2("F = %d, count = %d, mult = %d\n",fs,maxCounter,mult);
+        if (f == (dspMinSamplingFreq+1) ) dspprintf2("F = %6d, count = %d, mult = %d\n",fs,maxCounter,mult);
     }
+    lastIndexPrinted = opcodeIndex();  // store the latest Index that have been already printed so far (might not be an opcode
 }
 
+
+// the delay line is given in number of delays, integration is made during timetot / delay
+void dsp_RMS(int timetot, int delaysteps){
+    dsp_RMS_(timetot, delaysteps,1);
+}
+// the delay given represent
+void dsp_RMS_MilliSec(int timetot, int delayms){
+    if (delayms == 0)
+        dsp_RMS_(timetot, delayms,1);
+    else
+        dsp_RMS_(timetot, delayms,0);
+}
+
+
 void dsp_CIC_I(int delay){
-    dspprintf3("DSP_CIC_I %d samples\n",delay);
     addOpcodeParam(DSP_CIC_I, delay);
+    dspprintf3("DSP_CIC_I %d samples\n",delay);
 }
 
 void dsp_CIC_D(int delay){
-    dspprintf3("DSP_CIC_D %d samples\n",delay);
     addOpcodeParam(DSP_CIC_D, delay);
+    dspprintf3("DSP_CIC_D %d samples\n",delay);
 }
 

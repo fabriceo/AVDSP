@@ -37,12 +37,17 @@ int  paramAligned8();
  void dsp_TPDF(int bits);
 
  void dsp_ADDXY();
+ void dsp_ADDYX();
  void dsp_SUBXY();
  void dsp_SUBYX();
  void dsp_MULXY();
  void dsp_DIVXY();
+ void dsp_DIVYX();
+ void dsp_AVGXY();
+ void dsp_AVGYX();
  void dsp_SQRTX();
  void dsp_NEGX();
+ void dsp_NEGY();
 
  //saturate the ALU to keep value between -1..+1 and transform to 0.31 format (for int64 ALU)
  void dsp_SAT0DB();
@@ -55,6 +60,7 @@ int  paramAligned8();
  void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain);
 
  void dsp_SHIFT(int bits);
+ void dsp_SHIFT_FixedInt(int bits); // exact same as above
 
 // load the ALU with the raw sample 0.31. ALU is 33.31 and can be used only for delay or store.
  void dsp_LOAD(int IO);
@@ -96,10 +102,18 @@ int  paramAligned8();
  void dsp_GAIN(int paramAddr);
  int  dspGain_Default(dspGainParam_t gain);
 
- //load a 4.28 value in the ALU (previous ALU moved to ALU2)
+ //load a value in the ALU (previous ALU moved to ALU2)
  void dsp_VALUE_Fixed(float value);
+ void dsp_VALUE_FixedInt(int value);
  void dsp_VALUE(int paramAddr);
  int  dspValue_Default(float value);
+ int  dspValue_DefaultInt(int value);
+
+ void dsp_DIV_Fixed(float value);
+ void dsp_DIV_FixedInt(int value);
+
+ void dsp_MUL_Fixed(float value);
+ void dsp_MUL_FixedInt(int value);
 
 // swap the ALU lsb (32 bits) with a delay line. to be used just before store.
  void dsp_DELAY(int paramAddr);
@@ -135,7 +149,9 @@ int  paramAligned8();
  //sum square with combined accumulation and moving average over a delay line of N Samples
  // the period of accumulation is dependent of the sampling rate and ajusted so that the integration time fit the parameter
  void dsp_RMS(int timems, int delayLine);
- void dsp_CIC_I(int delay);
- void dsp_CIC_D(int delay);
+ void dsp_RMS_MilliSec(int timems, int delayms);
+
+ //void dsp_CIC_I(int delay);
+ //void dsp_CIC_D(int delay);
 
 #endif /* DSP_ENCODER_H_ */
