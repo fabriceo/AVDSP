@@ -47,8 +47,9 @@ size_t sz;
   dsp_GAIN_Fixed(1.0);
 
   while(!feof(fd)) {
-	int nf,len;
+	int nf;
 	float Fc,G,Q;
+	char *ppar;
 
   	free(line);
 	line=NULL;sz=0;
@@ -57,28 +58,33 @@ size_t sz;
 	if(sscanf(line,"Filter %d:",&nf)!=1) continue;
 	if(strncmp(&(line[11]),"ON",2)) continue;
 
-	len=strlen(line);
-	if(len<35) continue;	
 
-	line[34]=0;
-	Fc=atof((&line[27]));
+	Fc=0;G=1.0;Q=M_SQRT1_2;
 
-	G=0;Q=M_SQRT1_2;
-
-	if(len>53 && line[39]=='G') {
-		line[50]=0;
-		G=powf(10.0,atof((&line[44]))/20.0);
-		
-		if(len>62 && line[55]=='Q') {
-			line[62]=0;
-			Q=atof((&line[57]));
+	for(ppar=strtok(&(line[24])," \n");ppar;ppar=strtok(NULL," \n")) {
+		if(strcmp(ppar,"Fc")==0) {
+			ppar=strtok(NULL," \n");
+			if(ppar == NULL) break;
+			Fc=atof(ppar);
+			continue;
 		}
-	}
-	if(len>46 && line[39]=='Q') {
-		line[47]=0;
-		Q=atof((&line[41]));
+		if(strcmp(ppar,"Hz") == 0 ) continue;
+		if(strcmp(ppar,"Q")==0) {
+			ppar=strtok(NULL," \n");
+			if(ppar == NULL) break;
+			Q=atof(ppar);
+			continue;
+		}
+		if(strcmp(ppar,"Gain")==0) {
+			ppar=strtok(NULL," \n");
+			if(ppar == NULL) break;
+			G=powf(10.0,atof(ppar)/20.0);
+			continue;
+		}
+		if(strcmp(ppar,"dB") == 0 ) continue;
 	}
 
+	if(Fc == 0.0) continue;
 
     	dsp_PARAM();
 
@@ -126,13 +132,13 @@ size_t sz;
 	}
 	if(strncmp(&(line[15]),"LS  ",4)==0) {
  		int filter = dspBiquad_Sections(1);
-		dsp_Filter2ndOrder(FLS2,Fc,Q,G);
+		dsp_Filter2ndOrder(FLS2,Fc,2.0/3.0,G);
 		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"HS  ",4)==0) {
  		int filter = dspBiquad_Sections(1);
-		dsp_Filter2ndOrder(FHS2,Fc,Q,G);
+		dsp_Filter2ndOrder(FHS2,Fc,2.0/3.0,G);
 		dsp_BIQUADS(filter); 
 		continue;
 	}
@@ -149,31 +155,25 @@ size_t sz;
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 6",4)==0) {
- 		int filter = dspBiquad_Sections(1);
-		dsp_Filter1stOrder(FLS1,Fc,G);
-		dsp_BIQUADS(filter); 
+		fprintf(stderr,"Filter %d : not implemented\n",nf);
 		continue;
 	}
 	if(strncmp(&(line[15]),"HS 6",4)==0) {
- 		int filter = dspBiquad_Sections(1);
-		dsp_Filter1stOrder(FHS1,Fc,G);
-		dsp_BIQUADS(filter); 
+		fprintf(stderr,"Filter %d : not implemented\n",nf);
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 12",5)==0) {
- 		int filter = dspBiquad_Sections(1);
-		dsp_Filter2ndOrder(FLS2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
+		fprintf(stderr,"Filter %d : not implemented\n",nf);
 		continue;
 	}
 	if(strncmp(&(line[15]),"HS 12",5)==0) {
- 		int filter = dspBiquad_Sections(1);
-		dsp_Filter2ndOrder(FHS2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
+		fprintf(stderr,"Filter %d : not implemented\n",nf);
 		continue;
 	}
 	if(strncmp(&(line[15]),"NO",2)==0) {
-		fprintf(stderr,"Filter %d : NO not implemented\n",nf);
+ 		int filter = dspBiquad_Sections(1);
+		dsp_Filter2ndOrder(FNOTCH,Fc,30.0,G);
+		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"AP",2)==0) {

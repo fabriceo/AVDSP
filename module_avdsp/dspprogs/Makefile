@@ -14,7 +14,7 @@ else
 endif
 
 INCLUDES = -I../encoder -I../runtime
-CFLAGS = -DDSP_PRINTF=3 -g -fPIC -Wall $(INCLUDES)
+CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 
 ifeq ($(uname_S), Darwin)
 LIBS = -L../encoder -lavdspencoder
