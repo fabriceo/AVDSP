@@ -715,10 +715,17 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             unsigned maxCounter = *tablePtr++;          // get the max number of counts before entering the delay line
             dspALU_t *sumSquarePtr = (dspALU_t*)(dataPtr+5);   // current 64bits sum.square
             #if DSP_ALU_INT64
-                int factor         = *tablePtr;         // get the magic factor to apply to each sample, to avoid 64bits sat
-                dspSample_t sample = dspmuls32_32_32(ALU,factor);   // scale sample (ALU) according factor from table depending on fs
-                ALU = *sumSquarePtr;                    // get previous sum.square
-                dspmacs64_32_32(&ALU, sample, sample);  // ALU += sample^2
+                int factor = *tablePtr;                 // get the magic factor to apply to each sample, to avoid 64bits sat
+                if (factor >0) {                        // trick to avoid duplicating code, and inexpensive in execution time
+                    dspSample_t sample = dspmuls32_32_32(ALU,factor);   // scale sample (ALU) according factor from table depending on fs
+                    ALU = *sumSquarePtr;                    // get previous sum.square
+                    dspmacs64_32_32(&ALU, sample, sample);  // ALU += sample^2
+                } else {
+                    dspSample_t samplex = dspmuls32_32_32(ALU,factor);   // scale sample (ALU) according factor from table depending on fs
+                    dspSample_t sampley = dspmuls32_32_32(ALU2,factor);   // scale sample (ALU) according factor from table depending on fs
+                    ALU = *sumSquarePtr;                    // get previous sum.square
+                    dspmacs64_32_32(&ALU, samplex, sampley);  // ALU += samplex * sampley
+                }
             #else
                 ALU *= ALU;                             // square current sample
                 ALU += *sumSquarePtr;                   // add previous sum.square

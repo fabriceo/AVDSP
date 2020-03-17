@@ -22,7 +22,7 @@ int dspProg_crossoverLV6(int fcross, int delay){
     dsp_LOAD(USBOUT(1));    // loop back with minimum delay time for reference
     dsp_STORE(USBIN(1));
 
-    //dsp_CORE();  // second core
+    //dsp_CORE();  // second core for test
     dsp_LOAD(USBOUT(0)); 
     dsp_COPYXY();
     dsp_DELAY_FixedMicroSec(delay);
@@ -36,13 +36,6 @@ int dspProg_crossoverLV6(int fcross, int delay){
     dsp_SWAPXY();
     dsp_SAT0DB_TPDF(); 
     dsp_STORE( USBIN(2) );
-
-    //dsp_CORE();  // second core
-    dsp_LOAD(USBOUT(0));
-    //dsp_VALUE_FixedInt(0x40000000);
-    dsp_RMS(1000, 10);
-    dsp_STORE( USBIN(3) );
-
 
     return dsp_END_OF_CODE();
 }

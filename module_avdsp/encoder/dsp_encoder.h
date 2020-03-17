@@ -151,6 +151,9 @@ int  paramAligned8();
  void dsp_RMS(int timems, int delayLine);
  void dsp_RMS_MilliSec(int timems, int delayms);
 
+ void dsp_PWRXY(int timems, int delayLine);
+ void dsp_PWRXY_MilliSec(int timems, int delayms);
+
  //void dsp_CIC_I(int delay);
  //void dsp_CIC_D(int delay);
 

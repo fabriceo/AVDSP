@@ -1215,7 +1215,7 @@ void checkInRange(int val,int min, int max){
 
 // integrate a 0.31 sample during x miliseconds. then moving average in delay line and Sqrt
 // result is 0.31. should be used after dsp_STORE or dsp_LOAD or dsp_SAT0DB or dsp_DELAY
-void dsp_RMS_(int timetot, int delay, int delayInSteps){
+void dsp_RMS_(int timetot, int delay, int delayInSteps, int pwr){
 
     addOpcodeLength(DSP_RMS);
     dspprintf3("DSP_RMS %dms total integration time, ",timetot);
@@ -1259,6 +1259,7 @@ void dsp_RMS_(int timetot, int delay, int delayInSteps){
              multf = twoP32 / sqrt(fsf*delay) + 0.5;
         else multf = twoP32 / sqrt(fsf) + 0.5;
         int mult = multf;
+        mult *= pwr;    // adjust sign => negative if "powerXY"
         addCode( mult);
         if (f == (dspMinSamplingFreq+1) ) dspprintf2("F = %6d, count = %d, mult = %d\n",fs,maxCounter,mult);
     }
@@ -1268,14 +1269,26 @@ void dsp_RMS_(int timetot, int delay, int delayInSteps){
 
 // the delay line is given in number of delays, integration is made during timetot / delay
 void dsp_RMS(int timetot, int delaysteps){
-    dsp_RMS_(timetot, delaysteps,1);
+    dsp_RMS_(timetot, delaysteps,1,1);
 }
 // the delay given represent
 void dsp_RMS_MilliSec(int timetot, int delayms){
     if (delayms == 0)
-        dsp_RMS_(timetot, delayms,1);
+        dsp_RMS_(timetot, delayms,1,1);
     else
-        dsp_RMS_(timetot, delayms,0);
+        dsp_RMS_(timetot, delayms,0,1);
+}
+
+// same as RMS but compute X * Y instead of X^2
+void dsp_PWRXY(int timetot, int delaysteps){
+    dsp_RMS_(timetot, delaysteps,1,-1);
+}
+
+void dsp_PWRXY_MilliSec(int timetot, int delayms){
+    if (delayms == 0)
+        dsp_RMS_(timetot, delayms,1,-1);
+    else
+        dsp_RMS_(timetot, delayms,0,-1);
 }
 
 
