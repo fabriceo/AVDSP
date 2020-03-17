@@ -10,7 +10,7 @@ endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
-	CFLAGS = -DLINUX
+   CFLAGS = -DLINUX
 endif
 
 INCLUDES = -I../encoder -I../runtime
@@ -37,7 +37,7 @@ all:
 clean:
 
 else	#linux
-PROGS = oktoprog.so oktodac.so crossover2x2lfe.so crossoverLV6.so
+PROGS = oktoprog.so oktodac.so crossover2x2lfe.so crossoverLV6.so REWgenericEQ.so
 
 all:	$(PROGS)
 
