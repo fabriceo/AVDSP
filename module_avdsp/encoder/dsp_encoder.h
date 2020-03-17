@@ -95,7 +95,8 @@ int  paramAligned8();
  int  dspData4(int a,int b, int c, int d);
  int  dspData6(int a,int b, int c, int d, int e, int f);
  int  dspData8(int a,int b, int c, int d, int e, int f, int g, int h);
- int  dspGeneratorSine(int samples);
+ // create a int32 table of n samples, preloaded with a 2.PI sine values
+ int  dspGenerator_Sine(int samples);
 
  //apply a gain (4.28) on the ALU . result is 8.56
  void dsp_GAIN_Fixed(dspGainParam_t gain);
@@ -119,20 +120,20 @@ int  paramAligned8();
  void dsp_DELAY(int paramAddr);
  int  dspDelay_MicroSec_Max(int maxus);
  int  dspDelay_MicroSec_Max_Default(int maxus, int us);
- int  dspDelay_MilliMeter_Max(int maxmm, int speed);
- int  dspDelay_MilliMeter_Max_Default(int maxmm, int mm, int speed);
+ int  dspDelay_MilliMeter_Max(int maxmm, float speed);
+ int  dspDelay_MilliMeter_Max_Default(int maxmm, int mm, float speed);
 
  void dsp_DELAY_FixedMicroSec(int microSec);
- void dsp_DELAY_FixedMilliMeter(int mm,int speed);
+ void dsp_DELAY_FixedMilliMeter(int mm,float speed);
 
 #if (DSP_FORMAT == DSP_FORMAT_INT64)
  void dsp_DELAY_DP(int paramAddr);
  void dsp_DELAY_DP_FixedMicroSec(int microSec);
- void dsp_DELAY_DP_FixedMilliMeter(int mm,int speed);
+ void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed);
 #endif
 
  // used to read a predefined wave form.
- void dsp_DATA_TABLE(int dataPtr, dspGainParam_t gain, int divider, int size);
+ void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);
 
 // calculate cascaded biquad
  void dsp_BIQUADS(int paramAddr);
@@ -151,6 +152,8 @@ int  paramAligned8();
  void dsp_RMS(int timems, int delayLine);
  void dsp_RMS_MilliSec(int timems, int delayms);
 
+ // compute the sqrt of the sum of X * Y during a total integration time with optional averaging to get intermediate results
+ // same runtime as RMS but with a factor being negative to differentiate
  void dsp_PWRXY(int timems, int delayLine);
  void dsp_PWRXY_MilliSec(int timems, int delayms);
 

@@ -143,12 +143,80 @@ int dspProgTest(){
 }
 
 
+const int left  = USBOUT(0);
+const int right = USBOUT(1);
+
+void crossoverLV6(int lowpass, int gd, float gaincomp, int distlow, int in, int outlow, int outhigh){
+    dsp_LOAD(in);
+    dsp_COPYXY();
+    dsp_DELAY_FixedMicroSec(gd);
+    dsp_GAIN_Fixed(1.0);
+    dsp_SWAPXY();
+    dsp_GAIN_Fixed(1.0);
+    dsp_BIQUADS(lowpass);   //compute lowpass filter
+    dsp_SUBYX();
+    dsp_SAT0DB_TPDF();
+    if (distlow) dsp_DELAY_FixedMilliMeter(distlow,340.0);
+    dsp_STORE( DACOUT(outlow) ); // low driver
+    dsp_STORE( USBIN(outlow) );
+    dsp_SWAPXY();
+    dsp_SAT0DB_TPDF_GAIN_Fixed(gaincomp);
+    dsp_STORE( DACOUT(outhigh) );
+    dsp_STORE( USBIN(outhigh) );
+
+}
+
+int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
+    dspprintf("program for the dac belonging to the author, including substractive cross over\n");
+    dsp_PARAM();
+
+    int lowpass1 = dspBiquad_Sections(3);
+        dsp_LP_BES6(fx);
+
+    int lowpass2 = dspBiquad_Sections(3);
+        dsp_LP_BES6(fx);
+/*
+    int avgLR = dspLoadMux_Inputs(2);
+        dspLoadMux_Data(left,0.5);
+        dspLoadMux_Data(right,0.5);
+*/
+    dsp_CORE();  // first core (could be removed - implicit)
+    dsp_TPDF(24);
+    dsp_LOAD_STORE();
+        dspLoadStore_Data( left,  DACOUT(0) );   // headphones
+        dspLoadStore_Data( right, DACOUT(1) );
+        //dspLoadStore_Data( ADCIN(0),  USBIN(0) );    // spdif in
+        //dspLoadStore_Data( ADCIN(1),  USBIN(1) );
+        dspLoadStore_Data( right, USBIN(1) );    // loopback REW
+
+    crossoverLV6(lowpass1,gd,gaincomp,distlow,left,2,3);
+
+
+    dsp_CORE();  // second core for test
+    dsp_LOAD(left);
+    dsp_LOAD(right);
+    dsp_AVGXY();
+    dsp_STORE(DACOUT(6));   // center
+    dsp_STORE(USBIN(6));
+    dsp_STORE(DACOUT(7));   // lfe
+    dsp_STORE(USBIN(7));
+
+    crossoverLV6(lowpass2,gd,gaincomp,distlow,right,4,5);
+
+
+    return dsp_END_OF_CODE();
+}
+
+
 
 int dspProg(int argc,char **argv){
    int prog = 0;
    int dither = 0;
    int outs;
-   
+   int fx = 800;
+   int gd = 930;    // typicall groupdelay for BES6 @ 800hz
+   float gaincomp = 1.0;
+   int distlow = 300;  //300mm ahead of compression driver
    	for(int i=0 ; i<argc;i++) {
         // parse USER'S command line parameters
 
@@ -212,12 +280,46 @@ int dspProg(int argc,char **argv){
                     outs = 8;
                     continue; }
 
-                if (strcmp(argv[i],"-dithering") == 0) {
-                 	dither = 24;
+                 if (strcmp(argv[i],"-dithering") == 0) {
+                     dither = 24;
+                      if (argc>=i) {
+                          i++;
+                          dither = strtol(argv[i], NULL,10); }
+                     dspprintf("add dithering %d on each spdif inputs\n",dither);
+                     continue; }
+
+                 if (strcmp(argv[i],"-dacfabriceo") == 0) {
+                    dspprintf("test program for dac8pro and rew\n");
+                    prog = 5;
+                    outs = 8;
+                    continue; }
+
+                if (strcmp(argv[i],"-fx") == 0) {
                      if (argc>=i) {
-                 	     i++;
-                         dither = strtol(argv[i], NULL,10); }
-                 	dspprintf("add dithering %d on each spdif inputs\n",dither);
+                         i++;
+                         fx = strtol(argv[i], NULL,10); }
+                    dspprintf("crossover frequency %dhz\n",fx);
+                    continue; }
+
+                if (strcmp(argv[i],"-gd") == 0) {
+                     if (argc>=i) {
+                         i++;
+                         gd = strtol(argv[i], NULL,10); }
+                    dspprintf("substractive delay %dus\n",gd);
+                    continue; }
+
+                if (strcmp(argv[i],"-distlow") == 0) {
+                     if (argc>=i) {
+                         i++;
+                         distlow = strtol(argv[i], NULL,10); }
+                    dspprintf("low driver ahead %dmm\n",distlow);
+                    continue; }
+
+                if (strcmp(argv[i],"-gcomp") == 0) {
+                     if (argc>=i) {
+                         i++;
+                         gaincomp = strtof(argv[i], NULL); }
+                    dspprintf("gain on compression driver %f\n",gaincomp);
                     continue; }
     }
 
@@ -226,6 +328,7 @@ int dspProg(int argc,char **argv){
 	case 2:  return dspProgDACSTEREO(outs, dither);
 	case 3:  return dspProgUsbLoopBack(outs, dither);
     case 4:  return dspProgTest();
+    case 5:  return dspProgDACFABRICEO(fx, gd, gaincomp, distlow);
 	default: return dspNoProg();
 	}
 }

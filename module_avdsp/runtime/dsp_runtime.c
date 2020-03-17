@@ -713,9 +713,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             int freq = dspSamplingFreqIndex * 2;        // 2words per frequences : maxCounter & factor
             int * tablePtr = (int*)cptr+freq;           // point on the offset to be used for the current frequency
             unsigned maxCounter = *tablePtr++;          // get the max number of counts before entering the delay line
+            int factor = *tablePtr;                 // get the magic factor to apply to each sample, to avoid 64bits sat
             dspALU_t *sumSquarePtr = (dspALU_t*)(dataPtr+5);   // current 64bits sum.square
             #if DSP_ALU_INT64
-                int factor = *tablePtr;                 // get the magic factor to apply to each sample, to avoid 64bits sat
                 if (factor >0) {                        // trick to avoid duplicating code, and inexpensive in execution time
                     dspSample_t sample = dspmuls32_32_32(ALU,factor);   // scale sample (ALU) according factor from table depending on fs
                     ALU = *sumSquarePtr;                    // get previous sum.square
@@ -727,7 +727,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     dspmacs64_32_32(&ALU, samplex, sampley);  // ALU += samplex * sampley
                 }
             #else
-                ALU *= ALU;                             // square current sample
+                if (factor > 0)
+                     ALU *= ALU;                        // square current sample
+                else ALU *= ALU2;                       // multiply X and Y
                 ALU += *sumSquarePtr;                   // add previous sum.square
             #endif
             dspALU_t *averagePtr = sumSquarePtr+1;      // position of the averaged value of sum.square
