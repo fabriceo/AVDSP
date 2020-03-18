@@ -91,27 +91,34 @@ enum dspOpcodesEnum {
 
 /* math engine */
     DSP_TPDF,           // create a white random TPDF value for dithering, either -1/0/+1 at each call.
+    DSP_WHITE,          // load the random number that was generated for the tpdf-seed
     DSP_CLRXY,          // clear both ALU register
     DSP_SWAPXY,         // exchange ALU with second one "Y". no additional param
     DSP_COPYXY,         // save ALU X in a second "Y" register. no additional param
 
-    DSP_ADDXY,          // perform X = X + Y
+    DSP_ADDXY,          // perform X = X + Y, 64 bits
+    DSP_ADDYX,          // perform Y = X + Y
     DSP_SUBXY,          // perform X = X - Y
     DSP_SUBYX,          // perform Y = Y - X
     DSP_MULXY,          // perform X = X * Y
     DSP_DIVXY,          // perform X = X / Y
+    DSP_DIVYX,          // perform Y = Y / X
+    DSP_AVGXY,          // perform X = X/2 + Y/2;
+    DSP_AVGYX,          // perform Y = X/2 + Y/2;
     DSP_NEGX,           // perform X = -X
-    DSP_SQRTX,          // perfomr X = sqrt(x)
-    DSP_SHIFT,          // perform shift left or right if param is negative
-    DSP_VALUE,          // load an imediate 32bit value in 4.28 format
-    DSP_DIVINT,         // perform X = X / n where n is an integer number
+    DSP_NEGY,           // perform Y = -Y
+    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64
+    DSP_VALUE,          // load an imediate value (int32 or 4.28)
+    DSP_SHIFT_VALINT,   // perform shift left or right if param is negative
+    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28)
+    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28)
 
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in 0.31 format
                         // eg physical ADC input number = position in the sample array
-    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is 8.56
+    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is 5.59
 
-    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is 8.56
+    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is 5.59
 
     DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. 0.31 expected in input
 
@@ -119,7 +126,7 @@ enum dspOpcodesEnum {
                         // source in the sample array
                         // dest in the sample array
 
-    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion.
+    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU saved in ALU2
     DSP_STORE_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
 
 /* gains */
@@ -145,10 +152,12 @@ enum dspOpcodesEnum {
 
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
 
+
 /* workin progress only */
     DSP_RMS,            // compute sum of square during a given period then compute moving overage but no sqrt
-    DSP_CIC_D,           // decimator CIC filter delay D as parameter
-    DSP_CIC_I,           // interpolator CIC filter delay D as parameter
+    DSP_CIC_D,          // decimator CIC filter delay D as parameter
+    DSP_CIC_I,          // interpolator CIC filter delay D as parameter
+    DSP_NOISE_SHAPE,    // add dithering, calculate error, execute filter to shape error, prepare for injection of error
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version
 };
@@ -219,6 +228,7 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
         *sum += ptr->u32;
         ptr += skip;
     } // while(1)
+    if (*numCore == 0) *numCore = 1;
 }
 
 

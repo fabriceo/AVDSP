@@ -10,6 +10,7 @@
 #include "dsp_inlineSTD.h"
 #include "dsp_biquadSTD.h"
 #include "dsp_firSTD.h"
+#include "math.h"   // for importing sqrt()
 
 //#define DSP_SINGLE_CORE 1 // set this define if only 1 core available on the target arch
 
@@ -213,6 +214,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             ALU += ALU2;
             break;}
 
+        case DSP_ADDYX: {
+            dspprintf2("ADDYX");
+            ALU2 += ALU;
+            break;}
+
         case DSP_SUBXY: {
             dspprintf2("SUBXY");
             ALU -= ALU2;
@@ -228,8 +234,13 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             ALU = -ALU;
             break;}
 
-        case DSP_SHIFT: {
-            dspprintf2("SHIFT");
+        case DSP_NEGY: {
+            dspprintf2("NEGY");
+            ALU2 = -ALU2;
+            break;}
+
+        case DSP_SHIFT_VALINT: {
+            dspprintf2("SHIFT_VALINT");
             int shift = *cptr;
             #if DSP_ALU_INT64
                 if (shift >= 0)
@@ -246,24 +257,62 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #endif
             break; }
 
+
         case DSP_MULXY: {
             dspprintf2("MULXY");
             ALU *= ALU2;
             break;}
+
 
         case DSP_DIVXY: {   // TODO
             dspprintf2("DIVXY");
             ALU /= ALU2;
             break;}
 
+
+        case DSP_DIVYX: {   // TODO
+            dspprintf2("DIVYX");
+            ALU2 /= ALU;
+            break;}
+
+
+        case DSP_AVGXY: {   // TODO
+            dspprintf2("AVGXY");
+            ALU = ALU/2 + ALU2/2;
+            break;}
+
+
+        case DSP_AVGYX: {   // TODO
+            dspprintf2("AVGYX");
+            ALU2 = ALU/2 + ALU2/2;
+            break;}
+
+
         case DSP_SQRTX: {  // TODO
             dspprintf2("SQRTX");
             #if DSP_ALU_INT64
-                //dspsqrt64QNM( &ALU, DSP_MANTDP);
+                unsigned int res = 0;
+                if (ALU >> 32) {    // potentially 64 bits used
+                    unsigned int bit = 1<<30;
+                    while (bit){
+                        unsigned int temp = res | bit;
+                        dspALU_t value = dspmulu64_32_32(temp,temp);
+                        if ( ALU >= value ) res = temp;
+                        bit >>= 1; }
+                } else { // only 32 bits
+                    unsigned int bit = 1<<15;
+                    while (bit){
+                        unsigned int temp = res | bit;
+                        temp *= temp;
+                        if ( ALU >= temp ) res = temp;
+                        bit >>= 1; }
+                }
+                ALU = res;
             #else   // float
-                //ALU = sqrt(ALU);
+                ALU = sqrt(ALU);
             #endif
             break;}
+
 
         case DSP_SAT0DB: {
             dspprintf2("SAT0DB");
@@ -324,6 +373,16 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break;}
 
 
+        case DSP_WHITE: {
+            dspprintf2("WHITE");
+            #if DSP_ALU_INT64
+                ALU = dspTpdfRandomSeed;                // load 32 bit value as if it was 0.31 sample
+            #else
+                ALU = DSP_F31(dspTpdfRandomSeed);       // convert 32bit value to a float number between -1..+1
+            #endif
+            break;}
+
+
         case DSP_LOAD: {    // load a RAW sample direcly in the ALU as a 8.56 value
             ALU2 = ALU;     // save ALU in Y in case someone want to use it later
             int index = *cptr;
@@ -346,8 +405,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspParam_t gain = *((dspParam_t*)ptr+*cptr);
             dspprintf2("LOAD input[%d] with gain",index);
             #if DSP_ALU_INT64
-                ALU = 0;
-                dspmacs64_32_32( &ALU, *samplePtr, gain);
+                dspmacs64_32_32_0( &ALU, *samplePtr, gain);
             #elif DSP_SAMPLE_INT
                 ALU = DSP_F31(*samplePtr) * gain;    // convert sample to a float number and apply gain
             #else // sample is float
@@ -382,6 +440,20 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspParam_t value = *((dspParam_t*)ptr+*cptr);
             ALU2 = ALU;
             ALU = value;
+            break;}
+
+
+        case DSP_MUL_VALUE:{
+            dspprintf2("MUL_VALUE");
+            dspParam_t value = *((dspParam_t*)ptr+*cptr);
+            ALU *= value;
+            break;}
+
+
+        case DSP_DIV_VALUE:{
+            dspprintf2("DIV_VALUE");
+            dspParam_t value = *((dspParam_t*)ptr+*cptr);
+            ALU /= value;
             break;}
 
 
@@ -567,8 +639,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             if (index >= size) index -= size;
             *indexPtr = index;
             #if DSP_ALU_INT64
-                ALU = 0;
-                dspmacs64_32_32( &ALU, data, gain);
+                dspmacs64_32_32_0( &ALU, data, gain);
             #elif DSP_SAMPLE_INT
                 ALU = DSP_F31(data) * gain;    // convert sample to a float number and apply gain
             #else // sample is float
@@ -617,19 +688,17 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             }
             break; }
 
-/* WORK IN POGRESS ONLY */
+
         case DSP_RMS: {
             dspprintf2("DSP_RMS");
-            // data
-            // triplet : counter - index - factor
-#if DSP_ALU_INT64
-            int offset = *cptr++;           // where are the data
-            int * dataPtr = rundataPtr+offset;
-            int freq = dspSamplingFreqIndex * 3;    //3words per frequences
-            int * tablePtr = (int*)cptr+freq;       // point on the offset to be used for the current frequency
-            int maxCounter = *tablePtr++;           // get the max number of counts before delayline
-            int maxIndex   = *tablePtr++;           // size of delay line
-            int factor     = *tablePtr;             // get the magic factor to apply to each sample, to avoid 64bits sat
+            asm("#dsprms:");
+            //parameter list below opcode_t :
+            // (0) data pointer
+            // (1) delay
+            int offset     = *cptr++;                   // where is the data space for rms calculation
+            unsigned delay = *cptr++;                   // size of delay line, followed by couples : counter - factor
+            unsigned * dataPtr  = (unsigned*)rundataPtr+offset;
+            // structure of the data space preallocated by encoder
             // 1 counter    (0)
             // 1 index      (1)
             // 1 lastsqrt   (2)
@@ -637,52 +706,76 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             // 1 sqrtbit    (4)
             // 2 sumsquare  (5)
             // 2 movingavg  (+1)
-            // 2 sqrtinput  (+2)
-            // 2xN delayLine(+3)
-            int counter = *dataPtr;                     // retreive counter actual value
-            int index   = *(dataPtr+1);                 // retreive current position in the delay line
+            // 2xN delayLine(+2)
+            unsigned counter    = (*dataPtr);         // retreive counter actual value and increment it
+            counter++;
+
+            int freq = dspSamplingFreqIndex * 2;        // 2words per frequences : maxCounter & factor
+            int * tablePtr = (int*)cptr+freq;           // point on the offset to be used for the current frequency
+            unsigned maxCounter = *tablePtr++;          // get the max number of counts before entering the delay line
+            int factor = *tablePtr;                 // get the magic factor to apply to each sample, to avoid 64bits sat
             dspALU_t *sumSquarePtr = (dspALU_t*)(dataPtr+5);   // current 64bits sum.square
-            dspALU_t *averagePtr = sumSquarePtr+1;      // position of the averaged sum.square
-            dspALU_t *sqrtInput  = sumSquarePtr+2;      // position of the averaged sum.square
-            int sample = dspmuls32_32_32(ALU,factor);   // scale sample according to fs and table
-            ALU = *sumSquarePtr;
-            dspmacs64_32_32(&ALU, sample, sample);      // ALU += sample^2
-            counter ++;
+            #if DSP_ALU_INT64
+                if (factor >0) {                        // trick to avoid duplicating code, and inexpensive in execution time
+                    dspSample_t sample = dspmuls32_32_32(ALU,factor);   // scale sample (ALU) according factor from table depending on fs
+                    ALU = *sumSquarePtr;                    // get previous sum.square
+                    dspmacs64_32_32(&ALU, sample, sample);  // ALU += sample^2
+                } else {
+                    dspSample_t samplex = dspmuls32_32_32(ALU,factor);   // scale sample (ALU) according factor from table depending on fs
+                    dspSample_t sampley = dspmuls32_32_32(ALU2,factor);   // scale sample (ALU) according factor from table depending on fs
+                    ALU = *sumSquarePtr;                    // get previous sum.square
+                    dspmacs64_32_32(&ALU, samplex, sampley);  // ALU += samplex * sampley
+                }
+            #else
+                if (factor > 0)
+                     ALU *= ALU;                        // square current sample
+                else ALU *= ALU2;                       // multiply X and Y
+                ALU += *sumSquarePtr;                   // add previous sum.square
+            #endif
+            dspALU_t *averagePtr = sumSquarePtr+1;      // position of the averaged value of sum.square
             if (counter >= maxCounter) {
-                dspALU_t *delayPtr = sumSquarePtr+3;    // start of the delay line
-                dspALU_t value = *averagePtr;           // retreive current average
-                value -= *(delayPtr+index);             // remove oldest value
-                *(delayPtr+index) = ALU;                // overwrite oldest and store newest
-                ALU += value;                           // use it in the result
+                if (delay) {
+                    unsigned index = *(dataPtr+1);          // retreive current position in the delay line
+                    dspALU_t *delayPtr   = sumSquarePtr+2;  // start of the delay line
+                    dspALU_t value = *(delayPtr+index);     // get oldest value
+                    //printf("index = %d, maxcounter = %d, factor = %d, sumsquare = %lld, avg = %lld\n",index,maxCounter,factor,ALU, *averagePtr);
+                    *(delayPtr+index) = ALU;                // overwrite oldest and store newest
+                    ALU -= value;
+                    ALU += *averagePtr;                 // use it in the result
+                    index++;                            // prepare for next position in the delay line
+                    if (index >= delay) index = 0;
+                    *(dataPtr+1) = index; }             // memorize futur position in delay line
                 *averagePtr = ALU;                      // memorize new averaged value
-                *sqrtInput  = ALU;                      // this will trigger a sqrt calculation
-                index++;                                // prepare for next position in the delay line
-                if (index >= maxIndex) index = 0;
-                *(dataPtr+1) = index;                   // memorize futur position
-                *dataPtr = 0;                           // reset counter of sum.squre
+                *dataPtr = 0;                           // reset counter of sum.square
                 *sumSquarePtr = 0;                      // reset sum.square
+                ALU = *(dataPtr+2);
             } else {
                 *sumSquarePtr = ALU;                    // memorize sumsquare
                 *dataPtr = counter;                     // and new incremented counter
-
-                int bit = *(dataPtr+4);                 // read sqrt iteration bit (from 0x800000 to 0)
-                if (bit == 0) {
-                    bit = 1ULL<<31;                     // rearm sqrt iteration bit
-                    ALU = *(dataPtr+3);                 // get last calculation result
-                    *(dataPtr+2) = ALU;                 // set sqrt value with last calculation
+                #if DSP_ALU_INT64
+                if (counter == 1){                      // very first time enterring here, maybe a sumaverage has been computed in last cycle
+                    *(dataPtr+4) = 1<<30;               // memorize sqrt iteration bit for next cycle
                     *(dataPtr+3) = 0;                   // reset temporary sqrt value
+                    ALU = *(dataPtr+2);                 // retreive previous sqrt calculation, if already done ofcourse
                 } else {
-                    int temp = *(dataPtr+3) | bit;      // last calculation result
-                    dspALU_t value = 0;
-                    dspmacs64_32_32(&value,temp,temp);  // value = temp^2
-                    if (*sqrtInput >= value)
-                        *(dataPtr+3) = temp;
-                    bit >>= 1;                          // next iteration
-                    ALU = *(dataPtr+2);                 // read previous sqrt value
+                    // compute 64bit sqrt=>32 bits, doing one check at every fs cycle, assuming maxCounter always > 64
+                    unsigned bit = *(dataPtr+4);            // read sqrt iteration bit (from 0x800000 to 0)
+                    if (bit) {
+                        unsigned temp = *(dataPtr+3) | bit; // last calculation result
+                        dspALU_t value = dspmulu64_32_32( temp , temp );
+                        if (*averagePtr >= value) { *(dataPtr+3) = temp; }
+                        bit >>= 1;                          // next iteration
+                        *(dataPtr+4) = bit;                 // memorize sqrt iteration bit for next cycle
+                        ALU = *(dataPtr+2);                 // read previous sqrt value
+                    } else {
+                        ALU = *(dataPtr+3);                 // get last calculation result
+                        *(dataPtr+2) = ALU;                 // set sqrt value with last calculation
+                    }
                 }
-                *(dataPtr+4) = bit;                     // memorize sqrt iteration bit for next cycle
+                #else // float
+                    ALU = sqrt(*averagePtr);                // computed at each cycle... a bit too much : TODO
+                #endif
             }
-#endif
             break; }
 
         case DSP_CIC_D: {
@@ -701,15 +794,3 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 } // while(1)
 
-
-unsigned sqrt32algo(unsigned x)
-{
-    unsigned res = 0;
-    unsigned add = 0x80000000;
-    while (add){
-        unsigned long long temp = res | add;
-        unsigned long long g2 = temp * temp;
-        if ( x >= g2 ) res = temp;
-        add >>= 1; }
-    return res;
-}

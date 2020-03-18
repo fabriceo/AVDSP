@@ -17,12 +17,12 @@ int dspProg_crossoverLV6(int fcross, int delay){
     int lowpass = dspBiquad_Sections(3);
         dsp_LP_BES6(fcross);
 
-    dsp_CORE();  // first core
+    dsp_CORE();  // first core (could be removed - implicit)
     dsp_TPDF(24); 
     dsp_LOAD(USBOUT(1));    // loop back with minimum delay time for reference
     dsp_STORE(USBIN(1));
 
-    dsp_CORE();  // second core
+    //dsp_CORE();  // second core for test
     dsp_LOAD(USBOUT(0)); 
     dsp_COPYXY();
     dsp_DELAY_FixedMicroSec(delay);
