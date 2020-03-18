@@ -202,6 +202,8 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dsp_LOAD(right);
     dsp_AVGXY();
     */
+    //dsp_VALUE_FixedInt(0x40000000);
+    dsp_DCBLOCK(10);
     dsp_STORE(DACOUT(6));   // center
     dsp_STORE(USBIN(6));
     dsp_STORE(DACOUT(7));   // lfe

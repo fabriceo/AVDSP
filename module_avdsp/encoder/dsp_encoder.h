@@ -166,6 +166,8 @@ int  opcodeIndexMisAligned8();
  void dsp_PWRXY(int timems, int delayLine);
  void dsp_PWRXY_MilliSec(int timems, int delayms);
 
+ void dsp_DCBLOCK(int lowfreq);
+
  //void dsp_CIC_I(int delay);
  //void dsp_CIC_D(int delay);
 
