@@ -146,13 +146,13 @@ int dspProgTest(){
 const int left  = USBOUT(0);
 const int right = USBOUT(1);
 
-void crossoverLV6(int lowpass, int gd, float gaincomp, int distlow, int in, int outlow, int outhigh){
+void crossoverLV6(int lowpass, int defaultGain, int gd, float gaincomp, int distlow, int in, int outlow, int outhigh){
     dsp_LOAD(in);
     dsp_COPYXY();
     dsp_DELAY_FixedMicroSec(gd);
-    dsp_GAIN_Fixed(1.0);
+    dsp_GAIN(defaultGain);
     dsp_SWAPXY();
-    dsp_GAIN_Fixed(1.0);
+    dsp_GAIN(defaultGain);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
     dsp_SUBYX();
     dsp_SAT0DB_TPDF();
@@ -170,16 +170,18 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dspprintf("program for the dac belonging to the author, including substractive cross over\n");
     dsp_PARAM();
 
-    int lowpass1 = dspBiquad_Sections(3);
+    int lowpass1 = dspBiquad_Sections(-4);
         dsp_LP_BES6(fx);
 
-    int lowpass2 = dspBiquad_Sections(3);
+    int lowpass2 = dspBiquad_Sections(0);
         dsp_LP_BES6(fx);
-/*
-    int avgLR = dspLoadMux_Inputs(2);
+
+    int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(left,0.5);
         dspLoadMux_Data(right,0.5);
-*/
+
+    int defaultGain = dspGain_Default(1.0);
+
     dsp_CORE();  // first core (could be removed - implicit)
     dsp_TPDF(24);
     dsp_LOAD_STORE();
@@ -189,19 +191,23 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         //dspLoadStore_Data( ADCIN(1),  USBIN(1) );
         dspLoadStore_Data( right, USBIN(1) );    // loopback REW
 
-    crossoverLV6(lowpass1,gd,gaincomp,distlow,left,2,3);
+    crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
 
     dsp_CORE();  // second core for test
+    dsp_LOAD_MUX(avgLR);
+    dsp_SAT0DB();
+    /*
     dsp_LOAD(left);
     dsp_LOAD(right);
     dsp_AVGXY();
+    */
     dsp_STORE(DACOUT(6));   // center
     dsp_STORE(USBIN(6));
     dsp_STORE(DACOUT(7));   // lfe
     dsp_STORE(USBIN(7));
 
-    crossoverLV6(lowpass2,gd,gaincomp,distlow,right,4,5);
+    crossoverLV6(lowpass2, defaultGain, gd, gaincomp, distlow, right, 4, 5);
 
 
     return dsp_END_OF_CODE();

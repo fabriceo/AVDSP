@@ -24,7 +24,7 @@ int  addCode(int code);
 int  addFloat(float value);
 int  opcodeIndex();
 int  opcodeIndexAligned8();
-int  paramAligned8();
+int  opcodeIndexMisAligned8();
 
  int  dsp_END_OF_CODE();
  void dsp_NOP();
@@ -71,7 +71,7 @@ int  paramAligned8();
  //load many sample from many inputs and apply a gain (4.28) for each, resulting in a 8.56 result
  void dsp_LOAD_MUX(int paramAddr);
  int  dspLoadMux_Inputs(int number);
- int  dspLoadMux_Data(int in, dspGainParam_t gain);
+ void dspLoadMux_Data(int in, dspGainParam_t gain);
 
  // store a 0.31 sample from ALU lsb
  void dsp_STORE(int IO);
@@ -84,7 +84,14 @@ int  paramAligned8();
  void dsp_LOAD_MEM(int paramAddr);
  //store ALU (64 bits) in memory location
  void dsp_STORE_MEM(int paramAddr);
+ // load a memory (64 bits) location in the ALU
+  void dsp_LOAD_MEM_Index(int paramAddr, int index);
+  //store ALU (64 bits) in memory location
+  void dsp_STORE_MEM_Index(int paramAddr, int index);
+ // define a memory location within opcode table. to be used within PARAM or PARAM_NUM
  int  dspMem_Location();
+ // define multiple locations so that STORE_MEM_Indexed can be used
+ int  dspMem_LocationMultiple(int number);
 
 // initialize an area of data (biquad, gain, delay line, matrix...)
  int  dsp_PARAM();
@@ -140,6 +147,8 @@ int  paramAligned8();
  //define the list of biquad within a PARAM structure
  //each filters to be declared below. Number is the number of biquad cell (1storder = 2ndOrder = 1cell)
  int  dspBiquad_Sections(int number);
+ int  dspBiquad_Sections_Flexible();
+ int  dspBiquad_Sections_Maximum(int number);
 
  // not tested yet
  void dsp_FIR(int paramAddr);
