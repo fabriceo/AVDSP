@@ -35,7 +35,7 @@ static int encodeOneChannel(char *filename, int nc) {
   }
 
   dsp_CORE(); 
-  dsp_TPDF(24); 
+  if(nc==0) dsp_TPDF(24); 
 
   dsp_LOAD(nc); 
   dsp_GAIN_Fixed(1.0);
