@@ -3,22 +3,16 @@
 #include <string.h>
 #include "dsp_encoder.h"
 
-int dspProg(int argc,char **argv){
+static int encodeOneChannel(char *filename, int nc) {
+  FILE *fd;
+  char *line;
+  size_t sz;
 
-FILE *fd;
-char *line;
-size_t sz;
-
-  if(argc==0) {
-	fprintf(stderr,"Need REW filters file name\n");
-	return 1;
-  }
-  fd=fopen(argv[0],"r");
+  fd=fopen(filename,"r");
   if(fd==NULL) {
-	fprintf(stderr,"Could not open %s\n",argv[0]);
+	fprintf(stderr,"Could not open %s\n",filename);
 	return 1;
   }
-
   // test first line for format
   line=NULL;sz=0;
   getline(&line,&sz,fd);
@@ -43,7 +37,7 @@ size_t sz;
   dsp_CORE(); 
   dsp_TPDF(24); 
 
-  dsp_LOAD(0); 
+  dsp_LOAD(nc); 
   dsp_GAIN_Fixed(1.0);
 
   while(!feof(fd)) {
@@ -189,9 +183,22 @@ size_t sz;
    fclose(fd);
 
    dsp_SAT0DB_TPDF(); 
-   dsp_STORE(1);
+   dsp_STORE(nc+8);
 
-   return dsp_END_OF_CODE();
+   return 0;
 
 }
 
+int dspProg(int argc,char **argv){
+  int nc;
+
+  if(argc==0) {
+	fprintf(stderr,"Need REW filters file names\n");
+	return 1;
+  }
+
+  for(nc=0;nc<argc;nc++) 
+	encodeOneChannel(argv[nc],nc);
+  
+  return dsp_END_OF_CODE();
+}
