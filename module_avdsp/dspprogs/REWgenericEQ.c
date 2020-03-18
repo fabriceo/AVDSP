@@ -40,6 +40,9 @@ static int encodeOneChannel(char *filename, int nc) {
   dsp_LOAD(nc); 
   dsp_GAIN_Fixed(1.0);
 
+  dsp_PARAM();
+  int filter = dspBiquad_Sections_Flexible();
+
   while(!feof(fd)) {
 	int nf;
 	float Fc,G,Q;
@@ -80,72 +83,48 @@ static int encodeOneChannel(char *filename, int nc) {
 
 	if(Fc == 0.0) continue;
 
-    	dsp_PARAM();
-
 	if(strncmp(&(line[15]),"PK",2)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FPEAK,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"LP ",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FLP2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"HP ",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FHP2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"LP1",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter1stOrder(FLP1,Fc,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"HP1",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter1stOrder(FHP1,Fc,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"LPQ",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FLP2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"HPQ",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FHP2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS  ",4)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FLS2,Fc,2.0/3.0,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"HS  ",4)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FHS2,Fc,2.0/3.0,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"LSQ",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FLS2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"HSQ",3)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FHS2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 6",4)==0) {
@@ -165,26 +144,22 @@ static int encodeOneChannel(char *filename, int nc) {
 		continue;
 	}
 	if(strncmp(&(line[15]),"NO",2)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FNOTCH,Fc,30.0,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 	if(strncmp(&(line[15]),"AP",2)==0) {
- 		int filter = dspBiquad_Sections(1);
 		dsp_Filter2ndOrder(FAP2,Fc,Q,G);
-		dsp_BIQUADS(filter); 
 		continue;
 	}
 
 	fprintf(stderr,"Filter %d : Unknown filter type %s\n",nf,&(line[15]));
   }
 
-   fclose(fd);
-
+   dsp_BIQUADS(filter); 
    dsp_SAT0DB_TPDF(); 
    dsp_STORE(nc+8);
 
+   fclose(fd);
    return 0;
 
 }
