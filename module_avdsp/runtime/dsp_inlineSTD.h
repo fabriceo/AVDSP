@@ -154,6 +154,7 @@ static const unsigned short crc16Table[256]=
 // can be accessed in read mode by any task.
 
 static unsigned int dspTpdfRandomSeed;       // random number changed at every sample
+static long long dspRandomSeed64;
 static int dspTpdfValue;            // tpdf value = 1/0/-1 => -1/1/3
 static long long dspTpdfScaled;     // scalled up in 4.28 format, ready for addition
 static int dspTpdfBits;             // bit position for the tpdf dithering
@@ -184,4 +185,35 @@ static inline void dspCalcTpdf(int bits) {
      dspTpdfScaled = res;
 }
 
+static long long dspDitherE0 = 0;
+static long long dspDitherE1 = 0;
+static long long dspDitherE2 = 0;
 
+void dspDithering(long long *alu, int bits){
+    // assuming here that the sample has been multiplied by a gain and then it is in double precision format 5.59 (0.31*4.28)
+
+    long long random   = dspRandomSeed64;
+    long long rnd;
+    #ifndef DSP_ARCH
+        rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic but fast randomizer ...
+    #elif DSP_XS2A
+        unsigned int seed = random;
+         asm ("crc32 %0,%1,%2":"+r"(seed):"r"(-1),"r"(0xEB31D82E));
+         rnd = ((long long)seed << 32) ^ random;
+    #endif
+         dspRandomSeed64 = rnd;
+
+    bits = DSP_MANT+32-bits;
+    long long round = 1ULL << (bits-1);
+    long long mask  = (1ULL << bits)-1;
+    long long sample = *alu;
+    sample += dspDitherE0;
+    sample -= dspDitherE1;
+    sample += dspDitherE2;
+    dspDitherE2 = dspDitherE1;
+    dspDitherE1 = dspDitherE0/2;
+    *alu = sample + round;
+    *alu += (rnd & mask) - (random & mask);
+    *alu &= ~mask;
+    dspDitherE0 = sample - *alu;
+}

@@ -89,6 +89,7 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_FIR",
     "DSP_RMS",
     "DSP_DCBLOCK",
+    "DSP_DITHER",
     "DSP_CIC_D",
     "DSP_CIC_I",
     "DSP_NOISE_SHAPE"
@@ -1434,6 +1435,11 @@ void dsp_DCBLOCK(int lowfreq){
     }
 }
 
+void dsp_DITHER(int bits){
+    addOpcodeLengthPrint(DSP_DITHER);
+    checkInRange(bits,8,32);
+    addCode(bits);
+}
 
 void dsp_CIC_I(int delay){
     addOpcodeParam(DSP_CIC_I, delay);

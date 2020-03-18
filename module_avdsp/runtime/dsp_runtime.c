@@ -779,6 +779,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break; }
 
         case DSP_DCBLOCK: {
+            //inspired from here : http://dspguru.com/dsp/tricks/fixed-point-dc-blocking-filter-with-noise-shaping/
+#if DSP_ALU_INT64
             int offset = *cptr++;                   // where is the data space for state data calculation
             dspSample_t * dataPtr  = (dspSample_t*)(rundataPtr+offset);
             int freq = dspSamplingFreqIndex;        // 1 pole per freq
@@ -803,6 +805,21 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             *(dataPtr+1) = prevY;
             *accPtr = ALU;
             ALU = prevY;
+#endif
+        break; }
+
+
+        case DSP_DITHER: {
+            int bits = *cptr;
+            #if DSP_ALU_INT64
+                dspDithering(&ALU, bits);
+            #else // ALU is float
+                long long alu = (ALU * (1ULL<<DSP_MANT));   // transformae ALU to a 4.28 type of number
+                dspDithering(&alu, bits);
+                ALU = alu;
+                ALU /= (1ULL<<DSP_MANT);
+                // TODO
+            #endif
         break; }
 
         case DSP_CIC_D: {

@@ -156,6 +156,7 @@ enum dspOpcodesEnum {
 /* workin progress only */
     DSP_RMS,            // compute sum of square during a given period then compute moving overage but no sqrt
     DSP_DCBLOCK,
+    DSP_DITHER,         // add dithering on bit x
     DSP_CIC_D,          // decimator CIC filter delay D as parameter
     DSP_CIC_I,          // interpolator CIC filter delay D as parameter
     DSP_NOISE_SHAPE,    // add dithering, calculate error, execute filter to shape error, prepare for injection of error
