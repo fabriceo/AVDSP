@@ -88,6 +88,7 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_BIQUADS",
     "DSP_FIR",
     "DSP_RMS",
+    "DSP_DCBLOCK",
     "DSP_CIC_D",
     "DSP_CIC_I",
     "DSP_NOISE_SHAPE"
@@ -1414,6 +1415,23 @@ void dsp_PWRXY_MilliSec(int timetot, int delayms){
         dsp_RMS_(timetot, delayms,1,-1);
     else
         dsp_RMS_(timetot, delayms,0,-1);
+}
+
+void dsp_DCBLOCK(int lowfreq){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_DCBLOCK);
+    checkInRange(lowfreq, 1, 100);
+    float lowf = lowfreq;
+    addDataSpaceAligned8(6);
+
+    for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
+        // generate list of pole according to fs
+        int fs = dspTableFreq[f];
+        double fsf = fs;
+        float pole = 2.0*M_PI*lowf/fsf; //-0.00125 -> 10hz@48k, 20hz@96k
+        //dspprintf("F = %f, pole = %f\n",fsf,pole);
+        addGainCodeQNM(-pole);
+    }
 }
 
 

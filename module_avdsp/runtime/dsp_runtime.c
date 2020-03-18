@@ -564,7 +564,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             int sample = dspShiftInt( ALU, DSP_MANTBQ );    //remove the size of the biquad, as the result will be scaled accordingly
             #endif
             //printf("BIQUAD\n");
-            dspSample_t * dataPtr = (dspSample_t*)rundataPtr + *cptr++;
+            dspSample_t * dataPtr = (dspSample_t*)(rundataPtr + *cptr++);
             int * numPtr = (int*)ptr + *cptr;    // point on the number of sections
             dspParam_t * coefPtr = (dspParam_t*)numPtr+dspBiquadFreqOffset; //point on the right coefficient according to fs
             int num = *numPtr++;    // number of sections, biquad routine should keep only 16bits lsb
@@ -663,7 +663,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 //dspprintf3("fir ImpulsePtr = 0x%X\n",(int)tablePtr);
                 int length = *(tablePtr++);
                 offset = *cptr;        // offset where are the data for states filter
-                dspSample_t * dataPtr = (dspSample_t*)rundataPtr+offset;
+                dspSample_t * dataPtr = (dspSample_t*)(rundataPtr+offset);
                 //dspprintf3("state data @0x%X, length %d\n",(int)dataPtr,length);
                 int delay = length >> 16;
                 if (delay) {    // simple delay line
@@ -697,7 +697,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             // (1) delay
             int offset     = *cptr++;                   // where is the data space for rms calculation
             unsigned delay = *cptr++;                   // size of delay line, followed by couples : counter - factor
-            unsigned * dataPtr  = (unsigned*)rundataPtr+offset;
+            unsigned * dataPtr  = (unsigned*)(rundataPtr+offset);
             // structure of the data space preallocated by encoder
             // 1 counter    (0)
             // 1 index      (1)
@@ -777,6 +777,33 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 #endif
             }
             break; }
+
+        case DSP_DCBLOCK: {
+            int offset = *cptr++;                   // where is the data space for state data calculation
+            dspSample_t * dataPtr  = (dspSample_t*)(rundataPtr+offset);
+            int freq = dspSamplingFreqIndex;        // 1 pole per freq
+            int * tablePtr = (int*)(cptr+freq);       // point on the offset to be used for the current frequency
+
+            int pole = *tablePtr;                 // pole of the integrator
+            // structure of the data space preallocated by encoder
+            // 1 prevX  (0)
+            // 1 prevY  (1)
+            // 2 acc    (2)
+            // ALU expected to contain 0.31 sample (typically after LOAD or before STORE)
+            dspALU_t * accPtr = (dspALU_t*)(dataPtr+2);
+            int prevX = *dataPtr;
+            int Xn = ALU;
+            *dataPtr = Xn;
+            Xn -= prevX;
+            ALU = *accPtr;
+            dspmacs64_32_32( &ALU, Xn, DSP_QNM(1.0) );     // add (Xn-X[n-1]) scaled 28bit up
+            int prevY = *(dataPtr+1);
+            dspmacs64_32_32( &ALU, prevY, pole);    // add Y[n-1] * pole (pole is negative and small like -0.001)
+            prevY = dspShiftInt( ALU, DSP_MANT);    // reduce precision and store Yn
+            *(dataPtr+1) = prevY;
+            *accPtr = ALU;
+            ALU = prevY;
+        break; }
 
         case DSP_CIC_D: {
             //int delay = *cptr;
