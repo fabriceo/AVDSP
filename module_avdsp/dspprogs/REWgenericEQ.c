@@ -35,7 +35,7 @@ static int encodeOneChannel(char *filename, int nc) {
   }
 
   dsp_CORE(); 
-  if(nc==0) dsp_TPDF(24); 
+  dsp_TPDF(24); 
 
   dsp_LOAD(nc); 
   dsp_GAIN_Fixed(1.0);
@@ -156,7 +156,10 @@ static int encodeOneChannel(char *filename, int nc) {
   }
 
    dsp_BIQUADS(filter); 
-   dsp_SAT0DB_TPDF(); 
+
+   dsp_DITHER(); 
+   dsp_SAT0DB(); 
+
    dsp_STORE(nc+8);
 
    fclose(fd);
