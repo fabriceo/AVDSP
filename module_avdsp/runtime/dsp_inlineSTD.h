@@ -150,6 +150,31 @@ static const unsigned short crc16Table[256]=
     0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
 };
 
+typedef unsigned int uint32_t;
+
+static inline uint32_t rotl(const uint32_t x, unsigned int k) {
+    return (x << k) | (x >> (32 - k));
+}
+
+
+static uint32_t s32[4];
+
+uint32_t xoshiro128p(void) {
+    const uint32_t result = s32[0] + s32[3];
+
+    const uint32_t t = s32[1] << 9;
+
+    s32[2] ^= s32[0];
+    s32[3] ^= s32[1];
+    s32[1] ^= s32[2];
+    s32[0] ^= s32[3];
+
+    s32[2] ^= t;
+
+    s32[3] = rotl(s32[3], 11);
+
+    return result;
+}
 
 // global variable. no need for volatile :
 // can be accessed in read mode by any task.
@@ -162,7 +187,8 @@ static inline int dspTpdfRandomCalc(){
     unsigned int random = dspTpdfRandomSeed;
     unsigned int rnd;
 #ifndef DSP_ARCH
-    rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic but fast randomizer ...
+    rnd = xoshiro128p();
+    //rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very old and basic randomizer ...
 #elif DSP_XS2A
     rnd = random;
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
@@ -185,6 +211,7 @@ static inline void dspTpdfCalc(int bits){
         dspTpdfRound = 1ULL << (bits-1);    // value (0.5) for rounding sample
         dspTpdfNotMask  = ~((1ULL << bits)-1);
         dspTpdfFactor = 1<<(bits-32);
+        dspTpdfRandom = dspTpdfRandomCalc();
         // do not continue calculation so that the cpu load is equilibrated between very first sample here and others in the "else" statement
     } else {
         dspTpdfValue = dspTpdfRound;
