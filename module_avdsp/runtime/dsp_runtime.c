@@ -812,9 +812,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_DITHER: {
-            int offset = *cptr++;                   // where is the data space for state data calculation
-            dspALU_t * errorPtr  = (dspALU_t*)(rundataPtr+offset);
             #if DSP_ALU_INT64
+                int offset = *cptr++;                   // where is the data space for state data calculation
+                dspALU_t * errorPtr  = (dspALU_t*)(rundataPtr+offset);
                 dspALU_t temp1 = *(errorPtr+1);
                 dspALU_t temp0 = *(errorPtr+0);
                 ALU += temp0;
@@ -829,7 +829,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #else // ALU is float
                 // probably ALL WRONG TODO
                 long long alu = (ALU * (1ULL<<DSP_MANT));   // transformae ALU to a 4.28 type of number
-                dspDithering(&alu, bits);
+                //dspDithering(&alu, bits);
                 ALU = alu;
                 ALU /= (1ULL<<DSP_MANT);
                 // TODO

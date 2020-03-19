@@ -167,14 +167,14 @@ int dspTpdfRandomCalc(){
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
 #endif
     dspTpdfRandomSeed = rnd;    // new value
-    return rnd - random;        // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1
+    return rnd - random;        // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1 => tpdf distribution
 }
 
-long long dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
-long long dspTpdfRound;                 // equivalent to 0.5, scaled at the right bit position
+static long long dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
+static long long dspTpdfRound;                 // equivalent to 0.5, scaled at the right bit position
+static long long dspTpdfValue;                 // resulting value to be added to the sample, before truncation
 static int dspTpdfBits = 0;             // bit position for the tpdf dithering
 static int dspTpdfFactor;               // scaling factor to reach the right bit
-long long dspTpdfValue;                 // resulting value to be added to the sample, before truncation
 
 static inline void dspTpdfCalc(int bits){
     if (bits != dspTpdfBits) {

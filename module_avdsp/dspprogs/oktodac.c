@@ -183,7 +183,7 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
-    dsp_TPDF(16);
+    dsp_TPDF(20);
     dsp_LOAD_STORE();
         dspLoadStore_Data( left,  DACOUT(0) );   // headphones
         dspLoadStore_Data( right, DACOUT(1) );
@@ -196,7 +196,7 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
 
     dsp_CORE();  // second core for test
     dsp_LOAD_MUX(avgLR);
-    dsp_DITHER(16);
+    dsp_DITHER();
     dsp_SAT0DB();
     /*
     dsp_LOAD(left);

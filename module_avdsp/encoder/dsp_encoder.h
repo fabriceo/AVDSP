@@ -168,7 +168,7 @@ int  opcodeIndexMisAligned8();
 
  void dsp_DCBLOCK(int lowfreq);
  // to be used just before SAT0DB
- void dsp_DITHER(int bits);
+ void dsp_DITHER();
  //void dsp_CIC_I(int delay);
  //void dsp_CIC_D(int delay);
 
