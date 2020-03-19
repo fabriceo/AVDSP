@@ -1438,7 +1438,7 @@ void dsp_DCBLOCK(int lowfreq){
 void dsp_DITHER(int bits){
     addOpcodeLengthPrint(DSP_DITHER);
     checkInRange(bits,8,32);
-    addCode(bits);
+    addDataSpaceAligned8(8);
 }
 
 void dsp_CIC_I(int delay){

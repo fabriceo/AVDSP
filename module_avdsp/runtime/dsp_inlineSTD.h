@@ -21,18 +21,6 @@ static inline unsigned int dspmulu32_32_32(unsigned int a, unsigned int b){
 #endif
 }
 
-// used in DSP_RMS
-static inline unsigned long long dspmulu64_32_32(unsigned int a, unsigned int b){
-#ifndef DSP_ARCH  // default treatment
-    return (unsigned long long)a * b;;
-#elif DSP_XS2A  // specific for xmos xs2 architecture
-    int z = 0;
-    asm("lmul %0,%1,%2,%3,%4,%5":"=r"(a),"=r"(b):"r"(a),"r"(b),"r"(z),"r"(z));
-    return ((unsigned long long)a<<32) | b;
-#endif
-}
-
-
 // used in DSP_RMS to scale the sample with a 31 bit factor
 static inline int dspmuls32_32_32(int a, int b){
 #ifndef DSP_ARCH  // default treatment
@@ -46,6 +34,18 @@ static inline int dspmuls32_32_32(int a, int b){
     return ah;
 #endif
 }
+
+// used in DSP_RMS
+static inline unsigned long long dspmulu64_32_32(unsigned int a, unsigned int b){
+#ifndef DSP_ARCH  // default treatment
+    return (unsigned long long)a * b;;
+#elif DSP_XS2A  // specific for xmos xs2 architecture
+    int z = 0;
+    asm("lmul %0,%1,%2,%3,%4,%5":"=r"(a),"=r"(b):"r"(a),"r"(b),"r"(z),"r"(z));
+    return ((unsigned long long)a<<32) | b;
+#endif
+}
+
 
 // used in  DSP_LOAD_MUX, DSP_RMS
 static inline void dspmacs64_32_32(long long *alu, int a, int b){
@@ -74,12 +74,13 @@ static inline void dspmacs64_32_32_0(long long *alu, int a, int b){
 }
 
 // used in DSP_SAT0DB, DSP_SAT0DB_TPDF, DSP_SAT0DB_GAIN, DSP_SAT0DB_TPDF_GAIN
-static inline void dspSaturate64_031(long long *a){  // double precision will be saturated then converted in 0.31
+// double precision will be saturated then converted in 0.31
+static inline void dspSaturate64_031(long long *a){
 #ifndef DSP_ARCH
     long long satpos = 1ULL << (DSP_MANT+31);
     long long satneg = -satpos;
-    if ((*a) >= satpos ) *a = DSP_Q31(1.0); else
-    if ((*a) <= satneg) *a = DSP_Q31(-1.0);
+    if ((*a) >= satpos ) *a = DSP_Q31( 1.0); else
+    if ((*a) <= satneg)  *a = DSP_Q31(-1.0);
     else (*a) >>= DSP_MANT;
 #elif DSP_XS2A
     unsigned int al = *a;
@@ -152,68 +153,43 @@ static const unsigned short crc16Table[256]=
 
 // global variable. no need for volatile :
 // can be accessed in read mode by any task.
+// writen only by one core at the begining of dspruntime
 
-static unsigned int dspTpdfRandomSeed;       // random number changed at every sample
-static long long dspRandomSeed64;
-static int dspTpdfValue;            // tpdf value = 1/0/-1 => -1/1/3
-static long long dspTpdfScaled;     // scalled up in 4.28 format, ready for addition
-static int dspTpdfBits;             // bit position for the tpdf dithering
+static unsigned int dspTpdfRandomSeed;      // random number changed at every sample
 
-// shall be called only once, by the main task, at the begining of the Core code
-static inline void dspCalcTpdf(int bits) {
-     dspTpdfBits = bits;
-     int      tpdf;
+int dspTpdfRandomCalc(){
+    unsigned int random = dspTpdfRandomSeed;
+    unsigned int rnd;
 #ifndef DSP_ARCH
-     unsigned int seed   = dspTpdfRandomSeed;
-     seed =  (seed << 8) ^ crc16Table[(seed >> 8) & 0xFF ]; // very basic but fast randomizer ...
+    rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic but fast randomizer ...
 #elif DSP_XS2A
-     unsigned seed   = dspTpdfRandomSeed;
-     asm ("crc32 %0,%1,%2":"+r"(seed):"r"(-1),"r"(0xEB31D82E));
+    rnd = random;
+    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
 #endif
-     dspTpdfRandomSeed = seed;
-     if ((seed & 1) )
-         if (seed & 2)
-              tpdf = 3;
-         else tpdf = 1;
-     else
-         if (seed & 4)
-              tpdf = 1;
-         else tpdf = -1 ;
-     dspTpdfValue = tpdf;
-     long long res = (1<<DSP_MANT);// scalling factor
-     res *= tpdf<<(31-1-bits);      // -1 because tpdf is -1/1/3 for 0.5 rounding
-     dspTpdfScaled = res;
+    dspTpdfRandomSeed = rnd;    // new value
+    return rnd - random;        // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1
 }
 
-static long long dspDitherE0 = 0;
-static long long dspDitherE1 = 0;
-static long long dspDitherE2 = 0;
+long long dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
+long long dspTpdfRound;                 // equivalent to 0.5, scaled at the right bit position
+static int dspTpdfBits = 0;             // bit position for the tpdf dithering
+static int dspTpdfFactor;               // scaling factor to reach the right bit
+long long dspTpdfValue;                 // resulting value to be added to the sample, before truncation
 
-void dspDithering(long long *alu, int bits){
-    // assuming here that the sample has been multiplied by a gain and then it is in double precision format 5.59 (0.31*4.28)
-
-    long long random   = dspRandomSeed64;
-    long long rnd;
-    #ifndef DSP_ARCH
-        rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic but fast randomizer ...
-    #elif DSP_XS2A
-        unsigned int seed = random;
-         asm ("crc32 %0,%1,%2":"+r"(seed):"r"(-1),"r"(0xEB31D82E));
-         rnd = ((long long)seed << 32) ^ random;
-    #endif
-         dspRandomSeed64 = rnd;
-
-    bits = DSP_MANT+32-bits;
-    long long round = 1ULL << (bits-1);
-    long long mask  = (1ULL << bits)-1;
-    long long sample = *alu;
-    sample += dspDitherE0;
-    sample -= dspDitherE1;
-    sample += dspDitherE2;
-    dspDitherE2 = dspDitherE1;
-    dspDitherE1 = dspDitherE0/2;
-    *alu = sample + round;
-    *alu += (rnd & mask) - (random & mask);
-    *alu &= ~mask;
-    dspDitherE0 = sample - *alu;
+static inline void dspTpdfCalc(int bits){
+    if (bits != dspTpdfBits) {
+        dspTpdfBits = bits;
+        bits = DSP_MANT+32-bits;
+        dspTpdfRound = 1ULL << (bits-1);  // value (0.5) for rounding sample
+        dspTpdfNotMask  = ~((1ULL << bits)-1);
+        dspTpdfFactor = 1<<(bits-32);
+        // do not continue calculation so that the cpu load is equilibrated between very first sample and others
+    } else {
+        long long acc = dspTpdfRound;
+        int tpdf = dspTpdfRandomCalc();
+        dspmacs64_32_32(&acc, tpdf, dspTpdfFactor);
+        dspTpdfValue = acc; // same value will be used by each dithering calls
+    }
 }
+
+

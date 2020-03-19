@@ -327,7 +327,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_SAT0DB_TPDF: {
             dspprintf2("SATURATE");
             #if DSP_ALU_INT64
-                ALU += dspTpdfScaled;
+                ALU += dspTpdfValue;
+                ALU &= dspTpdfNotMask;
                 dspSaturate64_031( &ALU );
             #else // ALU float
                 ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << dspTpdfBits));
@@ -356,7 +357,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #if DSP_ALU_INT64
                 dspShiftMant( &ALU );
                 ALU *= gain;
-                ALU += dspTpdfScaled;
+                ALU += dspTpdfValue;
+                ALU &= dspTpdfNotMask;
                 dspSaturate64_031( &ALU );
             #else // DSP_SAMPLE_FLOAT
                 ALU *= gain;
@@ -369,7 +371,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_TPDF: {
             dspprintf2("TPDF");
             int bit = *cptr;
-            dspCalcTpdf(bit);  // same routine for INT or FLOAT or DOUBLE to prepare  global variable
+            dspTpdfCalc(bit);  // same routine for INT or FLOAT or DOUBLE to prepare  global variable
             break;}
 
 
@@ -810,10 +812,22 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_DITHER: {
-            int bits = *cptr;
+            int offset = *cptr++;                   // where is the data space for state data calculation
+            dspALU_t * errorPtr  = (dspALU_t*)(rundataPtr+offset);
             #if DSP_ALU_INT64
-                dspDithering(&ALU, bits);
+                dspALU_t temp1 = *(errorPtr+1);
+                dspALU_t temp0 = *(errorPtr+0);
+                ALU += temp0;
+                *(errorPtr+1) = temp0/2;
+                ALU -= temp1;
+                ALU += *(errorPtr+2);
+                *(errorPtr+2) = temp1;
+                dspALU_t sample = ALU;
+                ALU += dspTpdfValue;    // includes rounding
+                ALU &= dspTpdfNotMask;  // truncate
+                *(errorPtr+0) = sample - ALU;
             #else // ALU is float
+                // probably ALL WRONG TODO
                 long long alu = (ALU * (1ULL<<DSP_MANT));   // transformae ALU to a 4.28 type of number
                 dspDithering(&alu, bits);
                 ALU = alu;
