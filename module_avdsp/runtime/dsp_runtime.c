@@ -325,13 +325,13 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_SAT0DB_TPDF: {
-            dspprintf2("SATURATE");
+            dspprintf2("SATURATE_TPDF");
             #if DSP_ALU_INT64
                 ALU += dspTpdfValue;
                 ALU &= dspTpdfNotMask;
                 dspSaturate64_031( &ALU );
             #else // ALU float
-                ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << dspTpdfBits));
+                ALU += DSP_F31(dspTpdfRandom);
                 dspSaturateFloat( &ALU );
             #endif
             break;}
@@ -362,7 +362,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 dspSaturate64_031( &ALU );
             #else // DSP_SAMPLE_FLOAT
                 ALU *= gain;
-                ALU += (dspParam_t)dspTpdfValue / ((dspParam_t)(1ULL << dspTpdfBits));
+                ALU += DSP_F31(dspTpdfRandom);
                 dspSaturateFloat( &ALU );
             #endif
             break; }
@@ -372,16 +372,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("TPDF");
             int bit = *cptr;
             dspTpdfCalc(bit);  // same routine for INT or FLOAT or DOUBLE to prepare  global variable
-            break;}
-
-
-        case DSP_WHITE: {
-            dspprintf2("WHITE");
-            #if DSP_ALU_INT64
-                ALU = dspTpdfRandomSeed;                // load 32 bit value as if it was 0.31 sample
-            #else
-                ALU = DSP_F31(dspTpdfRandomSeed);       // convert 32bit value to a float number between -1..+1
-            #endif
             break;}
 
 
@@ -445,7 +435,17 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break;}
 
 
-        case DSP_MUL_VALUE:{
+        case DSP_WHITE: {
+             dspprintf2("WHITE");
+             #if DSP_ALU_INT64
+                 ALU = dspTpdfRandom;
+             #else
+                 ALU = DSP_F31(dspTpdfRandom);       // convert 32bit value to a float number between -1..+1
+             #endif
+             break;}
+
+
+          case DSP_MUL_VALUE:{
             dspprintf2("MUL_VALUE");
             dspParam_t value = *((dspParam_t*)ptr+*cptr);
             ALU *= value;
@@ -827,11 +827,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 ALU &= dspTpdfNotMask;  // truncate
                 *(errorPtr+0) = sample - ALU;
             #else // ALU is float
-                // probably ALL WRONG TODO
-                long long alu = (ALU * (1ULL<<DSP_MANT));   // transformae ALU to a 4.28 type of number
-                //dspDithering(&alu, bits);
-                ALU = alu;
-                ALU /= (1ULL<<DSP_MANT);
                 // TODO
             #endif
         break; }

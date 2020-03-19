@@ -175,15 +175,15 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
 
     int lowpass2 = dspBiquad_Sections(0);
         dsp_LP_BES6(fx);
-
+/*
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(left,0.5);
         dspLoadMux_Data(right,0.5);
-
+*/
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
-    dsp_TPDF(20);
+    dsp_TPDF(24);
     dsp_LOAD_STORE();
         dspLoadStore_Data( left,  DACOUT(0) );   // headphones
         dspLoadStore_Data( right, DACOUT(1) );
@@ -195,9 +195,14 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
 
 
     dsp_CORE();  // second core for test
-    dsp_LOAD_MUX(avgLR);
-    dsp_DITHER();
-    dsp_SAT0DB();
+    crossoverLV6(lowpass2, defaultGain, gd, gaincomp, distlow, right, 4, 5);
+
+    //dsp_LOAD_MUX(avgLR);
+    //dsp_DITHER();
+    //dsp_SAT0DB();
+    dsp_WHITE();
+    //dsp_GAIN_Fixed(0.5);
+    //dsp_SAT0DB();
     /*
     dsp_LOAD(left);
     dsp_LOAD(right);
@@ -209,8 +214,6 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dsp_STORE(USBIN(6));
     dsp_STORE(DACOUT(7));   // lfe
     dsp_STORE(USBIN(7));
-
-    crossoverLV6(lowpass2, defaultGain, gd, gaincomp, distlow, right, 4, 5);
 
 
     return dsp_END_OF_CODE();

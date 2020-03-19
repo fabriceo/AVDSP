@@ -668,6 +668,8 @@ void dsp_NEGX(){ addSingleOpcodePrint(DSP_NEGX); }
 
 void dsp_NEGY(){ addSingleOpcodePrint(DSP_NEGY); }
 
+void dsp_WHITE() { addSingleOpcodePrint(DSP_WHITE); }
+
 void dsp_SAT0DB() {
     addSingleOpcodePrint(DSP_SAT0DB);
     ALUformat = 0;
@@ -859,6 +861,7 @@ void dsp_GAIN_Fixed(dspGainParam_t gain){
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(gain);
 }
+
 
 void dsp_VALUE_Fixed(float value){
     ALUformat = 1;

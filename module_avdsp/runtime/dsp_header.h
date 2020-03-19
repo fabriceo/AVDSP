@@ -22,8 +22,8 @@
 #endif
 
 #ifdef __XS2A__     // specific for xmos xs2 architecture
-//#define DSP_XS2A 1
-//#define DSP_ARCH DSP_XS2A
+#define DSP_XS2A 1
+#define DSP_ARCH DSP_XS2A
 #elif 0
 // other architecture defines here
 #define DSP_MYARCH 2

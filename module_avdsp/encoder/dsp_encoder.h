@@ -35,6 +35,7 @@ int  opcodeIndexMisAligned8();
  void dsp_COPYXY();
  void dsp_CLRXY();
  void dsp_TPDF(int bits);
+ void dsp_WHITE();
 
  void dsp_ADDXY();
  void dsp_ADDYX();

@@ -155,9 +155,10 @@ static const unsigned short crc16Table[256]=
 // can be accessed in read mode by any task.
 // writen only by one core at the begining of dspruntime
 
-static unsigned int dspTpdfRandomSeed;      // random number changed at every sample
+unsigned int dspTpdfRandomSeed;      // random number changed at every sample
+int dspTpdfRandom;                   // -1..+1 tpdf distribution coded 0.31, used in SAT0DB_TPDF float
 
-int dspTpdfRandomCalc(){
+static inline int dspTpdfRandomCalc(){
     unsigned int random = dspTpdfRandomSeed;
     unsigned int rnd;
 #ifndef DSP_ARCH
@@ -167,28 +168,28 @@ int dspTpdfRandomCalc(){
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
 #endif
     dspTpdfRandomSeed = rnd;    // new value
-    return rnd - random;        // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1 => tpdf distribution
+    return rnd - random;     // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1 => tpdf distribution
 }
 
-static long long dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
-static long long dspTpdfRound;                 // equivalent to 0.5, scaled at the right bit position
-static long long dspTpdfValue;                 // resulting value to be added to the sample, before truncation
-static int dspTpdfBits = 0;             // bit position for the tpdf dithering
-static int dspTpdfFactor;               // scaling factor to reach the right bit
+dspAligned64_t dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
+dspAligned64_t dspTpdfValue;                 // resulting value to be added to the sample, before truncation
 
+// this function shall be executed once in the dspProg.
 static inline void dspTpdfCalc(int bits){
+    static dspAligned64_t dspTpdfRound;          // equivalent to 0.5, scaled at the right bit position
+    static int dspTpdfFactor;               // scaling factor to reach the right bit
+    static int dspTpdfBits = 0;             // bit position for the tpdf dithering
     if (bits != dspTpdfBits) {
         dspTpdfBits = bits;
         bits = DSP_MANT+32-bits;
-        dspTpdfRound = 1ULL << (bits-1);  // value (0.5) for rounding sample
+        dspTpdfRound = 1ULL << (bits-1);    // value (0.5) for rounding sample
         dspTpdfNotMask  = ~((1ULL << bits)-1);
         dspTpdfFactor = 1<<(bits-32);
-        // do not continue calculation so that the cpu load is equilibrated between very first sample and others
+        // do not continue calculation so that the cpu load is equilibrated between very first sample here and others in the "else" statement
     } else {
-        long long acc = dspTpdfRound;
-        int tpdf = dspTpdfRandomCalc();
-        dspmacs64_32_32(&acc, tpdf, dspTpdfFactor);
-        dspTpdfValue = acc; // same value will be used by each dithering calls
+        dspTpdfValue = dspTpdfRound;
+        dspTpdfRandom = dspTpdfRandomCalc();
+        dspmacs64_32_32( &dspTpdfValue , dspTpdfRandom , dspTpdfFactor );
     }
 }
 
