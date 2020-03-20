@@ -153,3 +153,13 @@ int dspReadBuffer(char * name, int * buff, int size){
     dspfclose();
     return size;
 }
+
+int dspfreadLine(char * line) {
+    if (-1 == dspfileIsOpen() ) return -1;
+    if (feof(dspFile)) {
+        dspfclose();
+        return -1; }
+    if (1 != fscanf(dspFile, "%s", line)) return -1;
+    return 0;
+}
+

@@ -11,6 +11,7 @@
 #include <stdlib.h>
 #include <dlfcn.h>
 
+extern int minidspCreateParameters(char * xmlName);
 
 #define opcodesMax 10000                 // just to define a maximum, could be up to 65000 (=256kbytes)
 
@@ -39,6 +40,7 @@ int main(int argc, char **argv) {
 //    char *outFileName = NULL;
     char *dumpFileName = NULL;
     char *dspProgName = NULL;
+    char *minidspProgName = NULL;
     int outFileType = 0;
     int defaultType = DSP_FORMAT_INT64;
     int i,size;
@@ -51,6 +53,12 @@ int main(int argc, char **argv) {
 
     for (i=1; i<argc; i++) {
         // basic parameters handling for file outputs and encoder format
+        if (strcmp(argv[i],"-minidsp") == 0) {
+                i++;
+                if (argc>i) {
+                     minidspProgName = argv[i];
+                     continue; } }
+
         if (strcmp(argv[i],"-dspprog") == 0) {
                 i++;
                 if (argc>i) {
@@ -88,6 +96,9 @@ int main(int argc, char **argv) {
                     continue; } }
 	    break;
     }
+
+    if (minidspProgName != NULL)
+        if (minidspCreateParameters(minidspProgName)) exit(-1);
 /*
     if( dumpFileName == NULL) {
     	fprintf(stderr,"-dumpfile name Needed\n\n");
