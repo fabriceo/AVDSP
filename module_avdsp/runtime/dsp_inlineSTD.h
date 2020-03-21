@@ -133,6 +133,8 @@ static inline uint32_t rotl(const uint32_t x, unsigned int k) {
 static uint32_t s32[4];
 
 static inline void dspTpdfRandomInit(unsigned int seed){
+    dspTpdf.factor = 0;
+
 	s32[0]=(seed|1);
 	s32[1]=rotl((seed|8),7);
 	s32[2]=rotl((seed|16),11);
@@ -205,6 +207,7 @@ static const unsigned short crc16Table[256]=
 
 static inline void dspTpdfRandomInit(unsigned int seed) {
     dspTpdf.randomSeed = seed;
+    dspTpdf.factor = 0;
 }
 
 
