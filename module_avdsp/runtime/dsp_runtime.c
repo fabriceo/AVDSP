@@ -147,7 +147,7 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         // now clear the data area, just after the program area
         int * intPtr = (int*)codePtr + length;  // point on data space
         for (int i = 0; i < size; i++) *(intPtr+i) = 0;
-        dspTpdfRandomSeed = random;
+        dspTpdfRandomInit(random);
         return length;  // ok
     } else {
         dspprintf("ERROR : no header in dsp program.\n");
