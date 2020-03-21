@@ -387,6 +387,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 dspTpdf.round   = *p64++;
                 dspTpdf.notMask = *p64;
             }
+#if DSP_ALU_INT64
+            ALU = dspTpdf.scaled;
+#else
+            ALU = DSP_F31(dspTpdf.valueInt32);
+#endif
             break;}
 
 

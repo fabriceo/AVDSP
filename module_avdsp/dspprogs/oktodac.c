@@ -200,7 +200,8 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         //dsp_DITHER();
         //dsp_SAT0DB_TPDF();
         dsp_WHITE();
-        dsp_DISTRIB(512);
+        dsp_STORE(USBIN(6));
+        dsp_DISTRIB(256);
         dsp_STORE(USBIN(7));
 
 /*

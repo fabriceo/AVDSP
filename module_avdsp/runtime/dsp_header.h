@@ -46,16 +46,13 @@
 #endif
 
 // this define the precision for the fixed point maths.
-// code is optimized for int64 ALU . suggested format is 4.28 for param, gain and coeficients and double (8.56) for ALU
+// code is optimized for int64 ALU . suggested format is 4.28 for param, gain and filters coeficients
 #ifndef DSP_MANT
 #define DSP_MANT 28
 #endif
 #ifndef DSP_INT
 #define DSP_INT (32-DSP_MANT)
 #endif
-#define DSP_INTDP (DSP_INT*2)   // double precision is twice the above DSP_MANT
-#define DSP_MANTDP (64-DSP_INTDP)
-#define DSP_MANTDP_INT32 (DSP_MANTDP-32)
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
 #ifndef DSP_MANTBQ
@@ -82,19 +79,19 @@
 // list of all DSP supported opcode as of this version
 enum dspOpcodesEnum {
     DSP_END_OF_CODE,    // this opcode value is 0 and its length is 0 as a convention
-    DSP_HEADER,         // contain key information about the program.
-    DSP_NOP,            // just for fun
+    DSP_HEADER,         // contain summary information about the program.
+    DSP_NOP,            // sometime used to align opcode adress start to a 8byte cell
     DSP_CORE,           // used to separate each dsp code trunck and distribute opcodes on multiple tasks.
     DSP_PARAM,          // define an area of data (or parameters), like a sine wave or biquad coefs or any kind of data in fact
-    DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and can be accessed separately
+    DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and each param_num section can be accessed separately
     DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* math engine */
-    DSP_TPDF,           // create a white random TPDF value for dithering, either -1/0/+1 at each call.
-    DSP_WHITE,          // load the random number that was generated for the tpdf-seed
+    DSP_TPDF,           // create a random TPDF value for dithering, either -1/0/+1 at each call.
+    DSP_WHITE,          // load the random int32 number that was generated for the tpdf
     DSP_CLRXY,          // clear both ALU register
-    DSP_SWAPXY,         // exchange ALU with second one "Y". no additional param
-    DSP_COPYXY,         // save ALU X in a second "Y" register. no additional param
+    DSP_SWAPXY,         // exchange ALU with second one "Y".
+    DSP_COPYXY,         // save ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
 
     DSP_ADDXY,          // perform X = X + Y, 64 bits
@@ -108,11 +105,11 @@ enum dspOpcodesEnum {
     DSP_AVGYX,          // perform Y = X/2 + Y/2;
     DSP_NEGX,           // perform X = -X
     DSP_NEGY,           // perform Y = -Y
-    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64
-    DSP_VALUE,          // load an imediate value (int32 or 4.28)
+    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
+    DSP_VALUE,          // load an imediate value (int32 or 4.28 or float)
     DSP_SHIFT,          // perform shift left or right if param is negative
-    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28)
-    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28)
+    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28 or float)
+    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28 or float)
 
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in 0.31 format
