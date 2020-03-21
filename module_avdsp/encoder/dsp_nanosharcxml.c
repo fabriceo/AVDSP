@@ -2,6 +2,33 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define numberChannels       (16+1)   // max possible number of input and output channels
+#define filterBankSize      (16+1)   // max possible filters per channels
+
+typedef struct dspChannel_s {
+    int   muted;
+    int   inverted;
+    float gain;
+    float delay;
+    float inputMix[numberChannels];
+}dspChannel_t;
+
+typedef struct dspFilter_s {
+    int   type;
+    float freq;
+    float Q;
+    float boost;
+    int   bypass;
+} dspFilter_t;
+
+
+dspChannel_t dspChannel0 = { 0, 0, 0.0, 0.0, { 0.0 } };
+
+dspChannel_t dspChannels[numberChannels];
+
+const dspFilter_t dspFilter0 = { 1, 0, 1000.0, 1.0, 0.0 };
+
+dspFilter_t dspFilters[numberChannels][filterBankSize];
 
 static FILE* minidspOutput = NULL;
 static FILE* minidspInput  = NULL;
@@ -9,6 +36,20 @@ static FILE* minidspInput  = NULL;
 static char * minidspInfoFileName = "nanosharcinfo.h";
 
 static char minidspLine[512];
+
+static int numberChannelsMax = 0;
+static int filterBankSizeMax = 0;
+
+int checkChannels(int x, int y, int z){
+    if ( (x >= numberChannels ) || (y >= z) ) {
+        printf("out of range x=%d, y=%d ",x,y);
+        return 0;
+    } else {
+        if (x>numberChannelsMax) numberChannelsMax = x;
+        if (y > filterBankSizeMax) filterBankSizeMax = y;
+        return 1;
+    }
+}
 
 static int parseSimpleValue(char * function, int *x, int*y, float*val){
     char * s1;
@@ -70,7 +111,7 @@ static int searchFilter(char *s){
     return -1;
 }
 
-static int parseFilter(char * function, int *x, int*y, float *freq, float *Q, float *boost, int*bypass, int *ftype){
+static int parseFilter(char * function, int *x, int*y, dspFilter_t* filter){
 
     char * s1;
     char * s2;
@@ -84,30 +125,52 @@ static int parseFilter(char * function, int *x, int*y, float *freq, float *Q, fl
         while (fgets(minidspLine, 512, minidspInput)) {
             if ((s1 = strstr(minidspLine, "<freq>"))) {
                 s1 += 6;
-                *freq = strtof(s1, &s3);
+                filter->freq = strtof(s1, &s3);
                 continue; }
             if ((s1 = strstr(minidspLine, "<q>" ))) {
                 s1 += 3;
-                *Q = strtof(s1, &s3);
+                filter->Q = strtof(s1, &s3);
                 continue; }
             if ((s1 = strstr(minidspLine, "<boost>" ))) {
                 s1 += 7;
-                *boost = strtof(s1, &s3);
+                filter->boost = strtof(s1, &s3);
                 continue; }
             if ((s1 = strstr(minidspLine, "<type>" ))) {
                 s1 += 6;
                 s2 = strstr(s1,"</type>");
                 *s2 = (char)0;
-                *ftype = searchFilter(s1);
+                filter->type = searchFilter(s1);
                 continue; }
             if ((s1 = strstr(minidspLine, "<bypass>" ))) {
                 s1 += 8;
-                *bypass = strtol(s1, &s3, 10);
+                filter->bypass = strtol(s1, &s3, 10);
                 continue;}
             if ((s1 = strstr(minidspLine, "</filter>" ))) return 1;
         }
     }
     return 0;
+}
+
+void filterSort() {
+  dspFilter_t filt0,filt1;
+
+  for( int n = 0; n < numberChannels; n++ ) {
+
+      for( int i = 0; i < filterBankSize; i++ ) {
+          for( int j = 0; j < ( filterBankSize - 1 - i) ; j++) {
+              filt0 = dspFilters[n][ j ];
+              filt1 = dspFilters[n][ j + 1 ];
+              float freq0, freq1;
+              freq0 = filt0.freq;
+              freq1 = filt1.freq;
+
+              if( freq0 > freq1 ) {
+                  dspFilters[n][ j ] = filt1;
+                  dspFilters[n][ j + 1 ] = filt0;
+              }//end if
+          }//end for j
+      }//end for i
+  }
 }
 
 static int minidspParseLine(){
@@ -120,41 +183,100 @@ static int minidspParseLine(){
     char * BPF          = "<filter name=\"BPF_";
 
     int x; int y; float val;
-    float freq; float Q; float boost; int bypass;
-    int ftype;
+
+    dspFilter_t filter;
 
     if (strstr(minidspLine, status)) {
         if (parseSimpleValue(dgain, &x, &y, &val)){
-            printf("dgain_status %2d-%2d = %f\n",x,y,val);  // val=1=muted, val=2=ok
+            if ( checkChannels(x,y,1) ) dspChannels[x].muted = 2.0-val; // val=1=muted, val=2=ok
+            //printf("dgain_status %2d-%2d = %f\n",x,y,val);
         }
     } else {
         if (parseSimpleValue(dgain, &x, &y, &val)){
-            printf("dgain %2d-%2d = %f\n",x,y,val);
+            if ( checkChannels(x,y,1) ) dspChannels[x].gain = val;
+            //printf("dgain %2d-%2d = %f\n",x,y,val);
         }
         if (parseSimpleValue(mixer, &x, &y, &val)){
-            printf("mixer %2d-%2d = %f\n",x,y,val);
+            if ( checkChannels(x,y,numberChannels) ) dspChannels[x].inputMix[y] = val;
+            //printf("mixer %2d-%2d = %f\n",x,y,val);
         }
         if (parseSimpleValue(delay, &x, &y, &val)){
-            printf("delay %2d-%2d = %f\n",x,y,val);
+            if ( checkChannels(x,y,1) ) dspChannels[x].delay = val;
+            //printf("delay %2d-%2d = %f\n",x,y,val);
         }
         if (parseSimpleValue(polarity, &x, &y, &val)){
-            printf("polarity %2d-%2d = %f\n",x,y,val);
+            if ( checkChannels(x,y,1) ) dspChannels[x].inverted = val;
+            //printf("polarity %2d-%2d = %f\n",x,y,val);
         }
-        if (parseFilter(PEQ,&x,&y, &freq, &Q, &boost, &bypass, &ftype)) {
-            printf("PEQ %2d-%2d f=%5.0f, Q=%8f, g=%5f, byp=%d, type=%d\n",x,y,freq, Q, boost, bypass, ftype);
-        }
-        if (parseFilter(BPF,&x,&y, &freq, &Q, &boost, &bypass, &ftype)) {
-            printf("BPF %2d-%2d f=%5.0f, Q=%8f, g=%5f, byp=%d, type=%d\n",x,y,freq, Q, boost, bypass, ftype);
+        if (parseFilter(PEQ, &x, &y, &filter) || parseFilter(BPF,&x,&y, &filter) ) {
+            if ( checkChannels(x,y,filterBankSize ) ) dspFilters[x][y] = filter;
+            //printf("filter %2d-%2d f=%5.0f, Q=%8f, g=%5f, byp=%d, type=%s\n",x,y,filter.freq, filter.Q, filter.boost, filter.bypass, filterNames[filter.type]);
         }
     }
 
 return 0;
 }
 
+#define fout stderr // minidspOutput
+
+void generateChan(dspChannel_t chan){
+        fprintf(fout,"{ .muted=%d, .inverted=%d, .gain=%f, .delay=%f,\n",chan.muted, chan.inverted, chan.gain, chan.delay);
+        fprintf(fout,"  .inputMix = { ");
+        for (int i=0;i<numberChannelsMax;i++)
+            fprintf(fout,"%f%c ",chan.inputMix[i],i==(numberChannelsMax-1)? 32:44);
+        fprintf(fout,"} }");
+}
+
+void generateChannels(){
+    for (int n = 0; n<numberChannelsMax; n++) {
+        fprintf(fout,"const dspChannel_t chan%d = ",n);
+        generateChan(dspChannels[n]);
+        fprintf(fout,";\n");
+    }
+    fprintf(fout,"\nconst dspChannel_t dspChannels[%d] = {\n",numberChannelsMax);
+    for (int n = 0; n<numberChannelsMax; n++) {
+        generateChan(dspChannels[n]);
+        if (n==(numberChannelsMax-1)) fprintf(fout," };\n\n");
+        else fprintf(fout,",\n");
+    }
+}
+
+void generateFilt(dspFilter_t filt){
+    fprintf(fout,"{ .type=%2d, .freq=%f, .Q=%f, .boost=%f, .bypass=%d }",filt.type, filt.freq, filt.Q,filt.boost,filt.bypass);
+}
+void generateFilters(){
+    fprintf(fout,"\nconst dspFilter_t dspFilters[%d][%d] = \n",numberChannelsMax,filterBankSizeMax);
+    for (int x=0; x<numberChannelsMax; x++) {
+        if (x == 0) fprintf(fout,"{ "); else fprintf(fout,"  ");
+        for (int y=0; y<filterBankSizeMax; y++) {
+            if (y == 0) fprintf(fout,"{ "); else fprintf(fout,"    ");
+            generateFilt(dspFilters[x][y]);
+            if (y!=(filterBankSizeMax-1)) fprintf(fout,",");
+            else {
+                fprintf(fout," }");
+                if (x!=(numberChannelsMax-1)) fprintf(fout,",");
+            }
+            fprintf(fout," // %s\n",filterNames[dspFilters[x][y].type]);
+        }
+        if (x!=(numberChannelsMax-1)) fprintf(fout,"\n");
+    }
+    fprintf(fout,"};\n");
+}
+
+void generateFunctions(){
+    fprintf(fout,"... W.I.P....\n");
+}
+
 int minidspCreateParameters(char * xmlName){
 printf("converting nanosharc xml file\n");
 char * xmlfirstline = "<setting version=";
 
+    for (int x=0; x<numberChannels; x++) dspChannel0.inputMix[x] = 0.0;
+    for (int x=0; x<numberChannels; x++) {
+        dspChannels[x] = dspChannel0;
+        for (int y=0; y<filterBankSize; y++)
+            dspFilters[x][y] = dspFilter0;
+    }
     minidspInput = fopen( xmlName, "r" );
     if (minidspInput == NULL) {
         fprintf(stderr,"Error: Failed to open minidsp xml file.\n");
@@ -179,12 +301,34 @@ char * xmlfirstline = "<setting version=";
       fclose(minidspInput);
       return -1;
     }
-    fprintf(minidspOutput,"//converted information from %s.\n",xmlName);
+    fprintf(fout,"//converted information from %s.\n\n",xmlName);
     if (fgets(minidspLine, 512, minidspInput)) {
         if (strstr( minidspLine, xmlfirstline)) {
             while (fgets(minidspLine, 512, minidspInput)) {
                 if (minidspParseLine()) break;
             }
+            fprintf(fout,"\ntypedef struct dspChannel_s {\n");
+            fprintf(fout,"    int   muted;\n");
+            fprintf(fout,"    int   inverted;\n");
+            fprintf(fout,"    float gain;\n");
+            fprintf(fout,"    float delay;\n");
+            fprintf(fout,"    float inputMix[numberChannels];\n");
+            fprintf(fout,"}dspChannel_t;\n");
+            fprintf(fout,"\n");
+            fprintf(fout,"typedef struct dspFilter_s {\n");
+            fprintf(fout,"    int   type;\n");
+            fprintf(fout,"    float freq;\n");
+            fprintf(fout,"   float Q;\n");
+            fprintf(fout,"    float boost;\n");
+            fprintf(fout,"    int   bypass;\n");
+            fprintf(fout,"} dspFilter_t;\n\n\n");
+            fprintf(fout,"#define numberChannels (%d)\n",numberChannelsMax);
+            fprintf(fout,"#define filterBankSize (%d)\n\n",filterBankSizeMax);
+
+            generateChannels();
+            generateFilters();
+
+            generateFunctions();
         }
     }
     fclose(minidspOutput);
