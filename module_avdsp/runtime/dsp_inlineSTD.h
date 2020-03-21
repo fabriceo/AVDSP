@@ -5,7 +5,6 @@
  *      Author: Fabrice
  */
 
-
 // some basic maths in fixed point with flexible mantissa
 
 // compute unsigned 32bit x 32 bits = 64 bits and returns only 32bits msb
@@ -113,7 +112,57 @@ static inline int dspShiftInt(long long a, int mant){
 #endif
 }
 
+// dither generation functions 
 
+struct dspTpdf_s {
+ dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
+ dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
+ dspAligned64_t value;                  // resulting value to be added to the sample, before truncation
+ int factor;                            // scaling factor to reach the right bit
+ int random;                            // 1 - z-1, violet noise
+ unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
+} dspTpdf;
+
+#ifndef DSP_ARCH
+
+typedef unsigned int uint32_t;
+static inline uint32_t rotl(const uint32_t x, unsigned int k) {
+    return (x << k) | (x >> (32 - k));
+}
+
+static uint32_t s32[4];
+
+static inline void dspTpdfRandomInit(unsigned int seed){
+	s32[0]=(seed|1);
+	s32[1]=rotl((seed|8),7);
+	s32[2]=rotl((seed|16),11);
+	s32[3]=rotl((seed|24),17);
+}
+
+static inline uint32_t xoshiro128p(void) {
+    const uint32_t result = s32[0] + s32[3];
+
+    const uint32_t t = s32[1] << 9;
+
+    s32[2] ^= s32[0];
+    s32[3] ^= s32[1];
+    s32[1] ^= s32[2];
+    s32[0] ^= s32[3];
+    s32[2] ^= t;
+
+    s32[3] = rotl(s32[3], 11);
+
+    return result;
+}
+
+static inline void dspTpdfRandomCalc(){
+    int rnd;
+
+    rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
+    dspTpdf.random = rnd;
+}
+
+// other alternative possibility with crc16 approach
 static const unsigned short crc16Table[256]=
 {
     0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
@@ -149,55 +198,27 @@ static const unsigned short crc16Table[256]=
     0xef1f,0xff3e,0xcf5d,0xdf7c,0xaf9b,0xbfba,0x8fd9,0x9ff8,
     0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
 };
+// formula
+//rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic randomizer ...
 
-typedef unsigned int uint32_t;
+#elif DSP_XS2A
 
-static inline uint32_t rotl( uint32_t x, unsigned int k) {
-    return (x << k) | (x >> (32 - k));
+static inline void dspTpdfRandomInit(unsigned int seed) {
+    dspTpdf.randomSeed = seed;
 }
 
-uint32_t xoshiro128p(void) {
-    static uint32_t s32[4] = { 1, 2, 3, 4 };
-
-    s32[2] ^= s32[0];
-    uint32_t result = s32[0] + s32[3];
-    s32[3] ^= s32[1];
-    uint32_t t = s32[1] << 9;
-    s32[1] ^= s32[2];
-    s32[0] ^= s32[3];
-    s32[2] ^= t;
-
-    s32[3] = rotl(s32[3], 11);
-
-    return result;
-}
-
-// global variable. no need for volatile :
-// can be accessed in read mode by any task.
-// writen only by one core at the begining of dspruntime
-
-struct dspTpdf_s {
- dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
- dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
- dspAligned64_t value;                  // resulting value to be added to the sample, before truncation
- int factor;                            // scaling factor to reach the right bit
- int random;                            // 1 - z-1, violet noise
- unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
-} dspTpdf;
 
 static inline void dspTpdfRandomCalc(){
     unsigned int random = dspTpdf.randomSeed;
     unsigned int rnd;
-#ifndef DSP_ARCH
-    rnd = xoshiro128p();
-    //rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic randomizer ...
-#elif DSP_XS2A
+
     rnd = random;
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
-#endif
+
     dspTpdf.randomSeed = rnd;    // new value
     dspTpdf.random = rnd - random;
     dspTpdf.value = dspTpdf.round;
     dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
 }
+#endif
 
