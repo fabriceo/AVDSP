@@ -119,7 +119,7 @@ struct dspTpdf_s {
  dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
  dspAligned64_t value;                  // resulting value to be added to the sample, before truncation
  int factor;                            // scaling factor to reach the right bit
- int random;                            // generated noise
+ int random;                            // noise
 #ifndef DSP_ARCH
  unsigned int s32[4];			// xoshiro128p prng internal state
 #elif DSP_XS2A
@@ -162,10 +162,10 @@ static inline uint32_t xoshiro128p(void) {
 }
 
 static inline void dspTpdfRandomCalc(){
-    int rnd;
 
-    rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
-    dspTpdf.random = rnd;
+    dspTpdf.random = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
+    dspTpdf.value = dspTpdf.round;
+    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
 }
 
 /* other alternative possibility with crc16 approach
@@ -224,7 +224,7 @@ static inline void dspTpdfRandomCalc(){
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
 
     dspTpdf.randomSeed = rnd;    // new value
-    dspTpdf.random = rnd - random; 
+    dspTpdf.random = rnd - random;  // violet noise
     dspTpdf.value = dspTpdf.round;
     dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
 }
