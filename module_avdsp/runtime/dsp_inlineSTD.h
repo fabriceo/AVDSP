@@ -113,7 +113,9 @@ static inline int dspShiftInt(long long a, int mant){
 #endif
 }
 
+// dither generation functions 
 
+#if DSP_XS2A
 static const unsigned short crc16Table[256]=
 {
     0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
@@ -150,16 +152,41 @@ static const unsigned short crc16Table[256]=
     0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
 };
 
-typedef unsigned int uint32_t;
+static unsigned int dspTpdfRandomSeed;      // random number changed at every sample
 
+static inline void dspTpdfRandomInit(unsigned int seed) {
+	dspTpdfRandomSeed=seed;
+}
+
+static inline int dspTpdfRandomCalc(){
+    unsigned int random = dspTpdfRandomSeed;
+    unsigned int rnd = random;
+
+    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
+
+    dspTpdfRandomSeed = rnd;    // new value
+    return rnd - random;     // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1
+}
+
+#endif
+
+#ifndef DSP_ARCH
+
+typedef unsigned int uint32_t;
 static inline uint32_t rotl(const uint32_t x, unsigned int k) {
     return (x << k) | (x >> (32 - k));
 }
 
-
 static uint32_t s32[4];
 
-uint32_t xoshiro128p(void) {
+static inline void dspTpdfRandomInit(unsigned int seed){
+	s32[0]=(seed|1);
+	s32[1]=rotl((seed|8),7);
+	s32[2]=rotl((seed|16),11);
+	s32[3]=rotl((seed|24),17);
+}
+
+static inline uint32_t xoshiro128p(void) {
     const uint32_t result = s32[0] + s32[3];
 
     const uint32_t t = s32[1] << 9;
@@ -176,29 +203,18 @@ uint32_t xoshiro128p(void) {
     return result;
 }
 
-// global variable. no need for volatile :
-// can be accessed in read mode by any task.
-// writen only by one core at the begining of dspruntime
-
-unsigned int dspTpdfRandomSeed;      // random number changed at every sample
-int dspTpdfRandom;                   // -1..+1 tpdf distribution coded 0.31, used in SAT0DB_TPDF float
-
 static inline int dspTpdfRandomCalc(){
-    unsigned int random = dspTpdfRandomSeed;
-    unsigned int rnd;
-#ifndef DSP_ARCH
-    rnd = xoshiro128p();
-    //rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very old and basic randomizer ...
-#elif DSP_XS2A
-    rnd = random;
-    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
-#endif
-    dspTpdfRandomSeed = rnd;    // new value
-    return rnd - random;     // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1 => tpdf distribution
+    int rnd;
+
+    rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
+    return rnd ;
 }
+#endif
 
 dspAligned64_t dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
 dspAligned64_t dspTpdfValue;                 // resulting value to be added to the sample, before truncation
+
+int dspTpdfRandom;                   // -1..+1 tpdf distribution coded 0.31, used in SAT0DB_TPDF float
 
 // this function shall be executed once in the dspProg.
 static inline void dspTpdfCalc(int bits){
