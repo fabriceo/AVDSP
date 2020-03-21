@@ -95,6 +95,7 @@ enum dspOpcodesEnum {
     DSP_CLRXY,          // clear both ALU register
     DSP_SWAPXY,         // exchange ALU with second one "Y". no additional param
     DSP_COPYXY,         // save ALU X in a second "Y" register. no additional param
+    DSP_COPYYX,         // copy ALU Y to ALU X
 
     DSP_ADDXY,          // perform X = X + Y, 64 bits
     DSP_ADDYX,          // perform Y = X + Y
@@ -109,7 +110,7 @@ enum dspOpcodesEnum {
     DSP_NEGY,           // perform Y = -Y
     DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64
     DSP_VALUE,          // load an imediate value (int32 or 4.28)
-    DSP_SHIFT_VALINT,   // perform shift left or right if param is negative
+    DSP_SHIFT,          // perform shift left or right if param is negative
     DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28)
     DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28)
 

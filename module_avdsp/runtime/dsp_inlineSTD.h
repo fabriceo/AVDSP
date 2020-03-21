@@ -152,23 +152,19 @@ static const unsigned short crc16Table[256]=
 
 typedef unsigned int uint32_t;
 
-static inline uint32_t rotl(const uint32_t x, unsigned int k) {
+static inline uint32_t rotl( uint32_t x, unsigned int k) {
     return (x << k) | (x >> (32 - k));
 }
 
-
-static uint32_t s32[4];
-
 uint32_t xoshiro128p(void) {
-    const uint32_t result = s32[0] + s32[3];
-
-    const uint32_t t = s32[1] << 9;
+    static uint32_t s32[4] = { 1, 2, 3, 4 };
 
     s32[2] ^= s32[0];
+    uint32_t result = s32[0] + s32[3];
     s32[3] ^= s32[1];
+    uint32_t t = s32[1] << 9;
     s32[1] ^= s32[2];
     s32[0] ^= s32[3];
-
     s32[2] ^= t;
 
     s32[3] = rotl(s32[3], 11);
@@ -180,44 +176,28 @@ uint32_t xoshiro128p(void) {
 // can be accessed in read mode by any task.
 // writen only by one core at the begining of dspruntime
 
-unsigned int dspTpdfRandomSeed;      // random number changed at every sample
-int dspTpdfRandom;                   // -1..+1 tpdf distribution coded 0.31, used in SAT0DB_TPDF float
+struct dspTpdf_s {
+ dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
+ dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
+ dspAligned64_t value;                  // resulting value to be added to the sample, before truncation
+ int factor;                            // scaling factor to reach the right bit
+ int random;                            // 1 - z-1, violet noise
+ unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
+} dspTpdf;
 
-static inline int dspTpdfRandomCalc(){
-    unsigned int random = dspTpdfRandomSeed;
+static inline void dspTpdfRandomCalc(){
+    unsigned int random = dspTpdf.randomSeed;
     unsigned int rnd;
 #ifndef DSP_ARCH
     rnd = xoshiro128p();
-    //rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very old and basic randomizer ...
+    //rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic randomizer ...
 #elif DSP_XS2A
     rnd = random;
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
 #endif
-    dspTpdfRandomSeed = rnd;    // new value
-    return rnd - random;     // 32bit unsigned - 32 bits unsigned => signed 32bits between -1..+1 => tpdf distribution
+    dspTpdf.randomSeed = rnd;    // new value
+    dspTpdf.random = rnd - random;
+    dspTpdf.value = dspTpdf.round;
+    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
 }
-
-dspAligned64_t dspTpdfNotMask;               // mask to be applied with a "and" to get the truncated sample
-dspAligned64_t dspTpdfValue;                 // resulting value to be added to the sample, before truncation
-
-// this function shall be executed once in the dspProg.
-static inline void dspTpdfCalc(int bits){
-    static dspAligned64_t dspTpdfRound;          // equivalent to 0.5, scaled at the right bit position
-    static int dspTpdfFactor;               // scaling factor to reach the right bit
-    static int dspTpdfBits = 0;             // bit position for the tpdf dithering
-    if (bits != dspTpdfBits) {
-        dspTpdfBits = bits;
-        bits = DSP_MANT+32-bits;
-        dspTpdfRound = 1ULL << (bits-1);    // value (0.5) for rounding sample
-        dspTpdfNotMask  = ~((1ULL << bits)-1);
-        dspTpdfFactor = 1<<(bits-32);
-        dspTpdfRandom = dspTpdfRandomCalc();
-        // do not continue calculation so that the cpu load is equilibrated between very first sample here and others in the "else" statement
-    } else {
-        dspTpdfValue = dspTpdfRound;
-        dspTpdfRandom = dspTpdfRandomCalc();
-        dspmacs64_32_32( &dspTpdfValue , dspTpdfRandom , dspTpdfFactor );
-    }
-}
-
 

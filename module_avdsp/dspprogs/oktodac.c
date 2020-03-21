@@ -175,11 +175,11 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
 
     int lowpass2 = dspBiquad_Sections(0);
         dsp_LP_BES6(fx);
-/*
+
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(left,0.5);
         dspLoadMux_Data(right,0.5);
-*/
+
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
@@ -191,30 +191,33 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         //dspLoadStore_Data( ADCIN(1),  USBIN(1) );
         dspLoadStore_Data( right, USBIN(1) );    // loopback REW
 
-    crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
+        dsp_LOAD(left);
+        dsp_STORE( DACOUT(2) ); // low driver
+        dsp_STORE( USBIN(2) ); // low driver
+    //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
-
+/*
     dsp_CORE();  // second core for test
     crossoverLV6(lowpass2, defaultGain, gd, gaincomp, distlow, right, 4, 5);
 
-    //dsp_LOAD_MUX(avgLR);
-    //dsp_DITHER();
-    //dsp_SAT0DB();
-    dsp_WHITE();
+    dsp_LOAD_MUX(avgLR);
+    dsp_DITHER();
+    dsp_SAT0DB();
+ //   dsp_WHITE();
     //dsp_GAIN_Fixed(0.5);
     //dsp_SAT0DB();
-    /*
-    dsp_LOAD(left);
-    dsp_LOAD(right);
-    dsp_AVGXY();
-    */
+
+    //dsp_LOAD(left);
+    //dsp_LOAD(right);
+    //dsp_AVGXY();
+
     //dsp_VALUE_FixedInt(0x40000000);
     //dsp_DCBLOCK(10);
     dsp_STORE(DACOUT(6));   // center
     dsp_STORE(USBIN(6));
     dsp_STORE(DACOUT(7));   // lfe
     dsp_STORE(USBIN(7));
-
+*/
 
     return dsp_END_OF_CODE();
 }
