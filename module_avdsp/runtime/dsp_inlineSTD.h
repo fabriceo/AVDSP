@@ -67,7 +67,7 @@ static inline void dspmacs64_32_32_0(long long *alu, int a, int b){
     int ah;// = (*alu)>>32;
     unsigned al;// = *alu;
     asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
-    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
     *alu = ((long long)ah << 32) | al;
 #endif
 }
@@ -122,6 +122,8 @@ struct dspTpdf_s {
  int factor;                            // scaling factor to reach the right bit
  unsigned int randomSeed;               // random number changed at every sample, initialised by runtimeInit
 } dspTpdf;
+
+
 
 #ifndef DSP_ARCH
 
@@ -217,16 +219,23 @@ static inline void dspTpdfRandomInit(unsigned int seed) {
 
 
 static inline void dspTpdfRandomCalc(){
-    int rnd = dspTpdf.randomSeed;
-    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
-    int random = rnd;
-    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
+    unsigned rnd = dspTpdf.randomSeed;
+    const unsigned poly = 0xEB31D82E;
+    //asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
+    unsigned random = rnd;
+    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
     dspTpdf.randomSeed = rnd;
-    dspTpdf.valueInt32 = ( rnd >> 1 ) + ( random>>1 );
+    // better to use unsigned on XS2A due to instruction set for shr able to run on dual lane vs ashr single lane
+    dspTpdf.valueInt32 = ( rnd >> 1 ) - ( random >> 1 ); // same as (rnd>>1)+(random>>1) on signed int (verified :)
 
 #if DSP_ALU_INT64
-    dspTpdf.scaled = dspTpdf.round;
-    dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
+    int ah; unsigned al;
+    int adr = (int)&dspTpdf.round;
+    asm("ldd %0,%1,%2[0]"  :"=r"(ah),"=r"(al):"r"(adr));
+    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
+    asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));
+    //dspTpdf.scaled = dspTpdf.round;
+    //dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
 #endif
 }
 #endif

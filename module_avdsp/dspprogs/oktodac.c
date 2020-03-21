@@ -183,7 +183,7 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
-    dsp_TPDF(24);
+    dsp_TPDF(16);
     dsp_LOAD_STORE();
         dspLoadStore_Data( left,  DACOUT(0) );   // headphones
         dspLoadStore_Data( right, DACOUT(1) );
@@ -196,6 +196,12 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         dsp_STORE( USBIN(2) ); // low driver
     //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
+        dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
+        dsp_DITHER();
+        dsp_SAT0DB();
+        //dsp_WHITE();
+        dsp_STORE(USBIN(7));
+
 /*
     dsp_CORE();  // second core for test
     crossoverLV6(lowpass2, defaultGain, gd, gaincomp, distlow, right, 4, 5);
@@ -203,7 +209,7 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dsp_LOAD_MUX(avgLR);
     dsp_DITHER();
     dsp_SAT0DB();
- //   dsp_WHITE();
+    dsp_WHITE();
     //dsp_GAIN_Fixed(0.5);
     //dsp_SAT0DB();
 

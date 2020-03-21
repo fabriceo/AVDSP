@@ -379,9 +379,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("TPDF");
             asm("#dsptpdf:");
             if (dspTpdf.factor)             // set to 0 by dspRuntimeInit
-                dspTpdfRandomCalc();        // 14 instructions on XMOS XS2A
+                dspTpdfRandomCalc();        // 15 instructions on XMOS XS2A
             else {
-                asm("#dsptpdf0:");          // 14 instructions on XMOS XS2A
+                asm("#dsptpdf0:");          // 11 instructions on XMOS XS2A
                 dspTpdf.factor = *cptr++;
                 long long * p64 = (long long *)cptr;    // garanteed to be 8 bytes alligned by encoder
                 dspTpdf.round   = *p64++;
@@ -453,7 +453,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_WHITE: {
              dspprintf2("WHITE");
              #if DSP_ALU_INT64
-                 ALU = dspTpdf.valueInt32;
+                 ALU = dspTpdf.valueInt32;              // measuring 0.8dbfs rms in REW
              #else
                  ALU = DSP_F31(dspTpdf.valueInt32);       // convert 32bit value to a float number between -1..+1
              #endif
@@ -838,8 +838,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 ALU += *(errorPtr+2);
                 *(errorPtr+2) = temp1;
                 dspALU_t sample = ALU;
-                ALU += dspTpdf.scaled;        // includes rounding
-                ALU &= dspTpdf.notMask;  // truncate
+                ALU += dspTpdf.scaled;      // includes rounding
+                ALU &= dspTpdf.notMask;     // truncate
                 *(errorPtr+0) = sample - ALU;
             #else // ALU is float
                 // TODO
