@@ -334,11 +334,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_SAT0DB_TPDF: {
             dspprintf2("SATURATE_TPDF");
             #if DSP_ALU_INT64
-                ALU += dspTpdf.value;
+                ALU += dspTpdf.scaled;
                 ALU &= dspTpdf.notMask;
                 dspSaturate64_031( &ALU );
             #else // ALU float
-                ALU += DSP_F31(dspTpdf.random);
+                ALU += DSP_F31(dspTpdf.valueInt32);
                 dspSaturateFloat( &ALU );
             #endif
             break;}
@@ -364,12 +364,12 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #if DSP_ALU_INT64
                 dspShiftMant( &ALU );
                 ALU *= gain;
-                ALU += dspTpdf.value;
+                ALU += dspTpdf.scaled;
                 ALU &= dspTpdf.notMask;
                 dspSaturate64_031( &ALU );
             #else // DSP_SAMPLE_FLOAT
                 ALU *= gain;
-                ALU += DSP_F31(dspTpdf.random);
+                ALU += DSP_F31(dspTpdf.valueInt32);
                 dspSaturateFloat( &ALU );
             #endif
             break; }
@@ -453,9 +453,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_WHITE: {
              dspprintf2("WHITE");
              #if DSP_ALU_INT64
-                 ALU = dspTpdf.random;
+                 ALU = dspTpdf.valueInt32;
              #else
-                 ALU = DSP_F31(dspTpdf.random);       // convert 32bit value to a float number between -1..+1
+                 ALU = DSP_F31(dspTpdf.valueInt32);       // convert 32bit value to a float number between -1..+1
              #endif
              break;}
 
@@ -838,7 +838,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 ALU += *(errorPtr+2);
                 *(errorPtr+2) = temp1;
                 dspALU_t sample = ALU;
-                ALU += dspTpdf.value;    // includes rounding
+                ALU += dspTpdf.scaled;        // includes rounding
                 ALU &= dspTpdf.notMask;  // truncate
                 *(errorPtr+0) = sample - ALU;
             #else // ALU is float

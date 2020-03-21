@@ -117,10 +117,10 @@ static inline int dspShiftInt(long long a, int mant){
 struct dspTpdf_s {
  dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
  dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
- dspAligned64_t value;                  // resulting value to be added to the sample, before truncation
+ dspAligned64_t scaled;                 // resulting value to be added to the sample, before truncation
+ int valueInt32;                        // raw value of the tpdf generator 32 bits -1..+1
  int factor;                            // scaling factor to reach the right bit
- int random;                            // 1 - z-1, violet noise
- unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
+ unsigned int randomSeed;               // random number changed at every sample, initialised by runtimeInit
 } dspTpdf;
 
 #ifndef DSP_ARCH
@@ -161,10 +161,12 @@ static inline void dspTpdfRandomCalc(){
     int rnd;
 
     rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
-    dspTpdf.random = rnd;
+    dspTpdf.valueInt32 = rnd;
 
-    dspTpdf.value = dspTpdf.round;
-    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
+#if DSP_ALU_INT64
+    dspTpdf.scaled = dspTpdf.round;
+    dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
+#endif
 }
 
 // other alternative possibility with crc16 approach
@@ -215,17 +217,17 @@ static inline void dspTpdfRandomInit(unsigned int seed) {
 
 
 static inline void dspTpdfRandomCalc(){
-    unsigned int random = dspTpdf.randomSeed;
-    unsigned int rnd;
-
-    rnd = random;
+    int rnd = dspTpdf.randomSeed;
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
+    int random = rnd;
+    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
+    dspTpdf.randomSeed = rnd;
+    dspTpdf.valueInt32 = ( rnd >> 1 ) + ( random>>1 );
 
-    dspTpdf.randomSeed = rnd;       // new value
-    dspTpdf.random = rnd - random;  // 1-z-1
-
-    dspTpdf.value = dspTpdf.round;
-    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
+#if DSP_ALU_INT64
+    dspTpdf.scaled = dspTpdf.round;
+    dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
+#endif
 }
 #endif
 
