@@ -1,7 +1,7 @@
 INCLUDES = -I../encoder -I../runtime 
-CFLAGS = -DDSP_PRINTF=3 -Ofast  -fPIC  -Wall $(INCLUDES)
+CFLAGS = -DDSP_PRINTF=3 -g  -fPIC  -Wall $(INCLUDES)
 LIBS = -lm -ldl
-OBJS = ../encoder/dspcreate.o ../encoder/dsp_encoder.o ../encoder/dsp_filters.o ../encoder/dsp_fileaccess.o 
+OBJS = ../encoder/dspcreate.o ../encoder/dsp_encoder.o ../encoder/dsp_filters.o ../encoder/dsp_fileaccess.o ../encoder/dsp_nanosharcxml.o
 
 all:	dspcreate dspprogs
 
