@@ -67,7 +67,7 @@ static inline void dspmacs64_32_32_0(long long *alu, int a, int b){
     int ah;// = (*alu)>>32;
     unsigned al;// = *alu;
     asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
-    asm("maccu %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
     *alu = ((long long)ah << 32) | al;
 #endif
 }
@@ -117,15 +117,16 @@ static inline int dspShiftInt(long long a, int mant){
 struct dspTpdf_s {
  dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
  dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
- dspAligned64_t value;                  // resulting value to be added to the sample, before truncation
+ dspAligned64_t scaled;                 // resulting value to be added to the sample, before truncation
+ int valueInt32;                        // raw value of the tpdf generator 32 bits -1..+1
  int factor;                            // scaling factor to reach the right bit
- int random;                            // noise
 #ifndef DSP_ARCH
  unsigned int s32[4];			// xoshiro128p prng internal state
 #elif DSP_XS2A
  unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
 #endif
 } dspTpdf;
+
 
 #ifndef DSP_ARCH
 
@@ -162,10 +163,15 @@ static inline uint32_t xoshiro128p(void) {
 }
 
 static inline void dspTpdfRandomCalc(){
+    int rnd;
 
-    dspTpdf.random = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
-    dspTpdf.value = dspTpdf.round;
-    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
+    rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
+    dspTpdf.valueInt32 = rnd;
+
+#if DSP_ALU_INT64
+    dspTpdf.scaled = dspTpdf.round;
+    dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
+#endif
 }
 
 /* other alternative possibility with crc16 approach
@@ -217,16 +223,24 @@ static inline void dspTpdfRandomInit(unsigned int seed) {
 
 
 static inline void dspTpdfRandomCalc(){
-    unsigned int random = dspTpdf.randomSeed;
-    unsigned int rnd;
+    unsigned rnd = dspTpdf.randomSeed;
+    const unsigned poly = 0xEB31D82E;
+    //asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
+    unsigned random = rnd;
+    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
+    dspTpdf.randomSeed = rnd;
+    // better to use unsigned on XS2A due to instruction set for shr able to run on dual lane vs ashr single lane
+    dspTpdf.valueInt32 = ( rnd >> 1 ) - ( random >> 1 ); // same as (rnd>>1)+(random>>1) on signed int (verified :)
 
-    rnd = random;
-    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
-
-    dspTpdf.randomSeed = rnd;    // new value
-    dspTpdf.random = rnd - random;  // violet noise
-    dspTpdf.value = dspTpdf.round;
-    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
+#if DSP_ALU_INT64
+    int ah; unsigned al;
+    int adr = (int)&dspTpdf.round;
+    asm("ldd %0,%1,%2[0]"  :"=r"(ah),"=r"(al):"r"(adr));
+    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
+    asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));
+    //dspTpdf.scaled = dspTpdf.round;
+    //dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
+#endif
 }
 #endif
 
