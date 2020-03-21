@@ -162,6 +162,9 @@ static inline void dspTpdfRandomCalc(){
 
     rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
     dspTpdf.random = rnd;
+
+    dspTpdf.value = dspTpdf.round;
+    dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
 }
 
 // other alternative possibility with crc16 approach
@@ -218,8 +221,9 @@ static inline void dspTpdfRandomCalc(){
     rnd = random;
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(0xEB31D82E));
 
-    dspTpdf.randomSeed = rnd;    // new value
-    dspTpdf.random = rnd - random;
+    dspTpdf.randomSeed = rnd;       // new value
+    dspTpdf.random = rnd - random;  // 1-z-1
+
     dspTpdf.value = dspTpdf.round;
     dspmacs64_32_32( &dspTpdf.value , dspTpdf.random , dspTpdf.factor );
 }
