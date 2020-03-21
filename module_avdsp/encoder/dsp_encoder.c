@@ -100,6 +100,7 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_RMS",
     "DSP_DCBLOCK",
     "DSP_DITHER",
+    "DSP_DISTRIB",
     "DSP_CIC_D",
     "DSP_CIC_I",
     "DSP_NOISE_SHAPE"
@@ -1499,3 +1500,8 @@ void dsp_CIC_D(int delay){
     dspprintf3("DSP_CIC_D %d samples\n",delay);
 }
 
+void dsp_DISTRIB(int size){
+    addOpcodeLengthPrint(DSP_DISTRIB);
+    addCode(size);
+    addDataSpace(1+size);
+}

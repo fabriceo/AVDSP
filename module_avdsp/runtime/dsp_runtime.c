@@ -846,6 +846,20 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #endif
         break; }
 
+        case DSP_DISTRIB:{
+            int size = *cptr++;     // get size of the array, this foctor is also used to scale the ALU
+            int offset = *cptr;
+            int * dataPtr = (int*) rundataPtr+offset;   // where we have a data space for us
+            int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
+            int pos = dspmuls32_32_32(ALU, size); // our sample is now between say -256..+255 for size = 512
+            pos += size/2;      // our array is 0..511
+            (*(dataPtr+pos))++;   // one more sample counted
+            ALU = *(dataPtr+index);
+            index++;
+            if (index >= size) index = 0;
+            *--dataPtr = index;
+        break;}
+
         case DSP_CIC_D: {
             //int delay = *cptr;
         break; }
