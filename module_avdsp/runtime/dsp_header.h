@@ -114,24 +114,24 @@ enum dspOpcodesEnum {
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in 0.31 format
                         // eg physical ADC input number = position in the sample array
-    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is 5.59
+    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is s4.59
 
-    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is 5.59
+    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is s4.59
 
-    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. 0.31 expected in input
+    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. 0.31 expected in ALU
 
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
                         // source in the sample array
                         // dest in the sample array
 
-    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU saved in ALU2
+    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU X saved in ALU Y
     DSP_STORE_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
 
 /* gains */
-    DSP_GAIN,           // apply a fixed gain (eg 4.28) on the ALU result is 8.56
+    DSP_GAIN,           // apply a fixed gain (eg 4.28) on the ALU , if a ALU was a sample s.31 then it becomes s5.59
 
-    DSP_SAT0DB,         // verify boundaries -1/+1. input as 8.56, output as 33.31 (0.31 in lsb only)
-    DSP_SAT0DB_TPDF,    // same + add the tpdf calculated
+    DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (0.31 in lsb only)
+    DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
     DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries
     DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries
 
@@ -146,13 +146,13 @@ enum dspOpcodesEnum {
     DSP_DATA_TABLE,      // extract one sample of a data block
 
 /* filters */
-    DSP_BIQUADS,        // execute N biquad. ALU is expected 8.56 and will be converted 4.28. result is 8.56
+    DSP_BIQUADS,        // execute N biquad. ALU is expected s4.59 and will be return as s4.59
 
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
 
 
 /* workin progress only */
-    DSP_RMS,            // compute sum of square during a given period then compute moving overage but no sqrt
+    DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     DSP_DCBLOCK,
     DSP_DITHER,         // add dithering on bit x
     DSP_DISTRIB,        // for fun, use a dsp_WHITE before it

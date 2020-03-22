@@ -183,7 +183,6 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
-    dsp_TPDF(16);
     dsp_LOAD_STORE();
         dspLoadStore_Data( left,  DACOUT(0) );   // headphones
         dspLoadStore_Data( right, DACOUT(1) );
@@ -196,12 +195,16 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         dsp_STORE( USBIN(2) ); // low driver
     //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
+        dsp_TPDF(16);   // returns nTh bit noise like the one used in SAT0DB_TPDF
         //dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
         //dsp_DITHER();
         //dsp_SAT0DB_TPDF();
+        //dsp_SAT0DB();
         dsp_WHITE();
+        //dsp_SHIFT(-1);
         dsp_STORE(USBIN(6));
-        dsp_DISTRIB(256);
+        //dsp_DISTRIB(256);
+        dsp_RMS(100,0);
         dsp_STORE(USBIN(7));
 
 /*

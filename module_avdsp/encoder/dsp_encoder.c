@@ -750,16 +750,21 @@ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
 void dsp_TPDF(int bits){
     opcodeIndexAligned8();  // garantiee that the 64 bits words below will be alligned8 bytes
     addOpcodeLengthPrint(DSP_TPDF);
-    bits = DSP_MANT+32-bits;
+    checkInRange(bits,2,32);
+    bits = DSP_MANT+32-bits;    // eg 36 for DSPMANT = 28 and 24th bit ditering
     unsigned long long round = 1ULL << (bits-1);    // value (0.5) for rounding sample
     unsigned long long notMask  = ~((1ULL << bits)-1);
-    //dspprintf("round = %llX, notmask = %llX\n",round, notMask);
-    int factor = 1<<(bits-32);
-    addCode(factor);
-    addCode(round & 0xFFFFFFFF);
-    addCode(round >> 32);
+    unsigned factor;
+    bits = bits-31; // because tpdf value is coded in s.31, so we get 5 for the 36 above
+    if (bits>=0) factor = 1ULL<<bits;   // we can use a 32x32=64 mul for getting the tpdf scaled directly from the multiplication
+    else factor = (1ULL<<(32+bits));    // we will divide still by using the 32x32 multiplication but keeping only the MSB so 32 bits less
+    if (bits == -1) factor--;           // special case, cannot keep factor equal to 1<<31 as this becomes a negaive number in 2's
+    addCode(factor);                    // provide both : factor value
     addCode(notMask & 0xFFFFFFFF);
     addCode(notMask >> 32);
+    addCode(round & 0xFFFFFFFF);        // these value will be alligned8
+    addCode(round >> 32);
+    addCode(bits);                      // and bits representing number of shift to be performed
 }
 
 
