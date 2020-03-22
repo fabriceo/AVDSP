@@ -107,7 +107,8 @@ int  opcodeIndexMisAligned8();
  int  dsp_PARAM();
  int  dsp_PARAM_NUM(int num);
 
- int  dspDataN(int * data, int n);
+ int  dspDataTableInt(int * data, int n);
+ int  dspDataTableFloat(float * data, int n);
  int  dspData2(int a,int b);
  int  dspData4(int a,int b, int c, int d);
  int  dspData6(int a,int b, int c, int d, int e, int f);
@@ -189,6 +190,7 @@ int  opcodeIndexMisAligned8();
 
  // inject noise and apply 2nd order noise shapping. ( no input = no noise)
  void dsp_DITHER();
+ void dsp_DITHER_NS2(int paramAddr);
 
  // convert a deciBell value to a float number. e.g. dB2gain(10.0) => 3.162277
  static inline dspGainParam_t dB2gain(dspGainParam_t db){

@@ -100,10 +100,8 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_RMS",
     "DSP_DCBLOCK",
     "DSP_DITHER",
-    "DSP_DISTRIB",
-    "DSP_CIC_D",
-    "DSP_CIC_I",
-    "DSP_NOISE_SHAPE"
+    "DSP_DITHER_NS2",
+    "DSP_DISTRIB"
 };
 
 void dspprintfFatalError(){
@@ -623,7 +621,7 @@ static int paramMisAligned8() {
 
 
 
-
+/* unused
 // add a dsp_code with its following parameter
 static int addOpcodeParam(int code, int param ) {
     calcLength();
@@ -631,6 +629,7 @@ static int addOpcodeParam(int code, int param ) {
     addCode(param);
     return tmp;
 }
+*/
 
 // add a dsp_opcode that will be followed by an unknowed list of param at this stage
 // will be solved by the next dsp_opcode generation, due to call to calcLength()
@@ -989,12 +988,23 @@ void dsp_SERIAL(int N) {
 }
 
 // can be used only in a param space for declaring a list of datas (for example to be used by DATA_TABLE)
-int dspDataN(int * data, int n){
+int dspDataTableInt(int * data, int n){
     checkInParamNum();
     checkFinishedParamSection();
     int tmp = opcodeIndex();
     for (int i=0; i<n; i++) addCode(*(data+i));
     lastIndexPrinted = opcodeIndex();
+    return tmp;
+}
+
+int dspDataTableFloat(float * data, int n){
+    printLastOpcodes();
+    checkInParamNum();
+    checkFinishedParamSection();
+    int tmp = opcodeIndex();
+    for (int i=0; i<n; i++) addCode(DSP_QNM(*(data+i)));
+    printFromCurrentIndex();
+    dspprintf2("%4d : data table : %d float numbers\n",tmp,n);
     return tmp;
 }
 
@@ -1495,14 +1505,14 @@ void dsp_DITHER(){
     addDataSpaceAligned8(8);
 }
 
-void dsp_CIC_I(int delay){
-    addOpcodeParam(DSP_CIC_I, delay);
-    dspprintf3("DSP_CIC_I %d samples\n",delay);
-}
-
-void dsp_CIC_D(int delay){
-    addOpcodeParam(DSP_CIC_D, delay);
-    dspprintf3("DSP_CIC_D %d samples\n",delay);
+void dsp_DITHER_NS2(int paramAddr){
+    // support only 6 triplets of coefficients in this version
+    if ((dspMinSamplingFreq<F44100)||(dspMaxSamplingFreq>F192000))
+        dspFatalError("frequency range provided in encoderinit incompatible.");
+    int base = addOpcodeLengthPrint(DSP_DITHER_NS2);
+    checkInParamSpace(paramAddr,3*numberFrequencies);   // requires 3 coef for each supported frequencies
+    addDataSpaceAligned8(5);                    // create space for mantissa reintegration 64bits + the 3 errors
+    addCodeOffset(paramAddr, base);             // relative pointer to the data table
 }
 
 void dsp_DISTRIB(int size){

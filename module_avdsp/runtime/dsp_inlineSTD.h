@@ -195,7 +195,7 @@ static inline uint32_t xoshiro128p(void) {
     return result;
 }
 
-static inline void dspTpdfRandomCalc(){
+static inline long long dspTpdfRandomCalc(){
     int rnd;
 
     rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
@@ -207,6 +207,9 @@ static inline void dspTpdfRandomCalc(){
     else tpdf >>= (-dspTpdf.shift);
     tpdf += dspTpdf.round;
     dspTpdf.scaled = tpdf;
+    return tpdf;
+#else
+    return dspTpdf.valueInt32;
 #endif
 }
 
@@ -249,6 +252,8 @@ static inline long long dspTpdfRandomCalc(){
         asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));       // store scaled value just after round, 64 bts
         return ((long long)ah<<32) | al;
     }
+#else
+    return dspTpdf.valueInt32;
 #endif
 }
 #endif

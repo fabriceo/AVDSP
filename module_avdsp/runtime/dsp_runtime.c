@@ -851,9 +851,66 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 // TODO
             #endif
         break; }
+        /* MPD code for dithering
+        inline T
+        PcmDither::Dither(T sample) noexcept
+        {
+                constexpr T round = 1 << (scale_bits - 1);
+                constexpr T mask = (1 << scale_bits) - 1;
+
+                sample += error[0] - error[1] + error[2];
+
+                error[2] = error[1];
+                error[1] = error[0] / 2;
+
+                T output = sample + round;
+
+                const T rnd = pcm_prng(random);
+                output += (rnd & mask) - (random & mask);
+
+                random = rnd;
+
+                output &= ~mask;
+
+                error[0] = sample - output;
+
+                return output >> scale_bits;
+        }
+        */
+        case DSP_DITHER_NS2: {
+            #if DSP_ALU_INT64
+            int offset = *cptr++;                   // where is the data space for state data calculation
+            dspSample_t * errorPtr  = (dspSample_t*)(rundataPtr+offset);
+            offset = *cptr;
+            int freq = dspSamplingFreqIndex * 3;
+            int * tablePtr = (int*)(ptr+offset+freq);   // point on the offset to be used for the current frequency
+            int  coef0 = *tablePtr++;                   // eg 1.0
+            int  coef1 = *tablePtr++;                   // eg -0.5
+            int  coef2 = *tablePtr;                     // eg 0.5
+            ALU += *(errorPtr+0);                   // mantissa reintegration, alligned 8bytes
+            dspSample_t err0 = *(errorPtr+0+2);     // reduced by minus 1.0 to remove mantissa reintegration above
+            dspSample_t err1 = *(errorPtr+1+2);
+            dspSample_t err2 = *(errorPtr+2+2);
+            dspmacs64_32_32(&ALU, err0, coef0);
+            dspmacs64_32_32(&ALU, err1, coef1);
+            dspmacs64_32_32(&ALU, err2, coef2);
+            *(errorPtr+1+2) = err0;
+            *(errorPtr+2+2) = err1;
+            dspALU_t sample = ALU;
+            ALU += dspTpdf.scaled;      // includes rounding
+            ALU &= dspTpdf.notMask;     // truncate
+            sample -= ALU;              // compute error
+            *(errorPtr+0) = sample;     // store it full for reintegration at next cycle
+            err0 = dspShiftInt(sample, DSP_MANT);    // reduce precision to get it as 32bits
+            *(errorPtr+0+2) = err0;
+
+            #else // ALU is float
+                // TODO
+            #endif
+        break; }
 
         case DSP_DISTRIB:{
-            int size = *cptr++;     // get size of the array, this foctor is also used to scale the ALU
+            int size = *cptr++;     // get size of the array, this factor is also used to scale the ALU
             int offset = *cptr;
             int * dataPtr = (int*) rundataPtr+offset;   // where we have a data space for us
             int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
@@ -865,14 +922,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             if (index >= size) index = 0;
             *--dataPtr = index;
         break;}
-
-        case DSP_CIC_D: {
-            //int delay = *cptr;
-        break; }
-
-        case DSP_CIC_I:{
-            //int delay = *cptr;
-        break; }
 
         } // switch (opcode)
 
