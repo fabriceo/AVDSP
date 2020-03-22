@@ -196,26 +196,20 @@ static inline uint32_t xoshiro128p(void) {
 }
 
 static inline long long dspTpdfRandomCalc(){
-    int rnd;
-
-    rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
+    int rnd1 = xoshiro128p();
+    int rnd2 = xoshiro128p();
+    dspTpdf.randomSeed = rnd2;  // used by WHITE()
+    int rnd = ( rnd1 >> 1 ) + ( rnd2 >> 1 );  // tpdf distribution
     dspTpdf.valueInt32 = rnd;
 
-#if DSP_ALU_INT64
-    long long tpdf = dspTpdf.valueInt32;
+    long long tpdf = rnd;
     if (dspTpdf.shift >=0 ) tpdf <<= dspTpdf.shift;
     else tpdf >>= (-dspTpdf.shift);
     tpdf += dspTpdf.round;
     dspTpdf.scaled = tpdf;
     return tpdf;
-#else
-    return dspTpdf.valueInt32;
-#endif
 }
 
-
-// formula
-//rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic randomizer ...
 
 #elif DSP_XS2A
 
@@ -237,24 +231,18 @@ static inline long long dspTpdfRandomCalc(){
     // better to use unsigned on XS2A due to instruction set for shr able to run on dual lane vs ashr single lane
     dspTpdf.valueInt32 = ( rnd >> 1 ) - ( random >> 1 ); // same as (rnd>>1)+(random>>1) on signed int (verified :)
 
-#if DSP_ALU_INT64
-    //dspTpdf.scaled = dspTpdf.round;
-    //dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
     int ah; unsigned al;
-    int adr = (int)&dspTpdf.round;
-    asm("ldd %0,%1,%2[0]"  :"=r"(ah),"=r"(al):"r"(adr));    // load round
+    long long * adr = &dspTpdf.round;
+    asm("ldd %0,%1,%2[0]":"=r"(ah),"=r"(al):"r"(adr));    // load round
     if (al & ((1<<(DSP_MANT+2))-1)) {
         asm("maccs %0,%1,%2,%3":"+r"(al),"+r"(ah):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
-        asm("std %0,%1,%2[1]"::"r"(0),"r"(al),"r"(adr));        // store scaled value just after round, 64 bts
+        asm("std %0,%1,%2[1]"::"r"(0),"r"(al),"r"(adr));        // store scaled value just after round, 64 bits
         return al;
     } else {
         asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
-        asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));       // store scaled value just after round, 64 bts
+        asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));       // store scaled value just after round, 64 bits
         return ((long long)ah<<32) | al;
     }
-#else
-    return dspTpdf.valueInt32;
-#endif
 }
 #endif
 

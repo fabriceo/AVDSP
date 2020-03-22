@@ -170,22 +170,22 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dspprintf("program for the dac belonging to the author, including substractive cross over\n");
 
     float nsthierryl[] = {
-            2.51758, -2.01206, 0.57800-1.0,           //44.1
-            2.56669, -2.04479, 0.57800-1.0,           //48
-            2.75651, -2.50072, 0.77760-1.0,           //88.2
-            2.76821, -2.51152, 0.77760-1.0,           //96
-            2.78567, -2.58690, 0.80595-1.0,           //176
-            2.78695, -2.59168, 0.80757-1.0  };        //192
+            2.51758, -2.01206, 0.57800 - 1.0,           //44.1
+            2.56669, -2.04479, 0.57800 - 1.0,           //48
+            2.75651, -2.50072, 0.77760 - 1.0,           //88.2
+            2.76821, -2.51152, 0.77760 - 1.0,           //96
+            2.78567, -2.58690, 0.80595 - 1.0,           //176
+            2.78695, -2.59168, 0.80757 - 1.0  };        //192
 
     float nsmpd[] = {
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000  };
+            1.00000, -0.50000, 0.50000 - 1.0,
+            1.00000, -0.50000, 0.50000 - 1.0,
+            1.00000, -0.50000, 0.50000 - 1.0,
+            1.00000, -0.50000, 0.50000 - 1.0,
+            1.00000, -0.50000, 0.50000 - 1.0,
+            1.00000, -0.50000, 0.50000 - 1.0  };
     dsp_PARAM();
-    int nscoefs = dspDataTableFloat(nsthierryl, 3*6);
+    int nscoefs = dspDataTableFloat(nsmpd, 3*6);
 
     int lowpass1 = dspBiquad_Sections(-4);
         dsp_LP_BES6(fx);
@@ -212,8 +212,9 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         dsp_STORE( USBIN(2) ); // low driver
     //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
-        dsp_TPDF(16);   // returns nTh bit noise like the one used in SAT0DB_TPDF
+        dsp_TPDF(24);   // returns nTh bit noise like the one used in SAT0DB_TPDF
         dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
+        //dsp_DITHER();
         dsp_DITHER_NS2(nscoefs);
         //dsp_SAT0DB_TPDF();
         dsp_SAT0DB();
