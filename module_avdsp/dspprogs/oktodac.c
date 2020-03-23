@@ -191,7 +191,7 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         dsp_LP_BES6(fx);
 
     int lowpass2 = dspBiquad_Sections(0);
-        dsp_LP_BES6(fx);
+        dsp_LP_BES4(fx);
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(left,0.5);
@@ -213,16 +213,22 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
         dsp_TPDF(24);   // returns nTh bit noise like the one used in SAT0DB_TPDF
+        //dsp_DIRAC_Fixed(100,0.5);
+        //dsp_SWAPXY();
+//        dsp_BIQUADS(lowpass1);
         dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
+        dsp_CLIP_Fixed(0.0);
+        dsp_SWAPXY();   // get pulse
+        dsp_BIQUADS(lowpass1);
         //dsp_DITHER();
-        dsp_DITHER_NS2(nscoefs);
+        //dsp_DITHER_NS2(nscoefs);
         //dsp_SAT0DB_TPDF();
         dsp_SAT0DB();
         //dsp_WHITE();
         //dsp_SHIFT(-1);
         dsp_STORE(USBIN(6));
         //dsp_DISTRIB(256);
-        dsp_RMS(100,0);
+        //dsp_RMS(100,0);
         dsp_STORE(USBIN(7));
 
 /*

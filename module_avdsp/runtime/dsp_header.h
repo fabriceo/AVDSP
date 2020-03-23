@@ -157,6 +157,8 @@ enum dspOpcodesEnum {
     DSP_DITHER,         // add dithering on bit x
     DSP_DITHER_NS2,
     DSP_DISTRIB,        // for fun, use a dsp_WHITE before it
+    DSP_DIRAC,          // generate a single sample pulse at a given frequency. pulse depends on provided float number
+    DSP_CLIP,           // check wether a new sample is reaching the thresold given. ALU Y is FS square wave, ALU X is 1 sample pulse
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version
 };

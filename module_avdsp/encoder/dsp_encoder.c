@@ -101,7 +101,9 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_DCBLOCK",
     "DSP_DITHER",
     "DSP_DITHER_NS2",
-    "DSP_DISTRIB"
+    "DSP_DISTRIB",
+    "DSP_DIRAC",
+    "DSP_CLIP"
 };
 
 void dspprintfFatalError(){
@@ -1520,3 +1522,25 @@ void dsp_DISTRIB(int size){
     addCode(size);
     addDataSpace(1+size);
 }
+
+void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain){
+    addOpcodeLengthPrint(DSP_DIRAC);
+    int fmin = dspTableFreq[dspMinSamplingFreq];
+    checkInRange(freq, 1,fmin/2);
+    addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
+    addGainCodeQNM(gain);
+    for (int f=dspMinSamplingFreq; f<dspMaxSamplingFreq; f++){
+        int fs = dspTableFreq[f];
+        int count = fs / freq;
+        addCode(count);
+    }
+}
+
+void dsp_CLIP_Fixed(dspGainParam_t value){
+    addOpcodeLengthPrint(DSP_CLIP);
+    if ((value >= 1.0) || (value <= -1.0))
+        dspFatalError("value not in range -0.999..+0.999.");
+    addDataSpace(1);
+    addGainCodeQNM(value);
+}
+

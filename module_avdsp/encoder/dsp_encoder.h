@@ -192,6 +192,10 @@ int  opcodeIndexMisAligned8();
  void dsp_DITHER();
  void dsp_DITHER_NS2(int paramAddr);
 
+ void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain);
+
+ void dsp_CLIP_Fixed(dspGainParam_t value);
+
  // convert a deciBell value to a float number. e.g. dB2gain(10.0) => 3.162277
  static inline dspGainParam_t dB2gain(dspGainParam_t db){
      db /= 20.0;

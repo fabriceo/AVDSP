@@ -907,6 +907,59 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             *--dataPtr = index;
         break;}
 
+
+        case DSP_DIRAC:{
+            int offset = *cptr++;
+            int * dataPtr = (int*)rundataPtr+offset;   // space for the counter
+            int counter = *dataPtr;
+            dspParam_t gain = *cptr++;
+            int freq = dspSamplingFreqIndex;
+            int * tablePtr = (int*)cptr+freq;
+            int maxCount = *tablePtr;
+            if (counter == 0){
+                *dataPtr = maxCount;   // reset counter
+            #if DSP_ALU_INT64
+                ALU = dspmulu64_32_32(1<<31,gain);      // pulse in ALU
+                ALU2 = ALU;
+            #else
+                ALU = gain;
+                ALU2 = ALU;
+            #endif
+            } else {
+                if (counter >= (maxCount/2))
+                    ALU2 = dspmulu64_32_32(1<<31,gain); // square wave on alu2
+                else
+                    ALU2 = 0;
+
+                counter--;
+                *dataPtr = counter;
+                ALU = 0;
+            }
+
+        break;}
+
+        case DSP_CLIP:{
+            int offset = *cptr++;
+            int * dataPtr = rundataPtr+offset;   // point on the 1 word data space for storing prev status
+            dspParam_t value = *cptr;
+            dspALU_t thresold = dspmulu64_32_32(1<<31,value);
+            int max;
+            if (ALU > thresold) {
+                ALU = thresold;
+                max = 1;
+            } else
+                if (ALU < (-thresold)) {
+                    ALU = -thresold;
+                    max = 1;
+                } else
+                    max = 0;    // within borders
+            int old = *dataPtr;
+            if (max && (old==0)) // any change?
+                 ALU2 = (1ULL<<(31+DSP_MANT)) -1;   // =0.5
+            else ALU2 = 0;
+            *dataPtr = max;
+        break; }
+
         } // switch (opcode)
 
         ptr += skip;    // move on to next opcode
