@@ -190,7 +190,10 @@ int  opcodeIndexMisAligned8();
 
  // inject noise and apply 2nd order noise shapping. ( no input = no noise)
  void dsp_DITHER();
+
  void dsp_DITHER_NS2(int paramAddr);
+
+ void dsp_DISTRIB(int size);
 
  void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain);
 

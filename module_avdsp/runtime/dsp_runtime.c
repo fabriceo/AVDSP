@@ -381,14 +381,16 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             if (dspTpdf.factor==0) {        // set to 0 by dspRuntimeInit
                 asm("#dsptpdf0:");          // 12 instructions on XMOS XS2A
                 dspTpdf.factor = *((int*)(ptr+1));
-                dspTpdf.notMask = *((long long *)(ptr+2));
-                dspTpdf.round   = *((long long *)(ptr+4));  // this is alligned 8 by encoder
+                dspTpdf.notMask = *((long long *)(ptr+2));  // this is alligned 8 by encoder
+                dspTpdf.round   = *((long long *)(ptr+4));
                 dspTpdf.shift  = *((int*)(ptr+6));
                 break; }
             #if DSP_ALU_INT64
                 ALU = dspTpdfRandomCalc();  // 19 instructions on XMOS XS2A
+                ALU2 = dspTpdf.valueInt32;
             #else // ALU is float
                 ALU = DSP_F31(dspTpdfRandomCalc());
+                ALU2 = DSP_F31(dspTpdf.valueInt32);
             #endif
             break;}
 
@@ -909,6 +911,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_DIRAC:{
+#if DSP_ALU_INT64
             int offset = *cptr++;
             int * dataPtr = (int*)rundataPtr+offset;   // space for the counter
             int counter = *dataPtr;
@@ -919,7 +922,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             if (counter == 0){
                 *dataPtr = maxCount;   // reset counter
             #if DSP_ALU_INT64
-                ALU = dspmulu64_32_32(1<<31,gain);      // pulse in ALU
+                dspmacs64_32_32_0(&ALU,0x7FFFFFFF,gain);      // pulse in ALU
                 ALU2 = ALU;
             #else
                 ALU = gain;
@@ -927,7 +930,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #endif
             } else {
                 if (counter >= (maxCount/2))
-                    ALU2 = dspmulu64_32_32(1<<31,gain); // square wave on alu2
+                    dspmacs64_32_32_0(&ALU2,0x7FFFFFFF,gain);      // pulse in ALU
                 else
                     ALU2 = 0;
 
@@ -935,12 +938,15 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 *dataPtr = counter;
                 ALU = 0;
             }
-
+#else
+            //TODO
+#endif
         break;}
 
         case DSP_CLIP:{
             int offset = *cptr++;
             int * dataPtr = rundataPtr+offset;   // point on the 1 word data space for storing prev status
+            const long long one = (1ULL<<(31+DSP_MANT)) -1;   // =1.0 scaled double precision
             dspParam_t value = *cptr;
             dspALU_t thresold = dspmulu64_32_32(1<<31,value);
             int max;
@@ -955,8 +961,10 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     max = 0;    // within borders
             int old = *dataPtr;
             if (max && (old==0)) // any change?
-                 ALU2 = (1ULL<<(31+DSP_MANT)) -1;   // =0.5
-            else ALU2 = 0;
+                if (value) ALU2 = one;
+                else ALU = one;
+            else
+                if (value) ALU2 = 0;
             *dataPtr = max;
         break; }
 

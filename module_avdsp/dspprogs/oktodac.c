@@ -217,8 +217,8 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         //dsp_SWAPXY();
 //        dsp_BIQUADS(lowpass1);
         dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
-        dsp_CLIP_Fixed(0.0);
-        dsp_SWAPXY();   // get pulse
+        dsp_CLIP_Fixed(0.1);
+        //dsp_SWAPXY();   // get pulse
         dsp_BIQUADS(lowpass1);
         //dsp_DITHER();
         //dsp_DITHER_NS2(nscoefs);
