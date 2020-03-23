@@ -874,22 +874,19 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 int  coef0 = *tablePtr++;                   // eg 1.0
                 int  coef1 = *tablePtr++;                   // eg -0.5
                 int  coef2 = *tablePtr;                     // eg 0.5
-                dspALU_t * mantPtr = (long long*)(errorPtr);
-                dspALU_t mantissa = *(mantPtr);          // alligned 8bytes
-                dspSample_t err0 = dspShiftInt(mantissa, DSP_MANT); // reduce precision to get it as a 32bits number for multiplication
-                ALU += mantissa;                            // mantissa reintegration
+                dspSample_t err0 = *(errorPtr+0);
+                dspSample_t err1 = *(errorPtr+1);
+                dspSample_t err2 = *(errorPtr+2);
                 dspmacs64_32_32(&ALU, err0, coef0);
-                dspSample_t err1 = *(errorPtr+2);
-                dspSample_t err2 = *(errorPtr+3);
                 dspmacs64_32_32(&ALU, err1, coef1);
                 dspmacs64_32_32(&ALU, err2, coef2);
-                *(errorPtr+2) = err0;
-                *(errorPtr+3) = err1;
-                mantissa = ALU;
+                *(errorPtr+1) = err0;
+                *(errorPtr+2) = err1;
+                dspALU_t sample = ALU;
                 ALU += dspTpdf.scaled;      // includes rounding
                 ALU &= dspTpdf.notMask;     // truncate
-                mantissa -= ALU;              // compute error
-                *(mantPtr) = mantissa;     // store it full precision for reintegration at next cycle
+                sample -= ALU;              // compute error
+                *(errorPtr+0) = dspShiftInt(sample,DSP_MANT);
             #else // ALU is float
                 // TODO
             #endif

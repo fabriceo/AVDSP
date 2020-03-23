@@ -1511,7 +1511,7 @@ void dsp_DITHER_NS2(int paramAddr){
         dspFatalError("frequency range provided in encoderinit incompatible.");
     int base = addOpcodeLengthPrint(DSP_DITHER_NS2);
     checkInParamSpace(paramAddr,3*numberFrequencies);   // requires 3 coef for each supported frequencies
-    addDataSpaceAligned8(4);                    // create space for mantissa reintegration 64bits + the 2 errors
+    addDataSpaceAligned8(3);                    // create space for 3 errors bin
     addCodeOffset(paramAddr, base);             // relative pointer to the data table
 }
 
