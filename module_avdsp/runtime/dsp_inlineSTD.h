@@ -118,8 +118,9 @@ struct dspTpdf_s {
  dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
  dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
  dspAligned64_t scaled;                 // resulting value to be added to the sample, before truncation
- int valueInt32;                        // raw value of the tpdf generator 32 bits -1..+1
  int factor;                            // scaling factor to reach the right bit
+ int shift;                             // number of shift occurence to perform on valueInt32 to get the scaled value
+ int valueInt32;                        // raw value of the tpdf generator 32 bits -1..+1
 #ifndef DSP_ARCH
  unsigned int s32[4];			// xoshiro128p prng internal state
 #elif DSP_XS2A
@@ -162,16 +163,19 @@ static inline uint32_t xoshiro128p(void) {
     return result;
 }
 
-static inline void dspTpdfRandomCalc(){
-    int rnd;
-
-    rnd = ((int)xoshiro128p()>>1) + ((int)xoshiro128p()>>1);  // tpdf distribution
+static inline long long dspTpdfRandomCalc(){
+    int rnd1 = xoshiro128p();
+    int rnd2 = xoshiro128p();
+    dspTpdf.randomSeed = rnd2;  // used by WHITE()
+    int rnd = ( rnd1 >> 1 ) + ( rnd2 >> 1 );  // tpdf distribution
     dspTpdf.valueInt32 = rnd;
 
-#if DSP_ALU_INT64
-    dspTpdf.scaled = dspTpdf.round;
-    dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
-#endif
+    long long tpdf = rnd;
+    if (dspTpdf.shift >=0 ) tpdf <<= dspTpdf.shift;
+    else tpdf >>= (-dspTpdf.shift);
+    tpdf += dspTpdf.round;
+    dspTpdf.scaled = tpdf;
+    return tpdf;
 }
 
 /* other alternative possibility with crc16 approach
@@ -222,25 +226,30 @@ static inline void dspTpdfRandomInit(unsigned int seed) {
 }
 
 
-static inline void dspTpdfRandomCalc(){
-    unsigned rnd = dspTpdf.randomSeed;
-    const unsigned poly = 0xEB31D82E;
-    //asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
-    unsigned random = rnd;
+static inline long long dspTpdfRandomCalc(){
+    unsigned  rnd = dspTpdf.randomSeed;
+
+    // sugested in xmos application note here : https://xcore.github.io/doc_tips_and_tricks/pseudo-random-numbers.html
+    const unsigned poly = 0xEDB88320;
+    asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
+    unsigned  random = rnd;
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
     dspTpdf.randomSeed = rnd;
     // better to use unsigned on XS2A due to instruction set for shr able to run on dual lane vs ashr single lane
     dspTpdf.valueInt32 = ( rnd >> 1 ) - ( random >> 1 ); // same as (rnd>>1)+(random>>1) on signed int (verified :)
 
-#if DSP_ALU_INT64
     int ah; unsigned al;
-    int adr = (int)&dspTpdf.round;
-    asm("ldd %0,%1,%2[0]"  :"=r"(ah),"=r"(al):"r"(adr));
-    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
-    asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));
-    //dspTpdf.scaled = dspTpdf.round;
-    //dspmacs64_32_32( &dspTpdf.scaled , dspTpdf.valueInt32 , dspTpdf.factor );
-#endif
+    long long * adr = &dspTpdf.round;
+    asm("ldd %0,%1,%2[0]":"=r"(ah),"=r"(al):"r"(adr));    // load round
+    if (al & ((1<<(DSP_MANT+2))-1)) {
+        asm("maccs %0,%1,%2,%3":"+r"(al),"+r"(ah):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
+        asm("std %0,%1,%2[1]"::"r"(0),"r"(al),"r"(adr));        // store scaled value just after round, 64 bits
+        return al;
+    } else {
+        asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
+        asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));       // store scaled value just after round, 64 bits
+        return ((long long)ah<<32) | al;
+    }
 }
 #endif
 

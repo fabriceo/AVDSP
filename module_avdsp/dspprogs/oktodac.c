@@ -168,13 +168,30 @@ void crossoverLV6(int lowpass, int defaultGain, int gd, float gaincomp, int dist
 
 int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dspprintf("program for the dac belonging to the author, including substractive cross over\n");
+
+    float nsthierryl[] = {
+            2.51758, -2.01206, 0.57800,           //44.1
+            2.56669, -2.04479, 0.57800,           //48
+            2.75651, -2.50072, 0.77760,           //88.2
+            2.76821, -2.51152, 0.77760,           //96
+            2.78567, -2.58690, 0.80595,           //176
+            2.78695, -2.59168, 0.80757  };        //192
+
+    float nsmpd[] = {
+            1.00000, -0.50000, 0.50000,
+            1.00000, -0.50000, 0.50000,
+            1.00000, -0.50000, 0.50000,
+            1.00000, -0.50000, 0.50000,
+            1.00000, -0.50000, 0.50000,
+            1.00000, -0.50000, 0.50000  };
     dsp_PARAM();
+    int nscoefs = dspDataTableFloat(nsthierryl, 3*6);
 
     int lowpass1 = dspBiquad_Sections(-4);
         dsp_LP_BES6(fx);
 
     int lowpass2 = dspBiquad_Sections(0);
-        dsp_LP_BES6(fx);
+        dsp_LP_BES4(fx);
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(left,0.5);
@@ -183,7 +200,6 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
-    dsp_TPDF(16);
     dsp_LOAD_STORE();
         dspLoadStore_Data( left,  DACOUT(0) );   // headphones
         dspLoadStore_Data( right, DACOUT(1) );
@@ -196,10 +212,23 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         dsp_STORE( USBIN(2) ); // low driver
     //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
 
+        dsp_TPDF(24);   // returns nTh bit noise like the one used in SAT0DB_TPDF
+        //dsp_DIRAC_Fixed(100,0.5);
+        //dsp_SWAPXY();
+//        dsp_BIQUADS(lowpass1);
         dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
-        dsp_DITHER();
+        dsp_CLIP_Fixed(0.1);
+        //dsp_SWAPXY();   // get pulse
+        dsp_BIQUADS(lowpass1);
+        //dsp_DITHER();
+        //dsp_DITHER_NS2(nscoefs);
+        //dsp_SAT0DB_TPDF();
         dsp_SAT0DB();
         //dsp_WHITE();
+        //dsp_SHIFT(-1);
+        dsp_STORE(USBIN(6));
+        //dsp_DISTRIB(256);
+        //dsp_RMS(100,0);
         dsp_STORE(USBIN(7));
 
 /*

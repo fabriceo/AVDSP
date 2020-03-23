@@ -378,15 +378,20 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_TPDF: {
             dspprintf2("TPDF");
             asm("#dsptpdf:");
-            if (dspTpdf.factor)             // set to 0 by dspRuntimeInit
-                dspTpdfRandomCalc();        // 15 instructions on XMOS XS2A
-            else {
-                asm("#dsptpdf0:");          // 11 instructions on XMOS XS2A
-                dspTpdf.factor = *cptr++;
-                long long * p64 = (long long *)cptr;    // garanteed to be 8 bytes alligned by encoder
-                dspTpdf.round   = *p64++;
-                dspTpdf.notMask = *p64;
-            }
+            if (dspTpdf.factor==0) {        // set to 0 by dspRuntimeInit
+                asm("#dsptpdf0:");          // 12 instructions on XMOS XS2A
+                dspTpdf.factor = *((int*)(ptr+1));
+                dspTpdf.notMask = *((long long *)(ptr+2));  // this is alligned 8 by encoder
+                dspTpdf.round   = *((long long *)(ptr+4));
+                dspTpdf.shift  = *((int*)(ptr+6));
+                break; }
+            #if DSP_ALU_INT64
+                ALU = dspTpdfRandomCalc();  // 19 instructions on XMOS XS2A
+                ALU2 = dspTpdf.valueInt32;
+            #else // ALU is float
+                ALU = DSP_F31(dspTpdfRandomCalc());
+                ALU2 = DSP_F31(dspTpdf.valueInt32);
+            #endif
             break;}
 
 
@@ -453,9 +458,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_WHITE: {
              dspprintf2("WHITE");
              #if DSP_ALU_INT64
-                 ALU = dspTpdf.valueInt32;              // measuring 0.8dbfs rms in REW
+                 ALU = dspTpdf.randomSeed;
              #else
-                 ALU = DSP_F31(dspTpdf.valueInt32);       // convert 32bit value to a float number between -1..+1
+                 ALU = DSP_F31(dspTpdf.randomSeed);       // convert 32bit value to a float number between -1..+1
              #endif
              break;}
 
@@ -657,7 +662,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #if DSP_ALU_INT64
                 dspmacs64_32_32_0( &ALU, data, gain);
             #elif DSP_SAMPLE_INT
-                ALU = DSP_F31(data) * gain;    // convert sample to a float number and apply gain
+                ALU = DSP_F31(data) * gain;  // convert sample to a float number and apply gain
             #else // sample is float
                 ALU = data * gain;           // no conversion required
             #endif
@@ -825,8 +830,22 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 #endif
         break; }
 
-
-        case DSP_DITHER: {
+        /* MPD code for dithering
+        inline T PcmDither::Dither(T sample) noexcept
+        {       constexpr T round = 1 << (scale_bits - 1);
+                constexpr T mask = (1 << scale_bits) - 1;
+                sample += error[0] - error[1] + error[2];
+                error[2] = error[1];
+                error[1] = error[0] / 2;
+                T output = sample + round;
+                const T rnd = pcm_prng(random);
+                output += (rnd & mask) - (random & mask);
+                random = rnd;
+                output &= ~mask;
+                error[0] = sample - output;
+                return output >> scale_bits; }
+        */
+        case DSP_DITHER: {  // using MPD algorythm with Hz = 1.0(z-2), -0.5(z-1), 0.5z +1
             #if DSP_ALU_INT64
                 int offset = *cptr++;                   // where is the data space for state data calculation
                 dspALU_t * errorPtr  = (dspALU_t*)(rundataPtr+offset);
@@ -846,12 +865,107 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #endif
         break; }
 
-        case DSP_CIC_D: {
-            //int delay = *cptr;
+
+        case DSP_DITHER_NS2: {
+            #if DSP_ALU_INT64
+                int offset = *cptr++;                       // where is the data space for state data calculation
+                dspSample_t * errorPtr  = (dspSample_t*)(rundataPtr+offset);
+                offset = *cptr;
+                int freq = dspSamplingFreqIndex * 3;
+                int * tablePtr = (int*)(ptr+offset+freq);   // point on the offset to be used for the current frequency
+                int  coef0 = *tablePtr++;                   // eg 1.0
+                int  coef1 = *tablePtr++;                   // eg -0.5
+                int  coef2 = *tablePtr;                     // eg 0.5
+                dspSample_t err0 = *(errorPtr+0);
+                dspSample_t err1 = *(errorPtr+1);
+                dspSample_t err2 = *(errorPtr+2);
+                dspmacs64_32_32(&ALU, err0, coef0);
+                dspmacs64_32_32(&ALU, err1, coef1);
+                dspmacs64_32_32(&ALU, err2, coef2);
+                *(errorPtr+1) = err0;
+                *(errorPtr+2) = err1;
+                dspALU_t sample = ALU;
+                ALU += dspTpdf.scaled;      // includes rounding
+                ALU &= dspTpdf.notMask;     // truncate
+                sample -= ALU;              // compute error
+                *(errorPtr+0) = dspShiftInt(sample,DSP_MANT);
+            #else // ALU is float
+                // TODO
+            #endif
         break; }
 
-        case DSP_CIC_I:{
-            //int delay = *cptr;
+
+        case DSP_DISTRIB:{
+            int size = *cptr++;     // get size of the array, this factor is also used to scale the ALU
+            int offset = *cptr;
+            int * dataPtr = (int*) rundataPtr+offset;   // where we have a data space for us
+            int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
+            int pos = dspmuls32_32_32(ALU, size); // our sample is now between say -256..+255 for size = 512
+            pos += size/2;      // our array is 0..511
+            (*(dataPtr+pos))++;   // one more sample counted
+            ALU = *(dataPtr+index);
+            index++;
+            if (index >= size) index = 0;
+            *--dataPtr = index;
+        break;}
+
+
+        case DSP_DIRAC:{
+#if DSP_ALU_INT64
+            int offset = *cptr++;
+            int * dataPtr = (int*)rundataPtr+offset;   // space for the counter
+            int counter = *dataPtr;
+            dspParam_t gain = *cptr++;
+            int freq = dspSamplingFreqIndex;
+            int * tablePtr = (int*)cptr+freq;
+            int maxCount = *tablePtr;
+            if (counter == 0){
+                *dataPtr = maxCount;   // reset counter
+            #if DSP_ALU_INT64
+                dspmacs64_32_32_0(&ALU,0x7FFFFFFF,gain);      // pulse in ALU
+                ALU2 = ALU;
+            #else
+                ALU = gain;
+                ALU2 = ALU;
+            #endif
+            } else {
+                if (counter >= (maxCount/2))
+                    dspmacs64_32_32_0(&ALU2,0x7FFFFFFF,gain);      // pulse in ALU
+                else
+                    ALU2 = 0;
+
+                counter--;
+                *dataPtr = counter;
+                ALU = 0;
+            }
+#else
+            //TODO
+#endif
+        break;}
+
+        case DSP_CLIP:{
+            int offset = *cptr++;
+            int * dataPtr = rundataPtr+offset;   // point on the 1 word data space for storing prev status
+            const long long one = (1ULL<<(31+DSP_MANT)) -1;   // =1.0 scaled double precision
+            dspParam_t value = *cptr;
+            dspALU_t thresold = dspmulu64_32_32(1<<31,value);
+            int max;
+            if (ALU > thresold) {
+                ALU = thresold;
+                max = 1;
+            } else
+                if (ALU < (-thresold)) {
+                    ALU = -thresold;
+                    max = 1;
+                } else
+                    max = 0;    // within borders
+            int old = *dataPtr;
+            if (max && (old==0)) // any change?
+                if (value) ALU2 = one;
+                else ALU = one;
+            else
+                if (value) ALU2 = 0;
+            *dataPtr = max;
         break; }
 
         } // switch (opcode)

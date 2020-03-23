@@ -46,16 +46,13 @@
 #endif
 
 // this define the precision for the fixed point maths.
-// code is optimized for int64 ALU . suggested format is 4.28 for param, gain and coeficients and double (8.56) for ALU
+// code is optimized for int64 ALU . suggested format is 4.28 for param, gain and filters coeficients
 #ifndef DSP_MANT
 #define DSP_MANT 28
 #endif
 #ifndef DSP_INT
 #define DSP_INT (32-DSP_MANT)
 #endif
-#define DSP_INTDP (DSP_INT*2)   // double precision is twice the above DSP_MANT
-#define DSP_MANTDP (64-DSP_INTDP)
-#define DSP_MANTDP_INT32 (DSP_MANTDP-32)
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
 #ifndef DSP_MANTBQ
@@ -82,19 +79,19 @@
 // list of all DSP supported opcode as of this version
 enum dspOpcodesEnum {
     DSP_END_OF_CODE,    // this opcode value is 0 and its length is 0 as a convention
-    DSP_HEADER,         // contain key information about the program.
-    DSP_NOP,            // just for fun
+    DSP_HEADER,         // contain summary information about the program.
+    DSP_NOP,            // sometime used to align opcode adress start to a 8byte cell
     DSP_CORE,           // used to separate each dsp code trunck and distribute opcodes on multiple tasks.
     DSP_PARAM,          // define an area of data (or parameters), like a sine wave or biquad coefs or any kind of data in fact
-    DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and can be accessed separately
+    DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and each param_num section can be accessed separately
     DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* math engine */
-    DSP_TPDF,           // create a white random TPDF value for dithering, either -1/0/+1 at each call.
-    DSP_WHITE,          // load the random number that was generated for the tpdf-seed
+    DSP_TPDF,           // create a random TPDF value for dithering, either -1/0/+1 at each call.
+    DSP_WHITE,          // load the random int32 number that was generated for the tpdf
     DSP_CLRXY,          // clear both ALU register
-    DSP_SWAPXY,         // exchange ALU with second one "Y". no additional param
-    DSP_COPYXY,         // save ALU X in a second "Y" register. no additional param
+    DSP_SWAPXY,         // exchange ALU with second one "Y".
+    DSP_COPYXY,         // save ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
 
     DSP_ADDXY,          // perform X = X + Y, 64 bits
@@ -108,33 +105,33 @@ enum dspOpcodesEnum {
     DSP_AVGYX,          // perform Y = X/2 + Y/2;
     DSP_NEGX,           // perform X = -X
     DSP_NEGY,           // perform Y = -Y
-    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64
-    DSP_VALUE,          // load an imediate value (int32 or 4.28)
+    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
+    DSP_VALUE,          // load an imediate value (int32 or 4.28 or float)
     DSP_SHIFT,          // perform shift left or right if param is negative
-    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28)
-    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28)
+    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28 or float)
+    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28 or float)
 
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in 0.31 format
                         // eg physical ADC input number = position in the sample array
-    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is 5.59
+    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is s4.59
 
-    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is 5.59
+    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is s4.59
 
-    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. 0.31 expected in input
+    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. 0.31 expected in ALU
 
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
                         // source in the sample array
                         // dest in the sample array
 
-    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU saved in ALU2
+    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU X saved in ALU Y
     DSP_STORE_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
 
 /* gains */
-    DSP_GAIN,           // apply a fixed gain (eg 4.28) on the ALU result is 8.56
+    DSP_GAIN,           // apply a fixed gain (eg 4.28) on the ALU , if a ALU was a sample s.31 then it becomes s5.59
 
-    DSP_SAT0DB,         // verify boundaries -1/+1. input as 8.56, output as 33.31 (0.31 in lsb only)
-    DSP_SAT0DB_TPDF,    // same + add the tpdf calculated
+    DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (0.31 in lsb only)
+    DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
     DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries
     DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries
 
@@ -149,18 +146,19 @@ enum dspOpcodesEnum {
     DSP_DATA_TABLE,      // extract one sample of a data block
 
 /* filters */
-    DSP_BIQUADS,        // execute N biquad. ALU is expected 8.56 and will be converted 4.28. result is 8.56
+    DSP_BIQUADS,        // execute N biquad. ALU is expected s4.59 and will be return as s4.59
 
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
 
 
 /* workin progress only */
-    DSP_RMS,            // compute sum of square during a given period then compute moving overage but no sqrt
+    DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     DSP_DCBLOCK,
     DSP_DITHER,         // add dithering on bit x
-    DSP_CIC_D,          // decimator CIC filter delay D as parameter
-    DSP_CIC_I,          // interpolator CIC filter delay D as parameter
-    DSP_NOISE_SHAPE,    // add dithering, calculate error, execute filter to shape error, prepare for injection of error
+    DSP_DITHER_NS2,
+    DSP_DISTRIB,        // for fun, use a dsp_WHITE before it
+    DSP_DIRAC,          // generate a single sample pulse at a given frequency. pulse depends on provided float number
+    DSP_CLIP,           // check wether a new sample is reaching the thresold given. ALU Y is FS square wave, ALU X is 1 sample pulse
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version
 };

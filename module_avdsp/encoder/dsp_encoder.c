@@ -100,9 +100,10 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_RMS",
     "DSP_DCBLOCK",
     "DSP_DITHER",
-    "DSP_CIC_D",
-    "DSP_CIC_I",
-    "DSP_NOISE_SHAPE"
+    "DSP_DITHER_NS2",
+    "DSP_DISTRIB",
+    "DSP_DIRAC",
+    "DSP_CLIP"
 };
 
 void dspprintfFatalError(){
@@ -622,7 +623,7 @@ static int paramMisAligned8() {
 
 
 
-
+/* unused
 // add a dsp_code with its following parameter
 static int addOpcodeParam(int code, int param ) {
     calcLength();
@@ -630,6 +631,7 @@ static int addOpcodeParam(int code, int param ) {
     addCode(param);
     return tmp;
 }
+*/
 
 // add a dsp_opcode that will be followed by an unknowed list of param at this stage
 // will be solved by the next dsp_opcode generation, due to call to calcLength()
@@ -749,16 +751,21 @@ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
 void dsp_TPDF(int bits){
     opcodeIndexAligned8();  // garantiee that the 64 bits words below will be alligned8 bytes
     addOpcodeLengthPrint(DSP_TPDF);
-    bits = DSP_MANT+32-bits;
+    checkInRange(bits,2,32);
+    bits = DSP_MANT+32-bits;    // eg 36 for DSPMANT = 28 and 24th bit ditering
     unsigned long long round = 1ULL << (bits-1);    // value (0.5) for rounding sample
     unsigned long long notMask  = ~((1ULL << bits)-1);
-    //dspprintf("round = %llX, notmask = %llX\n",round, notMask);
-    int factor = 1<<(bits-32);
-    addCode(factor);
-    addCode(round & 0xFFFFFFFF);
-    addCode(round >> 32);
+    unsigned factor;
+    bits = bits-31; // because tpdf value is coded in s.31, so we get 5 for the 36 above
+    if (bits>=0) factor = 1ULL<<bits;   // we can use a 32x32=64 mul for getting the tpdf scaled directly from the multiplication
+    else factor = (1ULL<<(32+bits));    // we will divide still by using the 32x32 multiplication but keeping only the MSB so 32 bits less
+    if (bits == -1) factor--;           // special case, cannot keep factor equal to 1<<31 as this becomes a negaive number in 2's
+    addCode(factor);                    // provide both : factor value
     addCode(notMask & 0xFFFFFFFF);
     addCode(notMask >> 32);
+    addCode(round & 0xFFFFFFFF);        // these value will be alligned8
+    addCode(round >> 32);
+    addCode(bits);                      // and bits representing number of shift to be performed
 }
 
 
@@ -983,12 +990,23 @@ void dsp_SERIAL(int N) {
 }
 
 // can be used only in a param space for declaring a list of datas (for example to be used by DATA_TABLE)
-int dspDataN(int * data, int n){
+int dspDataTableInt(int * data, int n){
     checkInParamNum();
     checkFinishedParamSection();
     int tmp = opcodeIndex();
     for (int i=0; i<n; i++) addCode(*(data+i));
     lastIndexPrinted = opcodeIndex();
+    return tmp;
+}
+
+int dspDataTableFloat(float * data, int n){
+    printLastOpcodes();
+    checkInParamNum();
+    checkFinishedParamSection();
+    int tmp = opcodeIndex();
+    for (int i=0; i<n; i++) addCode(DSP_QNM(*(data+i)));
+    printFromCurrentIndex();
+    dspprintf2("%4d : data table : %d float numbers\n",tmp,n);
     return tmp;
 }
 
@@ -1489,13 +1507,40 @@ void dsp_DITHER(){
     addDataSpaceAligned8(8);
 }
 
-void dsp_CIC_I(int delay){
-    addOpcodeParam(DSP_CIC_I, delay);
-    dspprintf3("DSP_CIC_I %d samples\n",delay);
+void dsp_DITHER_NS2(int paramAddr){
+    // support only 6 triplets of coefficients in this version
+    if ((dspMinSamplingFreq<F44100)||(dspMaxSamplingFreq>F192000))
+        dspFatalError("frequency range provided in encoderinit incompatible.");
+    int base = addOpcodeLengthPrint(DSP_DITHER_NS2);
+    checkInParamSpace(paramAddr,3*numberFrequencies);   // requires 3 coef for each supported frequencies
+    addDataSpaceAligned8(3);                    // create space for 3 errors bin
+    addCodeOffset(paramAddr, base);             // relative pointer to the data table
 }
 
-void dsp_CIC_D(int delay){
-    addOpcodeParam(DSP_CIC_D, delay);
-    dspprintf3("DSP_CIC_D %d samples\n",delay);
+void dsp_DISTRIB(int size){
+    addOpcodeLengthPrint(DSP_DISTRIB);
+    addCode(size);
+    addDataSpace(1+size);
+}
+
+void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain){
+    addOpcodeLengthPrint(DSP_DIRAC);
+    int fmin = dspTableFreq[dspMinSamplingFreq];
+    checkInRange(freq, 1,fmin/2);
+    addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
+    addGainCodeQNM(gain);
+    for (int f=dspMinSamplingFreq; f<dspMaxSamplingFreq; f++){
+        int fs = dspTableFreq[f];
+        int count = fs / freq;
+        addCode(count);
+    }
+}
+
+void dsp_CLIP_Fixed(dspGainParam_t value){
+    addOpcodeLengthPrint(DSP_CLIP);
+    if ((value >= 1.0) || (value <= -1.0))
+        dspFatalError("value not in range -0.999..+0.999.");
+    addDataSpace(1);
+    addGainCodeQNM(value);
 }
 
