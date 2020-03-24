@@ -935,9 +935,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #endif
             } else {
                 if (counter >= (maxCount/2))
-                    dspmacs64_32_32_0(&ALU2,0x7FFFFFFF,gain);      // pulse in ALU
+                    dspmacs64_32_32_0(&ALU2,0x40000000,gain);       // square wave +0.5
                 else
-                    ALU2 = 0;
+                    dspmacs64_32_32_0(&ALU2,0xC0000000,gain);       // square wave -0.5
 
                 counter--;
                 *dataPtr = counter;

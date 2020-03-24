@@ -69,10 +69,10 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_WHITE();                // provide white noise as an int32
     dsp_STORE( USBIN(4) );      // full white noise measured with REW -2.5dBFS rms
 
-    dsp_DIRAC_Fixed( 100, 0.8 );// generate 100 pulse per seconds, max value is 0.8 in the -1..+1 range
-    // try swapxy to replace dirac impulse by a square between 0..+1.0
+    dsp_DIRAC_Fixed( 100, 1.0 );// generate 100 pulse per seconds, max value is 0.8 in the -1..+1 range
+    // try swapxy to replace dirac impulse by a square between -0.5 ... +0.5
     dsp_SWAPXY();             // ALU Y contains a square signal at 100hz then. too much energy with 1.0 for biquads!
-    dsp_BIQUADS(lowpass2);
+    //dsp_BIQUADS(lowpass2);
     dsp_SAT0DB();
     dsp_STORE( USBIN(5) );      // show filter impulse response in REW with Scope
 

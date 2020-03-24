@@ -22,8 +22,8 @@
 #endif
 
 #if defined(__XS2A__) && (DSP_FORMAT == DSP_FORMAT_INT64)     // specific for xmos xs2 architecture for int64 runtime
-#define DSP_XS2A 1
-#define DSP_ARCH DSP_XS2A
+//#define DSP_XS2A 1
+//#define DSP_ARCH DSP_XS2A
 #elif 0
 // other architecture defines here
 #define DSP_MYARCH 2
