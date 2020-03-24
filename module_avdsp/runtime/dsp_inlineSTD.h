@@ -121,10 +121,64 @@ struct dspTpdf_s {
  int factor;                            // scaling factor to reach the right bit
  int shift;                             // number of shift occurence to perform on valueInt32 to get the scaled value
  int valueInt32;                        // raw value of the tpdf generator 32 bits -1..+1
- unsigned int randomSeed;               // random number changed at every sample, initialised by runtimeInit
+#ifndef DSP_ARCH
+ unsigned int s32[4];			// xoshiro128p prng internal state
+#elif DSP_XS2A
+ unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
+#endif
 } dspTpdf;
 
-// other alternative possibility with crc16 approach
+
+#ifndef DSP_ARCH
+
+typedef unsigned int uint32_t;
+static inline uint32_t rotl(const uint32_t x, unsigned int k) {
+    return (x << k) | (x >> (32 - k));
+}
+
+static inline void dspTpdfRandomInit(unsigned int seed){
+    uint32_t *s32=dspTpdf.s32;
+    dspTpdf.factor = 0;
+
+    s32[0]=(seed|1);
+    s32[1]=rotl((seed|8),7);
+    s32[2]=rotl((seed|16),11);
+    s32[3]=rotl((seed|24),17);
+}
+
+static inline uint32_t xoshiro128p(void) {
+    uint32_t *s32=dspTpdf.s32;
+    const uint32_t result = s32[0] + s32[3];
+
+    const uint32_t t = s32[1] << 9;
+
+    s32[2] ^= s32[0];
+    s32[3] ^= s32[1];
+    s32[1] ^= s32[2];
+    s32[0] ^= s32[3];
+    s32[2] ^= t;
+
+    s32[3] = rotl(s32[3], 11);
+
+    return result;
+}
+
+static inline long long dspTpdfRandomCalc(){
+    int rnd1 = xoshiro128p();
+    int rnd2 = xoshiro128p();
+    dspTpdf.randomSeed = rnd2;  // used by WHITE()
+    int rnd = ( rnd1 >> 1 ) + ( rnd2 >> 1 );  // tpdf distribution
+    dspTpdf.valueInt32 = rnd;
+
+    long long tpdf = rnd;
+    if (dspTpdf.shift >=0 ) tpdf <<= dspTpdf.shift;
+    else tpdf >>= (-dspTpdf.shift);
+    tpdf += dspTpdf.round;
+    dspTpdf.scaled = tpdf;
+    return tpdf;
+}
+
+/* other alternative possibility with crc16 approach
 static const unsigned short crc16Table[256]=
 {
     0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
@@ -159,57 +213,10 @@ static const unsigned short crc16Table[256]=
     0x7c26,0x6c07,0x5c64,0x4c45,0x3ca2,0x2c83,0x1ce0,0x0cc1,
     0xef1f,0xff3e,0xcf5d,0xdf7c,0xaf9b,0xbfba,0x8fd9,0x9ff8,
     0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
-}; //rnd =  (rnd << 8) ^ crc16Table[((rnd >> 8) & 0xFF) ]; // very basic randomizer ...
-
-#ifndef DSP_ARCH
-
-typedef unsigned int uint32_t;
-static inline uint32_t rotl(const uint32_t x, unsigned int k) {
-    return (x << k) | (x >> (32 - k));
-}
-
-static uint32_t s32[4];
-
-static inline void dspTpdfRandomInit(unsigned int seed){
-    dspTpdf.factor = 0;
-
-	s32[0]=(seed|1);
-	s32[1]=rotl((seed|8),7);
-	s32[2]=rotl((seed|16),11);
-	s32[3]=rotl((seed|24),17);
-}
-
-static inline uint32_t xoshiro128p(void) {
-    const uint32_t result = s32[0] + s32[3];
-
-    const uint32_t t = s32[1] << 9;
-
-    s32[2] ^= s32[0];
-    s32[3] ^= s32[1];
-    s32[1] ^= s32[2];
-    s32[0] ^= s32[3];
-    s32[2] ^= t;
-
-    s32[3] = rotl(s32[3], 11);
-
-    return result;
-}
-
-static inline long long dspTpdfRandomCalc(){
-    int rnd1 = xoshiro128p();
-    int rnd2 = xoshiro128p();
-    dspTpdf.randomSeed = rnd2;  // used by WHITE()
-    int rnd = ( rnd1 >> 1 ) + ( rnd2 >> 1 );  // tpdf distribution
-    dspTpdf.valueInt32 = rnd;
-
-    long long tpdf = rnd;
-    if (dspTpdf.shift >=0 ) tpdf <<= dspTpdf.shift;
-    else tpdf >>= (-dspTpdf.shift);
-    tpdf += dspTpdf.round;
-    dspTpdf.scaled = tpdf;
-    return tpdf;
-}
-
+};
+*/
+// formula
+//rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic randomizer ...
 
 #elif DSP_XS2A
 

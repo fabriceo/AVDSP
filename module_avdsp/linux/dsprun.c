@@ -8,11 +8,10 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sndfile.h>
+#include <math.h>
 #include "alsa.h"
 
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
-
-#define DSP_FORMAT DSP_FORMAT_INT64
 
 #include "dsp_runtime.h"
 
@@ -30,7 +29,7 @@ int main(int argc, char **argv) {
 
     char* dspfilename;
     char* alsainname,*alsaoutname;
-    char* impulsename = NULL ;
+    char* filename = NULL ;
     int fs;
 
     dspSample_t inputOutput[inputOutputMax];
@@ -44,16 +43,23 @@ int main(int argc, char **argv) {
 
     int size,result;
     int nc,n,ch,o;
+    int impulse=0,sine=0;
 
     // parse and check args 
     if(argc<5) usage();
 
     if(strcmp(argv[1],"-i") == 0 )  {
-	impulsename = argv[2];
-    } else {
-    	alsainname=argv[1];
-    	alsaoutname=argv[2];
-    }
+	filename = argv[2];
+	impulse=1;
+    } else 
+      if(strcmp(argv[1],"-s") == 0 )  {
+	filename = argv[2];
+	sine=1;
+      } else {
+    		alsainname=argv[1];
+    		alsaoutname=argv[2];
+      }
+
     dspfilename=argv[3];
     fs=atoi(argv[4]); if(fs<=0) usage();
 
@@ -88,7 +94,7 @@ int main(int argc, char **argv) {
 	if(hptr->usedOutputs & (1<<ch)) nbchout++;
     }
     
-    if(impulsename) {
+    if(filename) {
 	 SNDFILE *outsnd;
 	 SF_INFO infsnd;
     	 dspSample_t Outputs[inputOutputMax];
@@ -97,40 +103,23 @@ int main(int argc, char **argv) {
          infsnd.samplerate = fs;
          infsnd.channels = nbchout;
 
-         outsnd= sf_open(impulsename, SFM_WRITE, &infsnd);
+         outsnd= sf_open(filename, SFM_WRITE, &infsnd);
          if (outsnd == NULL) {
-               	fprintf(stderr, "could not open %s\n ",impulsename);
+               	fprintf(stderr, "could not open %s\n ",filename);
                	exit(1);
          }
 
-	// impulse
-        for(ch=0;ch<32;ch++) 
-		if(hptr->usedInputs & (1<<ch)) {
-    			inputOutput[ch] = INT32_MAX/2;
-		}
-	
-	for(nc=0;nc<nbcores;nc++) 
-    		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
-
-       	for(ch=0,o=0;ch<32;ch++)
-		if(hptr->usedOutputs & (1<<ch)) {
-    			Outputs[o]=inputOutput[ch];
-			o++;
-		}
-
-#if DSP_SAMPLE_INT
-    	sf_write_int(outsnd,Outputs,nbchout);
-#endif
-#if DSP_SAMPLE_FLOAT
-    	sf_write_float(outsnd,Outputs,nbchout);
-#endif
-
-	// then fs/2 0 samples
-        for(ch=0;ch<32;ch++)
-		if(hptr->usedInputs & (1<<ch))
-    			inputOutput[ch] = 0;
-	
 	for(n=0;n<fs/2;n++) {
+        	for(ch=0;ch<32;ch++)
+			if(hptr->usedInputs & (1<<ch)) {
+    				inputOutput[ch] = 0;
+				if(impulse && n==0) 
+    					inputOutput[ch] = INT32_MAX;
+				if(sine) 
+    					inputOutput[ch] = INT32_MAX*sin(2.0*M_PI*1000.0*(double)n/fs);
+
+			}
+	
 		for(nc=0;nc<nbcores;nc++) 
     			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
@@ -172,7 +161,7 @@ int main(int argc, char **argv) {
 		for (n=0;n < sz ; n++) {
 
         		// input 0-7 
-        		for(ch=0;ch<32;ch++)
+        		for(ch=0,o=0;ch<32;ch++)
 				if(hptr->usedInputs & (1<<ch)) {
     					inputOutput[ch] = inbuffer[n*nbchin+o];
 					o++;
