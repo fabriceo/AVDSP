@@ -335,10 +335,10 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("SATURATE_TPDF");
             #if DSP_ALU_INT64
                 ALU += dspTpdf.scaled;
-                ALU &= dspTpdf.notMask;
+                ALU &= dspTpdf.notMask64;
                 dspSaturate64_031( &ALU );
             #else // ALU float
-                ALU += DSP_F31(dspTpdf.valueInt32);
+                ALU += dspTpdf.scaled;
                 dspSaturateFloat( &ALU );
             #endif
             break;}
@@ -365,11 +365,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 dspShiftMant( &ALU );
                 ALU *= gain;
                 ALU += dspTpdf.scaled;
-                ALU &= dspTpdf.notMask;
+                ALU &= dspTpdf.notMask64;
                 dspSaturate64_031( &ALU );
             #else // DSP_SAMPLE_FLOAT
                 ALU *= gain;
-                ALU += DSP_F31(dspTpdf.valueInt32);
+                ALU += dspTpdf.scaled;
                 dspSaturateFloat( &ALU );
             #endif
             break; }
@@ -378,20 +378,22 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_TPDF: {
             dspprintf2("TPDF");
             asm("#dsptpdf:");
-            if (dspTpdf.factor==0) {        // set to 0 by dspRuntimeInit
-                asm("#dsptpdf0:");          // 12 instructions on XMOS XS2A
-                dspTpdf.factor = *((int*)(ptr+1));
-                dspTpdf.notMask = *((long long *)(ptr+2));  // this is alligned 8 by encoder
-                dspTpdf.round   = *((long long *)(ptr+4));
-                dspTpdf.shift  = *((int*)(ptr+6));
+            if (dspTpdf.factor == 0) {         // set to 0 by dspRuntimeInit
+                asm("#dsptpdf0:");
+                dspTpdf.factor       = *((int*)(ptr+1));
+#if DSP_ALU_INT64
+                dspTpdf.notMask64    = *((long long *)(ptr+2));  // this is alligned 8 by encoder
+                dspTpdf.round64      = *((long long *)(ptr+4));
+                dspTpdf.shift        = *((int*)(ptr+6));
+#else // float
+                dspTpdf.dither       = *((int*)(ptr+7));
+                dspTpdf.factorFloat  = *((int*)(ptr+8));
+                dspTpdf.notMask32    = *((unsigned int*)(ptr+9));
+                dspTpdf.roundFloat   = *((float*)(ptr+10));
+#endif
                 break; }
-            #if DSP_ALU_INT64
-                ALU = dspTpdfRandomCalc();  // 19 instructions on XMOS XS2A
-                ALU2 = dspTpdf.valueInt32;
-            #else // ALU is float
-                ALU = DSP_F31(dspTpdfRandomCalc());
-                ALU2 = DSP_F31(dspTpdf.valueInt32);
-            #endif
+            ALU  = dspTpdfRandomCalc();
+            ALU2 = dspTpdf.value;
             break;}
 
 
@@ -431,9 +433,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("STORE output[%d]",index);
             dspSample_t * samplePtr = sampPtr+index;
             #if DSP_ALU_INT64
-                *samplePtr = ALU;   // expecting ALU LSB to contain the sample 0.31 already saturaed
+                *samplePtr = ALU;               // expecting ALU LSB to contain the sample 0.31 already saturaed
             #elif DSP_SAMPLE_INT
-                *samplePtr = DSP_Q31(ALU);      // convert to int32
+                int sample = DSP_Q31(ALU);      // convert to int32
+                sample &= dspTpdf.notMask32;
+                *samplePtr = sample;
             #else // DSP_SAMPLE_FLOAT
                 *samplePtr = ALU;               // no conversion needed
             #endif
@@ -486,6 +490,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspALU_t * memPtr = (dspALU_t*)dataPtr;   // formal type casting to enable double word instructions
             dspALU_t tmp = *memPtr;
             *memPtr = ALU;
+            ALU2 = ALU;
             ALU = tmp;
             break;}
 
@@ -857,8 +862,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 ALU += *(errorPtr+2);
                 *(errorPtr+2) = temp1;
                 dspALU_t sample = ALU;
-                ALU += dspTpdf.scaled;      // includes rounding
-                ALU &= dspTpdf.notMask;     // truncate
+                ALU += dspTpdf.scaled;        // includes rounding
+                ALU &= dspTpdf.notMask64;     // truncate
                 *(errorPtr+0) = sample - ALU;
             #else // ALU is float
                 // TODO
@@ -885,9 +890,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 *(errorPtr+1) = err0;
                 *(errorPtr+2) = err1;
                 dspALU_t sample = ALU;
-                ALU += dspTpdf.scaled;      // includes rounding
-                ALU &= dspTpdf.notMask;     // truncate
-                sample -= ALU;              // compute error
+                ALU += dspTpdf.scaled;        // includes rounding
+                ALU &= dspTpdf.notMask64;     // truncate
+                sample -= ALU;                // compute error
                 *(errorPtr+0) = dspShiftInt(sample,DSP_MANT);
             #else // ALU is float
                 // TODO
@@ -944,6 +949,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         break;}
 
         case DSP_CLIP:{
+#if DSP_ALU_INT64
             int offset = *cptr++;
             int * dataPtr = rundataPtr+offset;   // point on the 1 word data space for storing prev status
             const long long one = (1ULL<<(31+DSP_MANT)) -1;   // =1.0 scaled double precision
@@ -966,6 +972,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             else
                 if (value) ALU2 = 0;
             *dataPtr = max;
+#else
+            // TODO
+#endif
         break; }
 
         } // switch (opcode)

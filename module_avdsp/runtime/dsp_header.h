@@ -21,7 +21,7 @@
 #define DSP_FORMAT DSP_FORMAT_INT64  // samples int32, alu int 64 bits, param int32 (q4.28 as defined later below)
 #endif
 
-#ifdef __XS2A__     // specific for xmos xs2 architecture
+#if defined(__XS2A__) && (DSP_FORMAT == DSP_FORMAT_INT64)     // specific for xmos xs2 architecture for int64 runtime
 #define DSP_XS2A 1
 #define DSP_ARCH DSP_XS2A
 #elif 0
@@ -67,14 +67,43 @@
 #ifndef DSP_QNM
 #define DSP_QNM(f) Q(DSP_MANT)(f)
 #endif
+#define DSP_QNM_ONE (1ULL<<DSP_MANT)
 // define the fixed point macro used for encoding the default int biquad coeficients
 #ifndef DSP_QNMBQ
 #define DSP_QNMBQ(f) Q(DSP_MANTBQ)(f)
 #endif
-// special macro for 0.31 format including saturation and special treatment for +1.0 / -1.0 recognition (nomally +1.0 is not possible!)
-#define DSP_F31(x) ((x == 0x7FFFFFFF) ? 1.0 : (x == 0xFFFFFFFF) ? -1.0 : (double)(x)/(double)(2147483648.0))
-#define DSP_Q31(f) ((f >= 1.0 ) ? (int)0x7FFFFFFF : (f <= -1.0) ? (int)(0x80000001) : (int)((signed long long)((f) * (1ULL << (31+20)) + (1<<19)) >> 20))
 
+// special macro for 0.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
+#define DSP_Q31_ONE (0x7fffffffULL)
+#define DSP_2P31F   (2147483648.0)
+#define DSP_2P31F_INV (1.0/2147483648.0)
+#define DSP_2P31    (1ULL<<31)
+#define DSP_F31(x)  ( (x == DSP_Q31_ONE) ? 1.0 : (double)(x)/DSP_2P31F )
+#define DSP_Q31(f)  ( (f >= 1.0 ) ? DSP_Q31_ONE : (f <= -1.0) ? -1 : ( (long long)( (f) * (DSP_2P31F + 0.5) ) ) )
+
+// same as inlined function that the compiler will optimise as a constant
+static inline long long dspQ31(double f){
+    if (f >=  1.0) return DSP_Q31_ONE; else
+    if (f <= -1.0) return -1;
+    f *= (DSP_2P31F + 0.5);
+    return f; // implicit type cast and conversion to long long integer
+}
+
+static inline long long dspQ_M(double f, int mant){
+    int integ = 64-mant-1;
+    long long max = (1ULL<<integ);
+    double maxf = max;
+    if (f >=   maxf)  return (1ULL<<mant); else
+    if (f <= (-maxf)) return -1;
+    double mul = (1ULL<<mant);
+    mul += 0.5; // rounding
+    mul *= f;
+    return mul; // implicit type cast and conversion to long long integer
+}
+
+static inline long long dspQNM(double f){
+    return dspQ_M(f, DSP_MANT);
+}
 
 // list of all DSP supported opcode as of this version
 enum dspOpcodesEnum {

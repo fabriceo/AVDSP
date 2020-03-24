@@ -115,17 +115,23 @@ static inline int dspShiftInt(long long a, int mant){
 // dither generation functions 
 
 struct dspTpdf_s {
- dspAligned64_t notMask;                // mask to be applied with a "and" to get the truncated sample
- dspAligned64_t round;                  // equivalent to 0.5, scaled at the right bit position
- dspAligned64_t scaled;                 // resulting value to be added to the sample, before truncation
- int factor;                            // scaling factor to reach the right bit
- int shift;                             // number of shift occurence to perform on valueInt32 to get the scaled value
- int valueInt32;                        // raw value of the tpdf generator 32 bits -1..+1
+ dspAligned64_t notMask64;              // mask in s4.59 format to be applied with a "and" to get the truncated sample
+ dspAligned64_t round64;                // equivalent to 0.5 at the right bit position in s4.59 format
+ dspALU_t value;                        // raw value of the tpdf generator 32 bits -1..+1
+ dspALU_t scaled;                       // tpdf scaled value to be added to the sample, before truncation
+ int factor;                            // scaling factor to reach the right dither bit, either float32 or int32
+ int shift;                             // number of shift occurence to perform on tpdf value to get the tpdf scaled value
+ int dither;                            // value of the expected dither
+ float factorFloat;                     // needed to scale the value according to the dither's bit
+ unsigned int notMask32;                // tbd
+ float roundFloat;                      // correspond to factor float / 2
+ unsigned int randomSeed;               // random number changed at every sample, initialised by runtimeInit
 #ifndef DSP_ARCH
- unsigned int s32[4];			// xoshiro128p prng internal state
-#elif DSP_XS2A
- unsigned int randomSeed;               // random number changed at every sample, initialise by runtimeInit
+ unsigned int s32[4];			        // xoshiro128p prng internal state
 #endif
+
+ //unsigned int notMaskInt32;             // needed for storing dithered sample at final stage (float version)
+ //int shiftRigth;                        // number of shift right occurence to get proper float number
 } dspTpdf;
 
 
@@ -137,9 +143,12 @@ static inline uint32_t rotl(const uint32_t x, unsigned int k) {
 }
 
 static inline void dspTpdfRandomInit(unsigned int seed){
-    uint32_t *s32=dspTpdf.s32;
-    dspTpdf.factor = 0;
+    dspTpdf.randomSeed = seed;          // required for WHITE
+    dspTpdf.factor     = 0;
+    dspTpdf.notMask64  = -1;
+    dspTpdf.notMask32  = -1;          // default value
 
+    uint32_t *s32=dspTpdf.s32;
     s32[0]=(seed|1);
     s32[1]=rotl((seed|8),7);
     s32[2]=rotl((seed|16),11);
@@ -163,60 +172,29 @@ static inline uint32_t xoshiro128p(void) {
     return result;
 }
 
-static inline long long dspTpdfRandomCalc(){
+static inline dspALU_t dspTpdfRandomCalc(){ // return an integer or a float
     int rnd1 = xoshiro128p();
     int rnd2 = xoshiro128p();
     dspTpdf.randomSeed = rnd2;  // used by WHITE()
     int rnd = ( rnd1 >> 1 ) + ( rnd2 >> 1 );  // tpdf distribution
-    dspTpdf.valueInt32 = rnd;
 
+#if (DSP_FORMAT >= DSP_FORMAT_FLOAT)
+    dspTpdf.value  = rnd;   // convert int to float
+    dspTpdf.value *= DSP_2P31F_INV;   // get back to -1..+1
+    dspTpdf.scaled = dspTpdf.value * dspTpdf.factorFloat;    // factor is pre-computed by encoder as (1.0 / 2^(N-1) )
+#else
+    // compute a scaled value according to DSP_MANT
+    // using a shift factor previously computed by the encoder for faster runtime
+    dspTpdf.value  = rnd;
     long long tpdf = rnd;
-    if (dspTpdf.shift >=0 ) tpdf <<= dspTpdf.shift;
+    if (dspTpdf.shift >=0 )
+         tpdf <<= dspTpdf.shift;
     else tpdf >>= (-dspTpdf.shift);
-    tpdf += dspTpdf.round;
+    //tpdf += dspTpdf.round64;    // not sure the rounding should be done like this...
     dspTpdf.scaled = tpdf;
-    return tpdf;
+#endif
+    return dspTpdf.scaled;
 }
-
-/* other alternative possibility with crc16 approach
-static const unsigned short crc16Table[256]=
-{
-    0x0000,0x1021,0x2042,0x3063,0x4084,0x50a5,0x60c6,0x70e7,
-    0x8108,0x9129,0xa14a,0xb16b,0xc18c,0xd1ad,0xe1ce,0xf1ef,
-    0x1231,0x0210,0x3273,0x2252,0x52b5,0x4294,0x72f7,0x62d6,
-    0x9339,0x8318,0xb37b,0xa35a,0xd3bd,0xc39c,0xf3ff,0xe3de,
-    0x2462,0x3443,0x0420,0x1401,0x64e6,0x74c7,0x44a4,0x5485,
-    0xa56a,0xb54b,0x8528,0x9509,0xe5ee,0xf5cf,0xc5ac,0xd58d,
-    0x3653,0x2672,0x1611,0x0630,0x76d7,0x66f6,0x5695,0x46b4,
-    0xb75b,0xa77a,0x9719,0x8738,0xf7df,0xe7fe,0xd79d,0xc7bc,
-    0x48c4,0x58e5,0x6886,0x78a7,0x0840,0x1861,0x2802,0x3823,
-    0xc9cc,0xd9ed,0xe98e,0xf9af,0x8948,0x9969,0xa90a,0xb92b,
-    0x5af5,0x4ad4,0x7ab7,0x6a96,0x1a71,0x0a50,0x3a33,0x2a12,
-    0xdbfd,0xcbdc,0xfbbf,0xeb9e,0x9b79,0x8b58,0xbb3b,0xab1a,
-    0x6ca6,0x7c87,0x4ce4,0x5cc5,0x2c22,0x3c03,0x0c60,0x1c41,
-    0xedae,0xfd8f,0xcdec,0xddcd,0xad2a,0xbd0b,0x8d68,0x9d49,
-    0x7e97,0x6eb6,0x5ed5,0x4ef4,0x3e13,0x2e32,0x1e51,0x0e70,
-    0xff9f,0xefbe,0xdfdd,0xcffc,0xbf1b,0xaf3a,0x9f59,0x8f78,
-    0x9188,0x81a9,0xb1ca,0xa1eb,0xd10c,0xc12d,0xf14e,0xe16f,
-    0x1080,0x00a1,0x30c2,0x20e3,0x5004,0x4025,0x7046,0x6067,
-    0x83b9,0x9398,0xa3fb,0xb3da,0xc33d,0xd31c,0xe37f,0xf35e,
-    0x02b1,0x1290,0x22f3,0x32d2,0x4235,0x5214,0x6277,0x7256,
-    0xb5ea,0xa5cb,0x95a8,0x8589,0xf56e,0xe54f,0xd52c,0xc50d,
-    0x34e2,0x24c3,0x14a0,0x0481,0x7466,0x6447,0x5424,0x4405,
-    0xa7db,0xb7fa,0x8799,0x97b8,0xe75f,0xf77e,0xc71d,0xd73c,
-    0x26d3,0x36f2,0x0691,0x16b0,0x6657,0x7676,0x4615,0x5634,
-    0xd94c,0xc96d,0xf90e,0xe92f,0x99c8,0x89e9,0xb98a,0xa9ab,
-    0x5844,0x4865,0x7806,0x6827,0x18c0,0x08e1,0x3882,0x28a3,
-    0xcb7d,0xdb5c,0xeb3f,0xfb1e,0x8bf9,0x9bd8,0xabbb,0xbb9a,
-    0x4a75,0x5a54,0x6a37,0x7a16,0x0af1,0x1ad0,0x2ab3,0x3a92,
-    0xfd2e,0xed0f,0xdd6c,0xcd4d,0xbdaa,0xad8b,0x9de8,0x8dc9,
-    0x7c26,0x6c07,0x5c64,0x4c45,0x3ca2,0x2c83,0x1ce0,0x0cc1,
-    0xef1f,0xff3e,0xcf5d,0xdf7c,0xaf9b,0xbfba,0x8fd9,0x9ff8,
-    0x6e17,0x7e36,0x4e55,0x5e74,0x2e93,0x3eb2,0x0ed1,0x1ef0
-};
-*/
-// formula
-//rnd =  (random << 8) ^ crc16Table[(random >> 8) & 0xFF ]; // very basic randomizer ...
 
 #elif DSP_XS2A
 
@@ -226,7 +204,7 @@ static inline void dspTpdfRandomInit(unsigned int seed) {
 }
 
 
-static inline long long dspTpdfRandomCalc(){
+static inline dspALU_t dspTpdfRandomCalc(){
     unsigned  rnd = dspTpdf.randomSeed;
 
     // sugested in xmos application note here : https://xcore.github.io/doc_tips_and_tricks/pseudo-random-numbers.html
@@ -236,20 +214,21 @@ static inline long long dspTpdfRandomCalc(){
     asm ("crc32 %0,%1,%2":"+r"(rnd):"r"(-1),"r"(poly));
     dspTpdf.randomSeed = rnd;
     // better to use unsigned on XS2A due to instruction set for shr able to run on dual lane vs ashr single lane
-    dspTpdf.valueInt32 = ( rnd >> 1 ) - ( random >> 1 ); // same as (rnd>>1)+(random>>1) on signed int (verified :)
+    dspTpdf.value = ( rnd >> 1 ) - ( random >> 1 ); // same as (rnd>>1)+(random>>1) on signed int (verified :)
 
-    int ah; unsigned al;
-    long long * adr = &dspTpdf.round;
+    int ah; unsigned al; int val = dspTpdf.value;
+    long long * adr = &dspTpdf.round64;
     asm("ldd %0,%1,%2[0]":"=r"(ah),"=r"(al):"r"(adr));    // load round
     if (al & ((1<<(DSP_MANT+2))-1)) {
-        asm("maccs %0,%1,%2,%3":"+r"(al),"+r"(ah):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
+        asm("maccs %0,%1,%2,%3":"+r"(al),"+r"(ah):"r"(val),"r"(dspTpdf.factor));
         asm("std %0,%1,%2[1]"::"r"(0),"r"(al),"r"(adr));        // store scaled value just after round, 64 bits
         return al;
     } else {
-        asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(dspTpdf.valueInt32),"r"(dspTpdf.factor));
+        asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(val),"r"(dspTpdf.factor));
         asm("std %0,%1,%2[1]"::"r"(ah),"r"(al),"r"(adr));       // store scaled value just after round, 64 bits
         return ((long long)ah<<32) | al;
     }
+    // this function returns dspTpdf.scaled
 }
 #endif
 

@@ -748,11 +748,11 @@ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
 }
 
 
-void dsp_TPDF(int bits){
+void dsp_TPDF(int dith){
     opcodeIndexAligned8();  // garantiee that the 64 bits words below will be alligned8 bytes
     addOpcodeLengthPrint(DSP_TPDF);
     checkInRange(bits,2,32);
-    bits = DSP_MANT+32-bits;    // eg 36 for DSPMANT = 28 and 24th bit ditering
+    bits = DSP_MANT+32-dith;    // eg 36 for DSPMANT = 28 and 24th bit ditering
     unsigned long long round = 1ULL << (bits-1);    // value (0.5) for rounding sample
     unsigned long long notMask  = ~((1ULL << bits)-1);
     unsigned factor;
@@ -760,12 +760,17 @@ void dsp_TPDF(int bits){
     if (bits>=0) factor = 1ULL<<bits;   // we can use a 32x32=64 mul for getting the tpdf scaled directly from the multiplication
     else factor = (1ULL<<(32+bits));    // we will divide still by using the 32x32 multiplication but keeping only the MSB so 32 bits less
     if (bits == -1) factor--;           // special case, cannot keep factor equal to 1<<31 as this becomes a negaive number in 2's
-    addCode(factor);                    // provide both : factor value
-    addCode(notMask & 0xFFFFFFFF);
+    addCode(factor);                    // provide both : factor value an shift information
+    addCode(notMask );                  // these value will be alligned8
     addCode(notMask >> 32);
-    addCode(round & 0xFFFFFFFF);        // these value will be alligned8
+    addCode(round );
     addCode(round >> 32);
     addCode(bits);                      // and bits representing number of shift to be performed
+    // additional values for float calculation
+    addCode(dith);                      // copy of the dith parameter, not used by the runtime in fact
+    addFloat(1.0 / (1ULL<<(dith-1)) );  // factor for float computation of the scaled value
+    addCode(~((1<<(32-dith)-1));        // notMask to apply after float conversion to s.31
+    addFloat(1.0 / (1ULL<<dith));       // round float value (0.5) scalled according to dither bit
 }
 
 

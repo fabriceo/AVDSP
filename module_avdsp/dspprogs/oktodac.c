@@ -166,32 +166,15 @@ void crossoverLV6(int lowpass, int defaultGain, int gd, float gaincomp, int dist
 
 }
 
-int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
-    dspprintf("program for the dac belonging to the author, including substractive cross over\n");
+int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow, int dither){
+    dspprintf("program for the dac belonging to the author\n");
 
-    float nsthierryl[] = {
-            2.51758, -2.01206, 0.57800,           //44.1
-            2.56669, -2.04479, 0.57800,           //48
-            2.75651, -2.50072, 0.77760,           //88.2
-            2.76821, -2.51152, 0.77760,           //96
-            2.78567, -2.58690, 0.80595,           //176
-            2.78695, -2.59168, 0.80757  };        //192
-
-    float nsmpd[] = {
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000,
-            1.00000, -0.50000, 0.50000  };
     dsp_PARAM();
-    int nscoefs = dspDataTableFloat(nsthierryl, 3*6);
-
     int lowpass1 = dspBiquad_Sections(-4);
         dsp_LP_BES6(fx);
 
     int lowpass2 = dspBiquad_Sections(0);
-        dsp_LP_BES4(fx);
+        dsp_LP_LR4(fx);
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(left,0.5);
@@ -200,6 +183,12 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     int defaultGain = dspGain_Default(1.0);
 
     dsp_CORE();  // first core (could be removed - implicit)
+
+    if (dither == 0) dither = 24;
+    dsp_TPDF(dither);   // returns nTh bit noise like the one used in SAT0DB_TPDF
+    dsp_SAT0DB();
+    //dsp_STORE( USBIN(0) );
+
     dsp_LOAD_STORE();
         dspLoadStore_Data( left,  DACOUT(0) );   // headphones
         dspLoadStore_Data( right, DACOUT(1) );
@@ -207,29 +196,13 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
         //dspLoadStore_Data( ADCIN(1),  USBIN(1) );
         dspLoadStore_Data( right, USBIN(1) );    // loopback REW
 
-        dsp_LOAD(left);
-        dsp_STORE( DACOUT(2) ); // low driver
-        dsp_STORE( USBIN(2) ); // low driver
+    dsp_LOAD(left);
+    dsp_STORE( DACOUT(2) ); // low driver
+    dsp_STORE( USBIN(2) );  // low driver
+    dsp_LOAD(right);
+    dsp_STORE( DACOUT(3) ); // high driver
+    dsp_STORE( USBIN(3) );  // high driver
     //crossoverLV6(lowpass1, defaultGain, gd, gaincomp, distlow, left, 2, 3);
-
-        dsp_TPDF(24);   // returns nTh bit noise like the one used in SAT0DB_TPDF
-        //dsp_DIRAC_Fixed(100,0.5);
-        //dsp_SWAPXY();
-//        dsp_BIQUADS(lowpass1);
-        dsp_LOAD_GAIN_Fixed(USBOUT(0), 1.0);
-        dsp_CLIP_Fixed(0.1);
-        //dsp_SWAPXY();   // get pulse
-        dsp_BIQUADS(lowpass1);
-        //dsp_DITHER();
-        //dsp_DITHER_NS2(nscoefs);
-        //dsp_SAT0DB_TPDF();
-        dsp_SAT0DB();
-        //dsp_WHITE();
-        //dsp_SHIFT(-1);
-        dsp_STORE(USBIN(6));
-        //dsp_DISTRIB(256);
-        //dsp_RMS(100,0);
-        dsp_STORE(USBIN(7));
 
 /*
     dsp_CORE();  // second core for test
@@ -238,16 +211,11 @@ int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow){
     dsp_LOAD_MUX(avgLR);
     dsp_DITHER();
     dsp_SAT0DB();
-    dsp_WHITE();
-    //dsp_GAIN_Fixed(0.5);
-    //dsp_SAT0DB();
 
     //dsp_LOAD(left);
     //dsp_LOAD(right);
     //dsp_AVGXY();
 
-    //dsp_VALUE_FixedInt(0x40000000);
-    //dsp_DCBLOCK(10);
     dsp_STORE(DACOUT(6));   // center
     dsp_STORE(USBIN(6));
     dsp_STORE(DACOUT(7));   // lfe
@@ -330,12 +298,12 @@ int dspProg(int argc,char **argv){
                     outs = 8;
                     continue; }
 
-                 if (strcmp(argv[i],"-dithering") == 0) {
+                 if (strcmp(argv[i],"-dither") == 0) {
                      dither = 24;
                       if (argc>=i) {
                           i++;
                           dither = strtol(argv[i], NULL,10); }
-                     dspprintf("add dithering %d on each spdif inputs\n",dither);
+                     dspprintf("add dithering %d \n",dither);
                      continue; }
 
                  if (strcmp(argv[i],"-dacfabriceo") == 0) {
@@ -378,7 +346,7 @@ int dspProg(int argc,char **argv){
 	case 2:  return dspProgDACSTEREO(outs, dither);
 	case 3:  return dspProgUsbLoopBack(outs, dither);
     case 4:  return dspProgTest();
-    case 5:  return dspProgDACFABRICEO(fx, gd, gaincomp, distlow);
+    case 5:  return dspProgDACFABRICEO(fx, gd, gaincomp, distlow,dither);
 	default: return dspNoProg();
 	}
 }
