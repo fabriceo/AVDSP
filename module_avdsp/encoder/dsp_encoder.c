@@ -9,10 +9,10 @@
 #include "dsp_encoder.h"         // enum dsp codes, typedefs and QNM definition
 #include <stdlib.h>             // only for importing exit()
 
-#define DSP_ENCODER_VERSION 1   // will be stored in the program header for further interpretation by the runtime
+#define DSP_ENCODER_VERSION (1<<16 | 0 <<8 | 0) // will be stored in the program header for further interpretation by the runtime
 
 static opcode_t * dspOpcodesPtr  = 0;       // absolute adress start of the table containing the opcodes and data
-static dspHeader_t* dspHeaderPtr = 0;       // point on the header containing program summary
+dspHeader_t* dspHeaderPtr = 0;              // point on the header containing program summary
 static int dspOpcodesMax         = 0;       // max allowed size of this table (in words)
 
 volatile static int dspOpcodeIndex = 0;     // point on the next available opcode position in the opcode table
@@ -354,13 +354,32 @@ static void calcLength(){
 
 }
 
-// generate a header with following structure
-// 0 : total lenght including all opcode and all run-data
-// 1 : size of required data for running state
-// 2 : checksum of all the program : opcodes + length (doesnt include param or coefs or datas)
-// 3 : number of cores found in the opcode program
-// 4 : dsp code version : minimum interpreter version required
-// 5 : max supported frequency : number of instanciation of biquad coefs and delay lines data
+// see DSP_FORMAT in dsp_runtime.h
+static int dspFormat64(){
+    // return 1 if the DSP ALU is 64bits size (int64 or double)
+    return (dspFormat == 2)||(dspFormat == 4)||(dspFormat == 6);
+}
+static int dspFormatInt(){
+    // return 1 if the DSP ALU is integer
+    return (dspFormat == 1)||(dspFormat == 2);
+}
+/* not used
+static int dspFormatInt64(){
+    // return 1 if the DSP ALU is integer 64bits size
+    return (dspFormat == 2);
+}
+*/
+static int dspFormatDouble(){
+    // return 1 if the DSP ALU is double float
+    return (dspFormat == 4)||(dspFormat == 6);
+}
+/* not used
+static int dspFormatSampleFloat(){
+    // return 1 if the DSP sample is considered as float
+    return (dspFormat == 5)||(dspFormat == 6);
+}
+*/
+
 
 void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int maxFreq, int maxIO) {
     dspprintf("DSP ENCODER : format generated for handling ");
@@ -405,31 +424,15 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int 
     dspHeaderPtr->checkSum  = 0;
     dspHeaderPtr->numCores  = 0;
     dspHeaderPtr->version   = DSP_ENCODER_VERSION;
+    if (dspFormatInt())
+         dspHeaderPtr->format = DSP_MANT;
+    else
+         dspHeaderPtr->format = dspFormat;
     dspHeaderPtr->maxOpcode = DSP_MAX_OPCODE-1;
     dspHeaderPtr->freqMin   = minFreq;
     dspHeaderPtr->freqMax   = maxFreq;
     dspHeaderPtr->usedInputs  = 0;
     dspHeaderPtr->usedOutputs = 0;
-}
-
-// see DSP_FORMAT in dsp_runtime.h
-static int dspFormat64(){
-    // return 1 if the DSP ALU is 64bits size (int64 or double)
-    return (dspFormat == 2)||(dspFormat == 4)||(dspFormat == 6);
-}
-static int dspFormatInt(){
-    // return 1 if the DSP ALU is integer
-    return (dspFormat == 1)||(dspFormat == 2);
-}
-/* not used
-static int dspFormatInt64(){
-    // return 1 if the DSP ALU is integer 64bits size
-    return (dspFormat == 2);
-}
-*/
-static int dspFormatDouble(){
-    // return 1 if the DSP ALU is double float
-    return (dspFormat == 4)||(dspFormat == 6);
 }
 
 
@@ -565,7 +568,7 @@ int dsp_END_OF_CODE(){
     dspprintf1("check sum      = %d\n", sum);
     if (numCore == 0) numCore = 1;
     dspHeaderPtr->numCores = numCore;       // comit number of declared cores
-    dspprintf1("numcore        = %d\n",numCore);
+    dspprintf1("numcore       = %d\n",numCore);
     dspHeaderPtr->maxOpcode   = maxOpcodeValue;
     dspHeaderPtr->usedInputs  = usedInputs;
     dspHeaderPtr->usedOutputs = usedOutputs;
@@ -768,9 +771,9 @@ void dsp_TPDF(int dith){
     addCode(bits);                      // and bits representing number of shift to be performed
     // additional values for float calculation
     addCode(dith);                      // copy of the dith parameter, not used by the runtime in fact
-    addFloat(1.0 / (1ULL<<(dith-1)) );  // factor for float computation of the scaled value
+    addFloat(1.0 / (float)(1ULL<<(dith-1)) );  // factor for float computation of the scaled value
     addCode(~((1<<(32-dith))-1));        // notMask to apply after float conversion to s.31
-    addFloat(1.0 / (1ULL<<dith));       // round float value (0.5) scalled according to dither bit
+    addFloat(1.0 / (float)(1ULL<<dith));       // round float value (0.5) scalled according to dither bit
 }
 
 
@@ -1261,13 +1264,13 @@ void dsp_BIQUADS(int paramAddr){
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
     if (dspFormatDouble())
-        addDataSpaceAligned8(num*8);    // 2 words for each data (xn-1, xn-2, yn-1, yn-2)
+        addDataSpaceAligned8(num*8);       // 2 words for each data (xn-1, xn-2, yn-1, yn-2)
     else
         if (dspFormatInt())
             addDataSpaceAligned8(num*6);   // space for standard state data + 64bits remainder
         else
             addDataSpaceAligned8(num*4);   // space for standard state data float: 4  words xn-1,xn-2,yn-1,yn-2
-    addCodeOffset(paramAddr, base);     // store pointer on the first bunch of (alligned) coefficients
+    addCodeOffset(paramAddr, base);        // store pointer on the first bunch of (alligned) coefficients
 }
 
 int dspBiquad_Sections(int number){
@@ -1545,7 +1548,6 @@ void dsp_CLIP_Fixed(dspGainParam_t value){
     addOpcodeLengthPrint(DSP_CLIP);
     if ((value >= 1.0) || (value <= -1.0))
         dspFatalError("value not in range -0.999..+0.999.");
-    addDataSpace(1);
     addGainCodeQNM(value);
 }
 

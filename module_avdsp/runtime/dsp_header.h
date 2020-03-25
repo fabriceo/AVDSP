@@ -22,8 +22,8 @@
 #endif
 
 #if defined(__XS2A__) && (DSP_FORMAT == DSP_FORMAT_INT64)     // specific for xmos xs2 architecture for int64 runtime
-//#define DSP_XS2A 1
-//#define DSP_ARCH DSP_XS2A
+#define DSP_XS2A 1
+#define DSP_ARCH DSP_XS2A
 #elif 0
 // other architecture defines here
 #define DSP_MYARCH 2
@@ -45,21 +45,17 @@
 #define dspprintf3(...) { }
 #endif
 
-// this define the precision for the fixed point maths.
-// code is optimized for int64 ALU . suggested format is 4.28 for param, gain and filters coeficients
+// this define the precision for the fixed point maths when opcodes are encoded with DSP_FORMAT_INxx
+// suggested format is 4.28 for parameters, gain and filters coeficients.
+// for INT32, DSP_MANT is maximum 15 by design
+// minimum is 8 by design
 #ifndef DSP_MANT
 #define DSP_MANT 28
-#endif
-#ifndef DSP_INT
-#define DSP_INT (32-DSP_MANT)
 #endif
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
 #ifndef DSP_MANTBQ
 #define DSP_MANTBQ 28
-#endif
-#ifndef DSP_INTBQ
-#define DSP_INTBQ (32-DSP_MANTBQ)
 #endif
 
 // define the fixed point macro used for encoding the default 32 bits parameters (gain, mux...) coded with DSP_MANT
@@ -67,7 +63,7 @@
 #ifndef DSP_QNM
 #define DSP_QNM(f) Q(DSP_MANT)(f)
 #endif
-#define DSP_QNM_ONE (1ULL<<DSP_MANT)
+
 // define the fixed point macro used for encoding the default int biquad coeficients
 #ifndef DSP_QNMBQ
 #define DSP_QNMBQ(f) Q(DSP_MANTBQ)(f)
@@ -80,30 +76,6 @@
 #define DSP_2P31    (1ULL<<31)
 #define DSP_F31(x)  ( (x == DSP_Q31_ONE) ? 1.0 : (double)(x)/DSP_2P31F )
 #define DSP_Q31(f)  ( (f >= 1.0 ) ? DSP_Q31_ONE : (f <= -1.0) ? -1 : ( (long long)( (f) * (DSP_2P31F + 0.5) ) ) )
-
-// same as inlined function that the compiler will optimise as a constant
-static inline long long dspQ31(double f){
-    if (f >=  1.0) return DSP_Q31_ONE; else
-    if (f <= -1.0) return -1;
-    f *= (DSP_2P31F + 0.5);
-    return f; // implicit type cast and conversion to long long integer
-}
-
-static inline long long dspQ_M(double f, int mant){
-    int integ = 64-mant-1;
-    long long max = (1ULL<<integ);
-    double maxf = max;
-    if (f >=   maxf)  return (1ULL<<mant); else
-    if (f <= (-maxf)) return -1;
-    double mul = (1ULL<<mant);
-    mul += 0.5; // rounding
-    mul *= f;
-    return mul; // implicit type cast and conversion to long long integer
-}
-
-static inline long long dspQNM(double f){
-    return dspQ_M(f, DSP_MANT);
-}
 
 // list of all DSP supported opcode as of this version
 enum dspOpcodesEnum {
@@ -231,18 +203,19 @@ typedef union opcode_u {
 
 
 //used at the very begining of the dsp program to store basic information
-typedef struct dspHeader_s {    // 13 words
-            opcode_t head;
-            int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 8bytes
-            int   dataSize;     // required data space for executing the dsp program (in 32 bits words)
-            unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program
-            int   numCores;     // number of cores/tasks declared in the dsp program
-            int   version;      // version of the encoder used
-            int   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
-            int   freqMin;      // minimum frequency possible for this program, in raw format eg 44100
-            int   freqMax;      // maximum frequency possible for this program, in raw format eg 192000
-            unsigned usedInputs;   //bit mapping of all used inputs
-            unsigned usedOutputs;  //bit mapping of all used outputs
+typedef struct dspHeader_s {    // 11 words
+/* 0 */     opcode_t head;
+/* 1 */     int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 8bytes
+/* 2 */     int   dataSize;     // required data space for executing the dsp program (in 32 bits words)
+/* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program
+/* 4 */     int   numCores;     // number of cores/tasks declared in the dsp program
+/* 5 */     int   version;      // version of the encoder used MAJOR, MINOR,BUGFIX
+/* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 1 for float or 2 for double
+/*   */     unsigned short   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
+/* 7 */     int   freqMin;      // minimum frequency possible for this program, in raw format eg 44100
+/* 8 */     int   freqMax;      // maximum frequency possible for this program, in raw format eg 192000
+/* 9 */     unsigned usedInputs;   //bit mapping of all used inputs
+/* 10 */    unsigned usedOutputs;  //bit mapping of all used outputs
         } dspHeader_t;
 
 //prototypes

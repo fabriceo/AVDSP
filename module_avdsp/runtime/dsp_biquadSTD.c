@@ -52,22 +52,25 @@ dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspSample_t * 
 #endif
 
 #if DSP_ALU_FLOAT // not tested
+extern int dspMantissa;
+#include "dsp_inlineSTD.h" // import DSP_PTR_TO_FLOAT
 dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspSample_t * dataPtrParam, short num, int skip) {
-#if (DSP_ALU_FLOAT32 == 1)
+#if DSP_ALU_FLOAT32
     float * dataPtr = (float*)dataPtrParam;
 #else
-    double * dataPtr = (double*)dataPtrParam;
+    double * dataPtr = (double*)dataPtrParam;   // TODO check if original program is not encoded FLOAT !
 #endif
     dspALU_t xn = x;    // x is float (single precision)
     dspALU_t ALU;
 
     while (num--) {
         dspParam_t * cPtr = coefPtr;
-        dspParam_t b0 = * coefPtr++;
-        dspParam_t b1 = * coefPtr++;
-        dspParam_t b2 = * coefPtr++;
-        dspParam_t a1 = * coefPtr++;
-        dspParam_t a2 = * coefPtr++;
+        dspParam_t b0 = DSP_PTR_TO_FLOAT(coefPtr++);
+        dspParam_t b1 = DSP_PTR_TO_FLOAT(coefPtr++);
+        dspParam_t b2 = DSP_PTR_TO_FLOAT(coefPtr++);
+        dspParam_t a1 = DSP_PTR_TO_FLOAT(coefPtr++);
+        if (dspMantissa) a1 += 1.0; // correcting the special coding made by the encoder if in integer mode
+        dspParam_t a2 = DSP_PTR_TO_FLOAT(coefPtr);
         coefPtr = cPtr + skip;  // because we have many coef depending on frequency span
 
         ALU = (xn * b0);

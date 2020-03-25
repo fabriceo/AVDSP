@@ -109,6 +109,7 @@
 #define F17(x) ((double)(x)/(double)(1<<17))
 #define F16(x) ((double)(x)/(double)(1<<16))
 
+
 #define FDP28(x) ((double)((x))/268435456.0/268435456.0)
 
 // short
@@ -120,5 +121,6 @@
 #define F10(x) ((double)(x)/(double)(1<<10))
 #define F9(x)  ((double)(x)/(double)(1<<9))
 #define F8(x)  ((double)(x)/(double)(1<<8))
+
 
 #endif /* DSP_QFORMAT_H_ */

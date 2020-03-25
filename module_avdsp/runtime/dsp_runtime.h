@@ -14,7 +14,14 @@
 #include "dsp_header.h"
 
 #if (DSP_FORMAT == 1)     // 32bits integer model
-#error not implemented
+#if (DSP_MANT > 15)
+#error DSP_MANT max = 15bits
+#endif
+#if (DSP_MANT <8)
+#error DSP_MANT min 8bits
+#endif
+
+#error "INT runtime not yet compatible"
     #define dspSample_t short       // samples always considered as int16 (use Q15(x) or F15(x) to convert from/to float)
     #define dspALU_t    int
     #define dspALU_SP_t dspALU_t    //single precision, here is same as normal precision
@@ -38,8 +45,14 @@
     #define DSP_SAMPLE_INT 1
     #define DSP_SAMPLE_FLOAT 0
     #define DSP_RUNTIME_FORMAT(name) name ## _2
+#if (DSP_MANT <8)
+#error "DSP_MANT min 8bits"
+#endif
+#if (DSP_MANT >30)
+#error "DSP_MANT max 30bits"
+#endif
 
-#elif (DSP_FORMAT == 3)               // sample is int32, alu is float32, param float32
+#elif (DSP_FORMAT == 3)             // sample is int32, alu is float32, param float32
 
     #define dspSample_t int         // samples always considered as int32 (use Q31(x) or F31(x) to convert from/to float)
     #define dspALU_t    float
@@ -106,7 +119,7 @@
 
 #if defined(DSP_ARCH) && defined( DSP_XS2A )     // specific for xmos xs2 architecture
 // fast biquad assembly routine inspired from https://github.com/xmos/lib_dsp/blob/master/lib_dsp/src/dsp_biquad.S
-// value for DSP_MANTBQ is defined INSIDE the assembly file and must be updated according to dsp_header.h
+// value for DSP_MANTBQ is defined INSIDE the assembly file and must be updated according to DSP_MANT in dsp_header.h
 extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspSample_t * dataPtr, int num);
 #endif
 

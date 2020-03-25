@@ -71,16 +71,16 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
 
     dsp_DIRAC_Fixed( 100, 1.0 );// generate 100 pulse per seconds, max value is 0.8 in the -1..+1 range
     // try swapxy to replace dirac impulse by a square between -0.5 ... +0.5
-    dsp_SWAPXY();             // ALU Y contains a square signal at 100hz then. too much energy with 1.0 for biquads!
+    dsp_SWAPXY();             // ALU Y contains a symetrical square signal at 100hz then
     //dsp_BIQUADS(lowpass2);
     dsp_SAT0DB();
     dsp_STORE( USBIN(5) );      // show filter impulse response in REW with Scope
 
-    dsp_LOAD_GAIN_Fixed( USBIN(1) , 1.0 );
+    dsp_LOAD_GAIN_Fixed( USBOUT(1) , 1.0 );
     dsp_SAT0DB_TPDF();          // show effect of triangular dithering no noise shaping
     dsp_STORE( USBIN(6) );      // measuring -94dBFS with no signal for 16bits dither
 
-    dsp_LOAD_GAIN_Fixed( USBIN(1) , 1.0);
+    dsp_LOAD_GAIN_Fixed( USBOUT(1) , 1.0);
     dsp_DITHER_NS2(nscoefs);    // noise shape the input signal with special coeficient declared above
     dsp_SAT0DB();
     dsp_STORE( USBIN(7) );      // see shaping curve with REW FFT: -85.5dBFS for dither 16bits, +3db curve@2800hz, +12db/octave
@@ -88,6 +88,23 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     return dsp_END_OF_CODE();
 }
 
+
+int dspProg_testFloat(int dither){
+
+    dsp_CORE();
+    dsp_TPDF(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
+    //dsp_SWAPXY();
+    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 0.5 );
+    dsp_SAT0DB_TPDF();
+    dsp_STORE( USBIN(0) );
+
+    dsp_LOAD( USBOUT(1) );
+    dsp_STORE( USBIN(1) );
+
+    return dsp_END_OF_CODE();
+
+
+}
 
 int dspProg(int argc,char **argv){
    int prog = 0;
@@ -102,6 +119,11 @@ int dspProg(int argc,char **argv){
 
                     continue; }
 
+                 if (strcmp(argv[i],"-testfloat") == 0) {
+                    dspprintf("test program for dac8pro and rew\n");
+                    prog = 2;
+
+                    continue; }
                  if (strcmp(argv[i],"-dither") == 0) {
                      dither = 24;
                       if (argc>=i) {
@@ -116,6 +138,7 @@ int dspProg(int argc,char **argv){
     switch (prog) {
     case 0:  return dspProg_base();
     case 1:  return dspProg_test1(dither);
+    case 2:  return dspProg_testFloat(dither);
     }
     return dsp_END_OF_CODE();
 }

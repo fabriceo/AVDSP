@@ -14,6 +14,7 @@
 
 //create a program strucutre with below functions.
 
+extern dspHeader_t* dspHeaderPtr;
 //prototypes from dsp_encoder.c
 void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int maxFreq, int maxIO);
 
