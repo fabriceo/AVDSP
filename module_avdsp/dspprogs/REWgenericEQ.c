@@ -35,10 +35,9 @@ static int encodeOneChannel(char *filename, int nc) {
   }
 
   dsp_CORE(); 
-  dsp_TPDF(24); 
+  if(nc==0) dsp_TPDF(24); 
 
-  dsp_LOAD(nc); 
-  dsp_GAIN_Fixed(1.0);
+  dsp_LOAD_GAIN_Fixed(nc,1.0);
 
   dsp_PARAM();
   int filter = dspBiquad_Sections_Flexible();
@@ -54,7 +53,6 @@ static int encodeOneChannel(char *filename, int nc) {
 
 	if(sscanf(line,"Filter %d:",&nf)!=1) continue;
 	if(strncmp(&(line[11]),"ON",2)) continue;
-
 
 	Fc=0;G=1.0;Q=M_SQRT1_2;
 
@@ -157,8 +155,7 @@ static int encodeOneChannel(char *filename, int nc) {
 
    dsp_BIQUADS(filter); 
 
-   dsp_DITHER(); 
-   dsp_SAT0DB(); 
+   dsp_SAT0DB_TPDF(); 
 
    dsp_STORE(nc+8);
 
