@@ -13,11 +13,12 @@
 
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
 
+#define DSP_FORMAT DSP_FORMAT_INT64
 #include "dsp_runtime.h"
 
 #define opcodesMax 10000
 #define inputOutputMax 32
-
+#define nbCoreMax 8
 
 static void usage() {
 	fprintf(stderr,"dsprun alsainname alsaoutname dspprog.bin fs\n");
@@ -33,13 +34,16 @@ int main(int argc, char **argv) {
     int fs;
 
     dspSample_t inputOutput[inputOutputMax];
-    opcode_t opcodes[opcodesMax];
+    int		nbchin, nbchout;
+    int 	inputMap[inputOutputMax];
+    int 	outputMap[inputOutputMax];
 
+    opcode_t opcodes[opcodesMax];
     int *dataPtr;
-    opcode_t *codeStart[4];
     dspHeader_t *hptr;
+
+    opcode_t *codeStart[nbCoreMax];
     int nbcores;
-    int nbchin, nbchout;
 
     int size,result;
     int nc,n,ch,o;
@@ -80,18 +84,24 @@ int main(int argc, char **argv) {
     dataPtr = (int*)opcodes + result;
 
     // find cores
-    for(nbcores=0;nbcores<4; nbcores++) {
+    for(nbcores=0;nbcores<nbCoreMax; nbcores++) {
        codeStart[nbcores] = dspFindCore(opcodes, nbcores+1);
        if (codeStart[nbcores]==0)
-	break;
+		break;
     }
 
-    // compute nbchin and nbchout;
+    // compute nbchin / nbchout and imput/output map
     nbchin=nbchout=0;
     hptr=(dspHeader_t*)opcodes;
     for(ch=0;ch<32;ch++) {
-	if(hptr->usedInputs & (1<<ch)) nbchin++;
-	if(hptr->usedOutputs & (1<<ch)) nbchout++;
+	if(hptr->usedInputs & (1<<ch)) {
+		inputMap[nbchin]=ch;
+		nbchin++;
+	}
+	if(hptr->usedOutputs & (1<<ch)) {
+		outputMap[nbchout]=ch;
+		nbchout++;
+	}
     }
     
     if(filename) {
@@ -109,32 +119,23 @@ int main(int argc, char **argv) {
                	exit(1);
          }
 
-	for(n=0;n<fs/2;n++) {
-        	for(ch=0;ch<32;ch++)
-			if(hptr->usedInputs & (1<<ch)) {
-    				inputOutput[ch] = 0;
-				if(impulse && n==0) 
-    					inputOutput[ch] = INT32_MAX;
-				if(sine) 
-    					inputOutput[ch] = INT32_MAX*sin(2.0*M_PI*1000.0*(double)n/fs);
-
-			}
+	for(n=0;n<fs*10;n++) {
+        	for(ch=0;ch<nbchin;ch++) {
+    			inputOutput[inputMap[ch]] = 0;
+			if(impulse && n==0) 
+    				inputOutput[inputMap[ch]] = INT32_MAX/2;
+			if(sine) 
+    				inputOutput[inputMap[ch]] = round((double)INT32_MAX/2.0*sin(2.0*M_PI*1000.0*(double)n/(double)fs));
+		}
 	
 		for(nc=0;nc<nbcores;nc++) 
     			DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
-       		for(ch=0,o=0;ch<32;ch++)
-			if(hptr->usedOutputs & (1<<ch)) {
-    				Outputs[o]=inputOutput[ch];
-				o++;
-			}
+       		for(ch=0;ch<nbchout;ch++) {
+    			Outputs[ch]=inputOutput[outputMap[ch]];
+		}
 
-#if DSP_SAMPLE_INT
     		sf_write_int(outsnd,Outputs,nbchout);
-#endif
-#if DSP_SAMPLE_FLOAT
-    		sf_write_float(outsnd,Outputs,nbchout);
-#endif
 
 	}
 
@@ -160,28 +161,24 @@ int main(int argc, char **argv) {
 
 		for (n=0;n < sz ; n++) {
 
-        		// input 0-7 
-        		for(ch=0,o=0;ch<32;ch++)
-				if(hptr->usedInputs & (1<<ch)) {
-    					inputOutput[ch] = inbuffer[n*nbchin+o];
-					o++;
-				}
+        		// input 
+        		for(ch=0;ch<nbchin;ch++) {
+    				inputOutput[inputMap[ch]] = inbuffer[n*nbchin+ch];
+			}
 		
 			for(nc=0;nc<nbcores;nc++) 
     				DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
 
-        		// outputs 8-15
-        		for(ch=0,o=0;ch<32;ch++)
-				if(hptr->usedOutputs & (1<<ch)) {
-    					outbuffer[n*nbchout+o]=inputOutput[ch] ;
-					o++;
-				}
-		}
+        		// outputs 
+        		for(ch=0;ch<nbchout;ch++) {
+    				outbuffer[n*nbchout+ch]=inputOutput[outputMap[ch]] ;
+			}
+
+    		}
 
 		writeAlsa(outbuffer , sz) ;
-    	}
-    }
-
-    return 0;
+         }
+  } 
+  return 0;
 }
 
