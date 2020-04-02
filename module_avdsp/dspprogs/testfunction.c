@@ -23,16 +23,23 @@ int dspProg_base(){
 
     return dsp_END_OF_CODE();
 }
+float noiseshaper[] = {
+        2.51758, -2.01206, 0.57800,           //44.1
+        2.56669, -2.04479, 0.57800,           //48
+        2.75651, -2.50072, 0.77760,           //88.2
+        2.76821, -2.51152, 0.77760,           //96
+        2.78567, -2.58690, 0.80595,           //176
+        2.78695, -2.59168, 0.80757  };        //192
+float noiseshaper2[] = {
+        1.93281,  -1.32009,   0.32468,
+        1.87690,  -1.24188,   0.29376,
+        2.27740,  -1.78748,   0.48375,
+        2.26413,  -1.76302,   0.47216,
+        2.59434,  -2.26443,   0.66580,
+        2.64541,  -2.34913,   0.70107 };
 
 int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, distribution, dirac-bessel
 
-    float noiseshaper[] = {
-            2.51758, -2.01206, 0.57800,           //44.1
-            2.56669, -2.04479, 0.57800,           //48
-            2.75651, -2.50072, 0.77760,           //88.2
-            2.76821, -2.51152, 0.77760,           //96
-            2.78567, -2.58690, 0.80595,           //176
-            2.78695, -2.59168, 0.80757  };        //192
 
     dsp_PARAM();
     int nscoefs = dspDataTableFloat(noiseshaper, 3*6);
@@ -46,11 +53,11 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_CORE();
     dsp_TPDF(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
    // use either swap or sat0db here below for 2 different example:
-    dsp_SAT0DB();               // reduce precision to int32 and provide the 1bit vaue at dither prosition
+    //dsp_SAT0DB();               // reduce precision to int32 and provide the 1bit vaue at dither prosition
     //dsp_SWAPXY();             // ALU Y contains triangular noise at Full scale as int32
     dsp_STORE( USBIN(0) );      // result is -96dBFS rms flat noise curve with SAT0DB or -5.5dBFS rms with SWAPXY
 
-    dsp_SWAPXY();               // ALU Y contains triangular noise at Full scale as int32
+    //dsp_SWAPXY();               // ALU Y contains triangular noise at Full scale as int32
     dsp_DISTRIB(512);           // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
     dsp_STORE( USBIN(2) );      // show perfect triangular noise distribution with REW Scope function
 
@@ -69,7 +76,7 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_WHITE();                // provide white noise as an int32
     dsp_STORE( USBIN(4) );      // full white noise measured with REW -2.5dBFS rms
 
-    dsp_DIRAC_Fixed( 100, 1.0 );// generate 100 pulse per seconds, max value is 0.8 in the -1..+1 range
+    dsp_DIRAC_Fixed( 100, 1.0 );// generate 100 pulse per seconds
     // try swapxy to replace dirac impulse by a square between -0.5 ... +0.5
     dsp_SWAPXY();             // ALU Y contains a symetrical square signal at 100hz then
     //dsp_BIQUADS(lowpass2);
@@ -91,11 +98,14 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
 
 int dspProg_testFloat(int dither){
 
+    dsp_PARAM();
+    int nscoefs = dspDataTableFloat(noiseshaper2, 3*6);
+
     dsp_CORE();
-    dsp_TPDF(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
-    //dsp_SWAPXY();
-    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 0.5 );
-    dsp_SAT0DB_TPDF();
+    dsp_TPDF(dither);
+    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
+    dsp_DITHER_NS2(nscoefs);
+    dsp_SAT0DB();
     dsp_STORE( USBIN(0) );
 
     dsp_LOAD( USBOUT(1) );

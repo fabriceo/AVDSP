@@ -6,12 +6,12 @@
  */
 
 
-#if DSP_ALU_INT32
+#if DSP_FORMAT == DSP_FORMAT_INT32
 #error biquad 16x16=32 not implemented
 extern dspALU_t dsp_calc_biquads_short( dspALU_t ALU, dspParam_t * coefPtr, dspSample_t * dataPtr, int num, const int mantbq, int skip) ;
 #endif
 
-#if DSP_ALU_INT64 // TESTED and OK !
+#if DSP_FORMAT == DSP_FORMAT_INT64 // TESTED and OK !
 extern dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspSample_t * dataPtr, short num, const int mantbq, int skip) ;
 #endif
 

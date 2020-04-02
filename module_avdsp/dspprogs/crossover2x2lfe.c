@@ -45,14 +45,14 @@ static void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, floa
     dsp_dumpParameterNum(highpass,4+4*6,"BQ2_HIGHPASS",paramnumIndex);
     dsp_dumpParameterNum(delayline,1,"DELAY_HIGH_LOW",paramnumIndex);
 
-    dsp_LOAD_GAIN_Fixed(in,1.0);    //load sample in 0.31 and simply convert it to dual precision
+    dsp_LOAD_GAIN_Fixed(in,1.0);    //load sample in s.31 and simply convert it to dual precision
     dsp_COPYXY();                   // keep a copy for the input of the high pass filter
     dsp_BIQUADS(lowpass);
-    dsp_SAT0DB_TPDF( 16 );          // convert to 0.31 and add 16bits dithering (for the purpose of the demo!)
+    dsp_SAT0DB_TPDF( 16 );          // convert to s.31 and add 16bits dithering (for the purpose of the demo!)
     if (dist>0) dsp_DELAY(delayline);
     dsp_STORE(outlow);
 
-    dsp_SWAPXY();                   // getback sample in 0.31
+    dsp_SWAPXY();                   // getback sample in s.31
     dsp_BIQUADS(highpass);
     dsp_GAIN_Fixed(highgain);
     dsp_SAT0DB_TPDF_GAIN_Fixed(highgain );  // convert to 0.31 apply gain and add 24 bits dithering

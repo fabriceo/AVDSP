@@ -60,10 +60,12 @@ int main(int argc, char **argv) {
 
     int nbcores;
     opcode_t *codeStart[8];
-
+    opcode_t * corePtr;
     for(nbcores=0;nbcores<8; nbcores++) {
-           codeStart[nbcores] = dspFindCore(codePtr, nbcores+1);
-           if (codeStart[nbcores]==0)  break;
+            corePtr = dspFindCore(codePtr, nbcores+1);  // find the DSP_CORE instruction
+            corePtr = dspFindCoreBegin(corePtr);    // skip any useless opcode to reach the real core begin
+            codeStart[nbcores] = corePtr;
+            if (corePtr == 0) break;
     }
 
 #if DSP_SAMPLE_FLOAT

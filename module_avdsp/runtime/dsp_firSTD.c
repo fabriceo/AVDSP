@@ -7,7 +7,7 @@
 
 #include "dsp_runtime.h"
 
-#if DSP_ALU_INT64
+#if DSP_ALU_INT
 dspALU_t dsp_calc_fir(  dspALU_t ALU,               // original Accumulator when enterring fir contains xn sample in 0.31
                         dspParam_t  * coefPtr,       // absolute pointer on the filter impulse response, 8 byte alligned, 0.31 format
                         dspSample_t * dataPtr,       // table on the filter state variable, same size as filter response

@@ -9,7 +9,7 @@
 #include "dsp_encoder.h"         // enum dsp codes, typedefs and QNM definition
 #include <stdlib.h>             // only for importing exit()
 
-#define DSP_ENCODER_VERSION (1<<16 | 0 <<8 | 0) // will be stored in the program header for further interpretation by the runtime
+#define DSP_ENCODER_VERSION ((1<<8) | (0 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
 
 static opcode_t * dspOpcodesPtr  = 0;       // absolute adress start of the table containing the opcodes and data
 dspHeader_t* dspHeaderPtr = 0;              // point on the header containing program summary
@@ -34,15 +34,18 @@ static int lastSectionOpcode     =  0;      // opcode associated with the latest
 static int lastSectionNumber     =  0;      // number expected of data for the started section
 static int lastSectionCount      =  0;      // incremented number each time a dataset is encountered
 static int lastSectionIndex      =  0;      // value of the opcode index when a new section was started
-
+static int lastCoreIndex         =  0;      // Index where was the latest dsp_core , used to store IO related to this core
 static int maxOpcodeValue        =  0;      // represent the higher opcode value used in the encoded program
 
 static int usedInputs            =  0;      // bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
 static int usedOutputs           =  0;      // bit patern of all the output used by a STORE command
+static int usedInputsCore        =  0;      // at core level : bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
+static int usedOutputsCore       =  0;      // at core level : bit patern of all the output used by a STORE command
 
-static int ALUformat             =  0;      // represent the current format of the ALU known at compile time 0 = 32bits, 1 = double precision
-
-static int dspFormat;                       // dynamic management of the different type of data when encoding
+static int ALUformat             =  0;      // represent the current format of the ALU known at compile time 0 = s31, 1 = double precision
+static int firstTPDF;                       // index of the first identified TPDF instruction
+static int dspFormat;                       // dynamic management of the different format when encoding
+static int dspMant;                         // dynamic value of the DSP_MANT. initialize in encoderinit
 static int dspIOmax;                        // max number of IO that can be used with Load & Store (to avoid out of boundaries vs samples table)
 static int numberFrequencies;               // number of covered frequencies (mainly used in BIQUADS and FIR)
 
@@ -57,6 +60,7 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "\nDSP_PARAM",
     "\nDSP_PARAM_NUM",
     "DSP_SERIAL",
+    "DSP_TPDF_CALC",
     "DSP_TPDF",
     "DSP_WHITE",
     "DSP_CLRXY",
@@ -75,10 +79,14 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_NEGX",
     "DSP_NEGY",
     "DSP_SQRTX",
-    "DSP_VALUE",
     "DSP_SHIFT",
+    "DSP_VALUE",
+    "DSP_VALUE_INT",
     "DSP_MUL_VALUE",
+    "DSP_MUL_VALUE_INT",
     "DSP_DIV_VALUE",
+    "DSP_DIV_VALUE_INT",
+    "DSP_AND_VALUE_INT",
     "DSP_LOAD",
     "DSP_LOAD_GAIN",
     "DSP_LOAD_MUX",
@@ -146,8 +154,6 @@ int addCode(int code) {
 }
 
 
-
-
 int addFloat(float value) {  // tested ok
     union floatInt {
         float F;
@@ -160,8 +166,6 @@ int addFloat(float value) {  // tested ok
 static int addOpcodeValue(int code, int value){
     return addCode((code << 16) | (value & 0xFFFF));
 }
-
-
 
 
 // add an opcode with a 0 placeholder value for the code lenght below (never possible). Will be solved by calcLenght
@@ -188,6 +192,7 @@ static void addDataSpace(int size) {
     addCode(dspDataCounter);              // store the current data index value pointing on the next spare data space
     dspDataCounter += size;               // simulate consumption the expected data space
 }
+
 // same as above but push the data index by one if needed
 // so that the data adress is alligned on 8 bytes boundaries
 static void addDataSpaceAligned8(int size) {
@@ -354,47 +359,37 @@ static void calcLength(){
 
 }
 
-// see DSP_FORMAT in dsp_runtime.h
-static int dspFormat64(){
-    // return 1 if the DSP ALU is 64bits size (int64 or double)
-    return (dspFormat == 2)||(dspFormat == 4)||(dspFormat == 6);
-}
-static int dspFormatInt(){
-    // return 1 if the DSP ALU is integer
-    return (dspFormat == 1)||(dspFormat == 2);
-}
-/* not used
-static int dspFormatInt64(){
-    // return 1 if the DSP ALU is integer 64bits size
-    return (dspFormat == 2);
-}
-*/
-static int dspFormatDouble(){
-    // return 1 if the DSP ALU is double float
-    return (dspFormat == 4)||(dspFormat == 6);
-}
-/* not used
-static int dspFormatSampleFloat(){
-    // return 1 if the DSP sample is considered as float
-    return (dspFormat == 5)||(dspFormat == 6);
-}
-*/
-
-
-void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int maxFreq, int maxIO) {
+void dspEncoderFormat(int format){
+    if (format > DSP_FORMAT_DOUBLE_FLOAT) { // this is the mantissa for an INT64 format (simplified parameter)
+        dspFormat       = DSP_FORMAT_INT64;
+        dspMant         = format;
+    } else
+    if (format == 0){   // this is considered as float (simplified parameter)
+        dspFormat       = DSP_FORMAT_FLOAT;
+        dspMant         = 0; //normally not used
+    } else {
+        dspFormat       = format;
+        dspMant         = DSP_MANT; }
     dspprintf("DSP ENCODER : format generated for handling ");
-    if      (type == 1) dspprintf("integer 32 bits")
-    else if (type == 2) dspprintf("integer 64 bits")
-    else if (type == 3) dspprintf("float (32bits)")
-    else if (type == 4) dspprintf("double (64bits)")
-    else if (type == 5) dspprintf("float with float samples")
-    else if (type == 6) dspprintf("double with float samples");
+    if      (dspFormat == 1) dspprintf("integer 32 bits")
+    else if (dspFormat == 2) dspprintf("integer 64 bits")
+    else if (dspFormat == 3) dspprintf("float (32bits)")
+    else if (dspFormat == 4) dspprintf("double (64bits)")
+    else if (dspFormat == 5) dspprintf("float with float samples")
+    else if (dspFormat == 6) dspprintf("double with float samples");
     dspprintf("\n");
+    if (dspFormat < DSP_FORMAT_FLOAT)
+         dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
+    else
+         dspHeaderPtr->format = 0;  // simplified format to describe float encoded parameters
+}
+// type is eiter one of the DSP_FORMAT_XX or 0 for float or N for INT64 with DSP_MANT = N
+void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO) {
 
     dspOpcodesPtr       = opcodeTable;
     dspHeaderPtr        = (dspHeader_t*)opcodeTable;
     dspOpcodesMax       = max;
-    dspFormat           = type;
+
     dspMinSamplingFreq  = minFreq;
     dspMaxSamplingFreq  = maxFreq;
     numberFrequencies   = maxFreq - minFreq +1;
@@ -413,9 +408,13 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int 
     lastSectionCount      = 0;
     dspDumpStarted = 0;
     ALUformat      = 0; // by default we consider to be single precision with ALU containing a 0.31 value
+    lastCoreIndex  = 0;
+    firstTPDF = 0;
 
     usedInputs = 0;
     usedOutputs = 0;
+    usedInputsCore = 0;
+    usedOutputsCore = 0;
 
     addOpcodeUnknownLength(DSP_HEADER);
     opcodeIndexAdd(sizeof(dspHeader_t)/sizeof(int) - 1);
@@ -424,10 +423,7 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int 
     dspHeaderPtr->checkSum  = 0;
     dspHeaderPtr->numCores  = 0;
     dspHeaderPtr->version   = DSP_ENCODER_VERSION;
-    if (dspFormatInt())
-         dspHeaderPtr->format = DSP_MANT;
-    else
-         dspHeaderPtr->format = dspFormat;
+    dspEncoderFormat(format);
     dspHeaderPtr->maxOpcode = DSP_MAX_OPCODE-1;
     dspHeaderPtr->freqMin   = minFreq;
     dspHeaderPtr->freqMax   = maxFreq;
@@ -505,6 +501,16 @@ static int checkInParamSpaceOpcode(int index, int size, int opcode){
 }
 
 
+static void updateLastCoreIOs(){
+    if (lastCoreIndex) {
+        int * ptr = (int *)opcodePtr(lastCoreIndex);
+        ptr++;  // point on usedInputs
+        *ptr++ = usedInputsCore;
+        *ptr = usedOutputsCore;
+        lastCoreIndex = 0;
+    }
+}
+
 static void checkInRange(int val,int min, int max){
     if ((val<min)||(val>max))
         dspFatalError("value not in expected range");
@@ -551,6 +557,7 @@ void dsp_dumpParameterNum(int addr, int size, char * name, int num){
 // generate the DSP_EN_OF_CODE and calculate total program length, number of core and checksum.
 // return size of code alligned to next 8bytes, so can be used as a dataStart index in same array
 int dsp_END_OF_CODE(){
+    updateLastCoreIOs();
     calcLength();                       // solve latest opcode length
     dspprintf2("DSP_END_OF_CODE\n")
     addOpcodeValue(DSP_END_OF_CODE,0);
@@ -583,7 +590,6 @@ int dsp_END_OF_CODE(){
     }
     return opcodeIndex();  // size of the program
 }
-
 
 
 
@@ -625,17 +631,6 @@ static int paramMisAligned8() {
 }
 
 
-
-/* unused
-// add a dsp_code with its following parameter
-static int addOpcodeParam(int code, int param ) {
-    calcLength();
-    int tmp = addOpcodeValue(code, 2);
-    addCode(param);
-    return tmp;
-}
-*/
-
 // add a dsp_opcode that will be followed by an unknowed list of param at this stage
 // will be solved by the next dsp_opcode generation, due to call to calcLength()
 static int addOpcodeLength(int code) {
@@ -650,8 +645,8 @@ static int addOpcodeLengthPrint(int code){
 }
 
 static int addGainCodeQNM(dspGainParam_t gain){
-    if (dspFormatInt())
-         return addCode(DSP_QNM(gain));
+    if (dspFormat < DSP_FORMAT_FLOAT)
+         return addCode(dspQNM(gain,dspMant));
     else return addFloat(gain);
 }
 
@@ -660,8 +655,13 @@ void dsp_NOP() { addSingleOpcodePrint(DSP_NOP); }
 
 // indicate start of a program for a dedicated core/task
 void dsp_CORE(){
-    addSingleOpcodePrint(DSP_CORE);
-    ALUformat = 0;  // reset it as we start a new core
+    updateLastCoreIOs();
+    usedInputsCore  = 0;
+    usedOutputsCore = 0;
+    int tmp = addOpcodeLengthPrint(DSP_CORE);
+    lastCoreIndex = tmp;
+    opcodeIndexAdd(2);   // space for 2 words for input output tracking
+    ALUformat = 0;       // reset it as we start a new core
 }
 
 // clear ALU X and Y
@@ -751,29 +751,12 @@ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
 }
 
 
-void dsp_TPDF(int dith){
-    opcodeIndexAligned8();  // garantiee that the 64 bits words below will be alligned8 bytes
-    addOpcodeLengthPrint(DSP_TPDF);
-    checkInRange(dith,2,32);
-    int bits = DSP_MANT+32-dith;    // eg 36 for DSPMANT = 28 and 24th bit ditering
-    unsigned long long round = 1ULL << (bits-1);    // value (0.5) for rounding sample
-    unsigned long long notMask  = ~((1ULL << bits)-1);
-    unsigned factor;
-    bits = bits-31; // because tpdf value is coded in s.31, so we get 5 for the 36 above
-    if (bits>=0) factor = 1ULL<<bits;   // we can use a 32x32=64 mul for getting the tpdf scaled directly from the multiplication
-    else factor = (1ULL<<(32+bits));    // we will divide still by using the 32x32 multiplication but keeping only the MSB so 32 bits less
-    if (bits == -1) factor--;           // special case, cannot keep factor equal to 1<<31 as this becomes a negaive number in 2's
-    addCode(factor);                    // provide both : factor value an shift information
-    addCode(notMask );                  // these value will be alligned8
-    addCode(notMask >> 32);
-    addCode(round );
-    addCode(round >> 32);
-    addCode(bits);                      // and bits representing number of shift to be performed
-    // additional values for float calculation
-    addCode(dith);                      // copy of the dith parameter, not used by the runtime in fact
-    addFloat(1.0 / (float)(1ULL<<(dith-1)) );  // factor for float computation of the scaled value
-    addCode(~((1<<(32-dith))-1));        // notMask to apply after float conversion to s.31
-    addFloat(1.0 / (float)(1ULL<<dith));       // round float value (0.5) scalled according to dither bit
+void dsp_TPDF(int dither){
+    if (firstTPDF == 0)
+        firstTPDF = addOpcodeLengthPrint(DSP_TPDF_CALC);
+    else addOpcodeLengthPrint(DSP_TPDF);
+    checkInRange(dither,2,32);
+    addCode(dither);
 }
 
 
@@ -781,7 +764,8 @@ void dsp_SHIFT(int bits){
     addOpcodeLengthPrint(DSP_SHIFT);
     addCode(bits);
 }
-void dsp_SHIFT_FixedInt(int bits){
+
+void dsp_SHIFT_FixedInt(int bits){  //same :)
     dsp_SHIFT(bits);
 }
 
@@ -796,6 +780,7 @@ void dsp_SHIFT_FixedInt(int bits){
 void dsp_LOAD(int IO) {
     checkIOmax(IO);
     if (IO<32) usedInputs |= 1ULL<<IO;
+    if (IO<32) usedInputsCore |= 1ULL<<IO;
     addOpcodeLengthPrint(DSP_LOAD);
     addCode(IO);
 }
@@ -805,6 +790,7 @@ void dsp_LOAD_GAIN(int IO, int paramAddr){
     int tmp = addOpcodeLengthPrint(DSP_LOAD_GAIN);
     checkIOmax(IO);
     if (IO<32) usedInputs |= 1ULL<<IO;
+    if (IO<32) usedInputsCore |= 1ULL<<IO;
     if (paramAddr) checkInParamSpace(paramAddr,1);
     addCode(IO);
     addCodeOffset(paramAddr, tmp);
@@ -839,6 +825,7 @@ int dspLoadMux_Inputs(int number){
 void dspLoadMux_Data(int in, dspGainParam_t gain){
     checkIOmax(in);
     if (in<32) usedInputs |= 1ULL<<in;
+    if (in<32) usedInputsCore |= 1ULL<<in;
     int next = nextParamSection(DSP_LOAD_MUX);
     addCode(in);
     addGainCodeQNM(gain);
@@ -857,6 +844,7 @@ void dsp_STORE(int IO) {
     addOpcodeLengthPrint(DSP_STORE);
     addCode(IO);
     if (IO<32) usedOutputs |= 1ULL<<IO;
+    if (IO<32) usedOutputsCore |= 1ULL<<IO;
 }
 
 
@@ -933,7 +921,7 @@ void dsp_VALUE_Fixed(float value){
 }
 void dsp_VALUE_FixedInt(int value){
     ALUformat = 1;
-    int tmp = addOpcodeLengthPrint(DSP_VALUE);
+    int tmp = addOpcodeLengthPrint(DSP_VALUE_INT);
     addCodeOffset(0, tmp);  // value is just below
     addCode(value);
 }
@@ -953,14 +941,6 @@ int  dspValue_Default(float value){
     return tmp;
 }
 
-int  dspValue_DefaultInt(int value){
-    checkInParamNum();
-    checkFinishedParamSection();
-    int tmp = addCode(value);
-    lastOpcodePrint = opcodeIndex();
-    return tmp;
-}
-
 
 void dsp_DIV_Fixed(float value){
     ALUformat = 1;
@@ -969,7 +949,7 @@ void dsp_DIV_Fixed(float value){
 }
 void dsp_DIV_FixedInt(int value){
     ALUformat = 1;
-    addOpcodeLengthPrint(DSP_DIV_VALUE);
+    addOpcodeLengthPrint(DSP_DIV_VALUE_INT);
     addCode(value);
 }
 
@@ -980,7 +960,13 @@ void dsp_MUL_Fixed(float value){
 }
 void dsp_MUL_FixedInt(int value){
     ALUformat = 1;
-    addOpcodeLengthPrint(DSP_MUL_VALUE);
+    addOpcodeLengthPrint(DSP_MUL_VALUE_INT);
+    addCode(value);
+}
+
+void dsp_AND_FixedInt(int value){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_AND_VALUE_INT);
     addCode(value);
 }
 
@@ -1012,7 +998,7 @@ int dspDataTableFloat(float * data, int n){
     checkInParamNum();
     checkFinishedParamSection();
     int tmp = opcodeIndex();
-    for (int i=0; i<n; i++) addCode(DSP_QNM(*(data+i)));
+    for (int i=0; i<n; i++) addGainCodeQNM(*(data+i));
     printFromCurrentIndex();
     dspprintf2("%4d : data table : %d float numbers\n",tmp,n);
     return tmp;
@@ -1071,24 +1057,25 @@ void dspLoadStore_Data(int in, int out){
     addCode(in);
     addCode(out);
     if (in<32)  usedInputs  |= 1ULL<<in;
+    if (in<32)  usedInputsCore  |= 1ULL<<in;
     if (out<32) usedOutputs |= 1ULL<<out;
+    if (out<32) usedOutputsCore |= 1ULL<<out;
 }
 
 static void addMemLocation(int index, int base){
-    int space = 1 + dspFormat64();
-    checkInParamSpace(index, space);
+    checkInParamSpace(index, 2);
     addCodeOffset(index, base);
 }
 
 // load a meory location from a PARAM area
 void dsp_LOAD_MEM_Index(int paramAddr, int index) {
     int tmp = addOpcodeLengthPrint(DSP_LOAD_MEM);
-    addMemLocation(paramAddr + index*(dspFormat64()+1), tmp);
+    addMemLocation(paramAddr + index*2, tmp);
 }
 
 void dsp_STORE_MEM_Index(int paramAddr, int index) {
     int tmp = addOpcodeLengthPrint(DSP_STORE_MEM);
-    addMemLocation(paramAddr  + index*(dspFormat64()+1), tmp);
+    addMemLocation(paramAddr  + index*2, tmp);
 }
 
 // load a meory location from a PARAM area
@@ -1104,12 +1091,9 @@ void dsp_STORE_MEM(int paramAddr) {
 int dspMem_LocationMultiple(int number) {
     checkFinishedParamSection();
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
-    int space = 1;
-    if (dspFormat64()) { // if ALU is not 32 bits (then 64 bits needing 8byte allignement)
-        paramAligned8();
-        space = 2; }
+    paramAligned8();
     int tmp = opcodeIndex();
-    opcodeIndexAdd(space*number);
+    opcodeIndexAdd(2*number);
     return tmp;
 }
 
@@ -1136,12 +1120,10 @@ void dsp_DELAY(int paramAddr){
     dsp_DELAY_(paramAddr, DSP_DELAY);
 }
 
-#if (DSP_FORMAT == DSP_FORMAT_INT64)
 // exact same as above but double precision
 void dsp_DELAY_DP(int paramAddr){
     dsp_DELAY_(paramAddr, DSP_DELAY_DP);
 }
-#endif
 
 static const int dspTableFreq[FMAXpos] = {
         8000, 16000,
@@ -1212,14 +1194,12 @@ void dsp_DELAY_FixedMilliMeter(int mm,float speed){
     dsp_DELAY_FixedMicroSec(mm * 1000.0 / speed);
 }
 
-#if (DSP_FORMAT == DSP_FORMAT_INT64)
 void dsp_DELAY_DP_FixedMicroSec(int microSec){
     dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY_DP);
 }
 void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed){
     dsp_DELAY_DP_FixedMicroSec(mm * 1000.0 / speed);
 }
-#endif
 
 //DSP_DATA_TABLE
 
@@ -1243,7 +1223,7 @@ int dspGenerator_Sine(int samples){
     dspprintf3("dspGenerator : 2.PI sinewave in %d values\n",samples);
     for (int i=0; i<samples; i++) {
         double x = sin((2.0*M_PI * (double)i)/(double)samples);
-        addCode(DSP_Q31(x)); }
+        addCode(dspQNM(x,31)); }
     printFromCurrentIndex();
     return tmp;
 }
@@ -1263,14 +1243,8 @@ void dsp_BIQUADS(int paramAddr){
     checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
-    if (dspFormatDouble())
-        addDataSpaceAligned8(num*8);       // 2 words for each data (xn-1, xn-2, yn-1, yn-2)
-    else
-        if (dspFormatInt())
-            addDataSpaceAligned8(num*6);   // space for standard state data + 64bits remainder
-        else
-            addDataSpaceAligned8(num*4);   // space for standard state data float: 4  words xn-1,xn-2,yn-1,yn-2
-    addCodeOffset(paramAddr, base);        // store pointer on the first bunch of (alligned) coefficients
+    addDataSpaceAligned8(num*8);           // 2 words for each data (xn-1, xn-2, yn-1, yn-2)
+    addCodeOffset(paramAddr, base);        // store pointer on the table of coefficients
 }
 
 int dspBiquad_Sections(int number){
@@ -1317,12 +1291,12 @@ int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGain
 int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2){
 
     int tmp = paramAligned8();    // this enforce that coefficient are alligned 8, so 6 words per biquads and per frequency
-    if (dspFormatInt()) {   // integer alu
-        addCode(DSP_QNMBQ(b0));
-        addCode(DSP_QNMBQ(b1));
-        addCode(DSP_QNMBQ(b2));
-        addCode(DSP_QNMBQ((a1 - 1.00))); // concept of mantissa reintegration :)
-        addCode(DSP_QNMBQ(a2));
+    if (dspFormat < DSP_FORMAT_FLOAT) {   // integer alu
+        addCode(dspQNM(b0,DSP_MANTBQ));
+        addCode(dspQNM(b1,DSP_MANTBQ));
+        addCode(dspQNM(b2,DSP_MANTBQ));
+        addCode(dspQNM(a1 - 1.00,DSP_MANTBQ)); // concept of mantissa reintegration :)
+        addCode(dspQNM(a2,DSP_MANTBQ));
     } else {
         addFloat(b0);
         addFloat(b1);
@@ -1415,8 +1389,8 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     return pos;
 }
 
-// integrate a 0.31 sample during x miliseconds. then moving average in delay line and Sqrt
-// result is 0.31. should be used after dsp_STORE or dsp_LOAD or dsp_SAT0DB or dsp_DELAY
+// integrate a s.31 sample during x miliseconds. then moving average in delay line and Sqrt
+// result is s.31. should be used after dsp_STORE or dsp_LOAD or dsp_SAT0DB or dsp_DELAY
 void dsp_RMS_(int timetot, int delay, int delayInSteps, int pwr){
 
     addOpcodeLength(DSP_RMS);
@@ -1512,7 +1486,7 @@ void dsp_DCBLOCK(int lowfreq){
 
 void dsp_DITHER(){
     addOpcodeLengthPrint(DSP_DITHER);
-    addDataSpaceAligned8(8);
+    addDataSpaceAligned8(6);    // might be double so 3x2
 }
 
 void dsp_DITHER_NS2(int paramAddr){
@@ -1521,7 +1495,7 @@ void dsp_DITHER_NS2(int paramAddr){
         dspFatalError("frequency range provided in encoderinit incompatible.");
     int base = addOpcodeLengthPrint(DSP_DITHER_NS2);
     checkInParamSpace(paramAddr,3*numberFrequencies);   // requires 3 coef for each supported frequencies
-    addDataSpaceAligned8(3);                    // create space for 3 errors bin
+    addDataSpaceAligned8(3);                    // create space for 3 errors bin potentially 2 words
     addCodeOffset(paramAddr, base);             // relative pointer to the data table
 }
 
@@ -1534,7 +1508,7 @@ void dsp_DISTRIB(int size){
 void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain){
     addOpcodeLengthPrint(DSP_DIRAC);
     int fmin = dspTableFreq[dspMinSamplingFreq];
-    checkInRange(freq, 1,fmin/2);
+    checkInRange(freq, 0,fmin/2);
     addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
     addGainCodeQNM(gain);
     for (int f=dspMinSamplingFreq; f<dspMaxSamplingFreq; f++){

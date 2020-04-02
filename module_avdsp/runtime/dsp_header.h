@@ -8,28 +8,12 @@
 #ifndef DSP_HEADER_H_
 #define DSP_HEADER_H_
 
-#include "dsp_qformat.h"    // used for macro with fixed point format like Q28(x) for 4.28 or Q(30)(x) for 2.30
-
-#define DSP_FORMAT_INT32 1
-#define DSP_FORMAT_INT64 2
-#define DSP_FORMAT_FLOAT 3
-#define DSP_FORMAT_DOUBLE 4
-#define DSP_FORMAT_FLOAT_FLOAT 5
-#define DSP_FORMAT_DOUBLE_FLOAT 6
-
-#ifndef DSP_FORMAT  // used in the runtime only, dynamic change of key type for optimizing the runtime
-#define DSP_FORMAT DSP_FORMAT_INT64  // samples int32, alu int 64 bits, param int32 (q4.28 as defined later below)
-#endif
-
-#if defined(__XS2A__) && (DSP_FORMAT == DSP_FORMAT_INT64)     // specific for xmos xs2 architecture for int64 runtime
-#define DSP_XS2A 1
-#define DSP_ARCH DSP_XS2A
-#elif 0
-// other architecture defines here
-#define DSP_MYARCH 2
-#define DSP_ARCH DSP_MYARCH
-#endif
-
+#define DSP_FORMAT_INT32        (1)
+#define DSP_FORMAT_INT64        (2)
+#define DSP_FORMAT_FLOAT        (3)
+#define DSP_FORMAT_DOUBLE       (4)
+#define DSP_FORMAT_FLOAT_FLOAT  (5)
+#define DSP_FORMAT_DOUBLE_FLOAT (6)
 
 //#define DSP_PRINTF 3 // 1=basic info encoder sumary and runime context, 2 provides encoder details and runtime, 3 full debug info
 #if defined(DSP_PRINTF) && ( DSP_PRINTF >=1 )
@@ -54,28 +38,18 @@
 #endif
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
+// remark for XS2 architecture, this value must be modified also in the biquad assembly file
 #ifndef DSP_MANTBQ
 #define DSP_MANTBQ 28
 #endif
 
-// define the fixed point macro used for encoding the default 32 bits parameters (gain, mux...) coded with DSP_MANT
-// Q(x)(y) is imported from dsp_qformat.h
-#ifndef DSP_QNM
-#define DSP_QNM(f) Q(DSP_MANT)(f)
-#endif
-
-// define the fixed point macro used for encoding the default int biquad coeficients
-#ifndef DSP_QNMBQ
-#define DSP_QNMBQ(f) Q(DSP_MANTBQ)(f)
-#endif
-
-// special macro for 0.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
-#define DSP_Q31_ONE (0x7fffffffULL)
-#define DSP_2P31F   (2147483648.0)
-#define DSP_2P31F_INV (1.0/2147483648.0)
-#define DSP_2P31    (1ULL<<31)
-#define DSP_F31(x)  ( (x == DSP_Q31_ONE) ? 1.0 : (double)(x)/DSP_2P31F )
-#define DSP_Q31(f)  ( (f >= 1.0 ) ? DSP_Q31_ONE : (f <= -1.0) ? -1 : ( (long long)( (f) * (DSP_2P31F + 0.5) ) ) )
+// special macro for s.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
+#define DSP_Q31_MAX     (0x000000007fffffffULL)
+#define DSP_Q31_MIN     (0xFFFFFFFF80000000ULL)
+#define DSP_2P31F       (2147483648.0)
+#define DSP_2P31F_INV   (1.0/DSP_2P31F)
+#define DSP_F31(x)      ( (x == DSP_Q31_MAX) ? 1.0 : (double)(x)/DSP_2P31F )
+#define DSP_Q31(f)      ( (f >= 1.0 ) ? DSP_Q31_MAX : (f <= -1.0) ? DSP_Q31_MIN : ( (long long)( (f) * (DSP_2P31F + 0.5) ) ) )
 
 // list of all DSP supported opcode as of this version
 enum dspOpcodesEnum {
@@ -88,7 +62,8 @@ enum dspOpcodesEnum {
     DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* math engine */
-    DSP_TPDF,           // create a random TPDF value for dithering, either -1/0/+1 at each call.
+    DSP_TPDF_CALC,      // generate radom number (white & triangular) and prepare for dithering bit Nth
+    DSP_TPDF,           // prepare for dithering at bit N as parameter
     DSP_WHITE,          // load the random int32 number that was generated for the tpdf
     DSP_CLRXY,          // clear both ALU register
     DSP_SWAPXY,         // exchange ALU with second one "Y".
@@ -107,19 +82,23 @@ enum dspOpcodesEnum {
     DSP_NEGX,           // perform X = -X
     DSP_NEGY,           // perform Y = -Y
     DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
-    DSP_VALUE,          // load an imediate value (int32 or 4.28 or float)
     DSP_SHIFT,          // perform shift left or right if param is negative
-    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (int32 or 4.28 or float)
-    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (int32 or 4.28 or float)
+    DSP_VALUE,          // load an imediate value qnm or float
+    DSP_VALUE_INT,      // load an imediate int32 value without conversion
+    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter qnm/float
+    DSP_MUL_VALUE_INT,  // perform X = X * V where V is provided as a pure int32 value
+    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter qnm/float
+    DSP_DIV_VALUE_INT,  // perform X = X / V where V is provided as a pure int32 value
+    DSP_AND_VALUE_INT,  // perform X = X & V (bitwise and)where V is provided as a pure int32 value
 
 /* IO engine */
-    DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in 0.31 format
+    DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
                         // eg physical ADC input number = position in the sample array
     DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is s4.59
 
     DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is s4.59
 
-    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. 0.31 expected in ALU
+    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. s.31 expected in ALU
 
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
                         // source in the sample array
@@ -131,7 +110,7 @@ enum dspOpcodesEnum {
 /* gains */
     DSP_GAIN,           // apply a fixed gain (eg 4.28) on the ALU , if a ALU was a sample s.31 then it becomes s5.59
 
-    DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (0.31 in lsb only)
+    DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (s.31 in lsb only)
     DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
     DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries
     DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries
@@ -161,7 +140,7 @@ enum dspOpcodesEnum {
     DSP_DIRAC,          // generate a single sample pulse at a given frequency. pulse depends on provided float number
     DSP_CLIP,           // check wether a new sample is reaching the thresold given. ALU Y is FS square wave, ALU X is 1 sample pulse
 
-    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version
+    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared in the runtime init
 };
 
 
@@ -232,6 +211,22 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
         ptr += skip;
     } // while(1)
     if (*numCore == 0) *numCore = 1;
+}
+
+static inline long long dspQNMmax(){ return DSP_Q31_MAX; }
+static inline long long dspQNMmin(){ return DSP_Q31_MIN; }
+
+// convert a float number to a fixed point integer with a mantissa of "mant" bit
+// eg : if mant = 28, the value 0.5 will be coded as 0x08000000
+static inline int dspQNM(float f, int mant){
+    int integ = 32-mant-1;
+    int max = (1<<integ);
+    float maxf = max;
+    if (f >=   maxf)  return dspQNMmax();
+    if (f < (-maxf))  return dspQNMmin();
+    unsigned mul = 1<<mant;
+    f *= mul;
+    return f;
 }
 
 

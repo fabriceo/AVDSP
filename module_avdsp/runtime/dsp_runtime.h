@@ -9,106 +9,142 @@
 #ifndef DSP_RUNTIME_H_
 #define DSP_RUNTIME_H_
 
-#include "dsp_qformat.h"    // used for macro with fixed point format like Q28(x) for 4.28 or Q(30)(x) for 2.30
-
 #include "dsp_header.h"
 
-#if (DSP_FORMAT == 1)     // 32bits integer model
-#if (DSP_MANT > 15)
-#error DSP_MANT max = 15bits
-#endif
-#if (DSP_MANT <8)
-#error DSP_MANT min 8bits
+#if defined(  DSP_MANT_FLEXIBLE ) && (DSP_MANT_FLEXIBLE > 0)
+#define DSP_MANT_FLEX (dspMantissa) // defined in dsp_runtime.h
+#else
+#define DSP_MANT_FLEX (DSP_MANT)    // defined in header.h
 #endif
 
+typedef union dspALU32_u { int i; float f; } dspALU32_t;
+typedef struct dsplh_s   { unsigned lo; int hi; } dsplh_t;
+typedef union dspALU64_u { long long i; double f; dsplh_t lh; } dspALU64_t;
+
+
+#if (DSP_FORMAT == 1)     // 32bits integer model
 #error "INT runtime not yet compatible"
-    #define dspSample_t short       // samples always considered as int16 (use Q15(x) or F15(x) to convert from/to float)
-    #define dspALU_t    int
-    #define dspALU_SP_t dspALU_t    //single precision, here is same as normal precision
-    #define dspParam_t  short       //int16
-    #define DSP_ALU_INT 1
-    #define DSP_ALU_INT32 1
-    #define DSP_ALU_32B 1
-    #define DSP_SAMPLE_INT 1
-    #define DSP_SAMPLE_FLOAT 0
+
+    typedef dspALU32_t  dspALU_u;
+    typedef short       dspSample_t;
+    typedef int         dspALU_t;
+    typedef dspALU_t    dspALU_SP_t;
+    typedef short       dspParam_t;
+    #define DSP_ALU_INT         1
+    #define DSP_ALU_64B         0
+    #define DSP_ALU_FLOAT       0
+    #define DSP_ALU_FLOAT       0
+    #define DSP_SAMPLE_INT      1
+    #define DSP_SAMPLE_FLOAT    0
     #define DSP_RUNTIME_FORMAT(name) name ## _1
+    #ifndef DSP_MANT_FLEXIBLE
+        #if (DSP_MANT > 15)
+        #error "DSP_MANT max = 15bits"
+        #endif
+        #if (DSP_MANT <8)
+        #error "DSP_MANT min 8bits"
+        #endif
+    #endif
 
 #elif (DSP_FORMAT == 2)
 
-    #define dspSample_t int             // samples always considered as int32 (use Q31(x) or F31(x) to convert from/to float)
-    #define dspALU_t signed long long   // dual precision
-    #define dspALU_SP_t int             //single precision, for storage in delay line
-    #define dspParam_t  int
-    #define DSP_ALU_INT 1
-    #define DSP_ALU_INT64 1
-    #define DSP_ALU_64B 1
-    #define DSP_SAMPLE_INT 1
-    #define DSP_SAMPLE_FLOAT 0
+    typedef dspALU64_t  dspALU_u;
+    typedef int         dspSample_t;
+    typedef long long   dspALU_t;
+    typedef int         dspALU_SP_t;
+    typedef int         dspParam_t;
+    #define DSP_ALU_INT         1
+    #define DSP_ALU_64B         1
+    #define DSP_ALU_FLOAT       0
+    #define DSP_SAMPLE_INT      1
+    #define DSP_SAMPLE_FLOAT    0
     #define DSP_RUNTIME_FORMAT(name) name ## _2
-#if (DSP_MANT <8)
-#error "DSP_MANT min 8bits"
-#endif
-#if (DSP_MANT >30)
-#error "DSP_MANT max 30bits"
-#endif
+    #ifndef DSP_MANT_FLEXIBLE
+        #if (DSP_MANT <8)
+        #error "DSP_MANT min 8bits"
+        #endif
+        #if (DSP_MANT >30)
+        #error "DSP_MANT max 30bits"
+        #endif
+    #endif
 
 #elif (DSP_FORMAT == 3)             // sample is int32, alu is float32, param float32
 
-    #define dspSample_t int         // samples always considered as int32 (use Q31(x) or F31(x) to convert from/to float)
-    #define dspALU_t    float
-    #define dspALU_SP_t dspALU_t    //single precision, here is same as normal precision
-    #define dspParam_t  float
-    #define DSP_ALU_FLOAT 1
-    #define DSP_ALU_FLOAT32 1
-    #define DSP_ALU_FLOAT64 0
-    #define DSP_ALU_32B 1
-    #define DSP_SAMPLE_INT 1
-    #define DSP_SAMPLE_FLOAT 0
+    typedef dspALU32_t  dspALU_u;
+    typedef int         dspSample_t;
+    typedef float       dspALU_t;
+    typedef dspALU_t    dspALU_SP_t;
+    typedef float       dspParam_t;
+    #define DSP_ALU_INT         0
+    #define DSP_ALU_64B         0
+    #define DSP_ALU_FLOAT       1
+    #define DSP_SAMPLE_INT      1
+    #define DSP_SAMPLE_FLOAT    0
     #define DSP_RUNTIME_FORMAT(name) name ## _3
 
-#elif (DSP_FORMAT == 4)               // sample int32, alu is double float, param float32
+#elif (DSP_FORMAT == 4)             // sample int32, alu is double float, param float32
 
-    #define dspSample_t int         // samples always considered as int32 (use Q31(x) or F31(x) to convert from/to float)
-    #define dspALU_t double
-    #define dspALU_SP_t float       // single precision, for storage in standard delay line
-    #define dspParam_t float
-    #define DSP_ALU_FLOAT 1
-    #define DSP_ALU_FLOAT32 0
-    #define DSP_ALU_FLOAT64 1
-    #define DSP_ALU_64B 1
-    #define DSP_SAMPLE_INT 1
-    #define DSP_SAMPLE_FLOAT 0
+    typedef dspALU64_t  dspALU_u;
+    typedef int         dspSample_t;
+    typedef double      dspALU_t;
+    typedef float       dspALU_SP_t;
+    typedef float       dspParam_t;
+    #define DSP_ALU_INT         0
+    #define DSP_ALU_64B         1
+    #define DSP_ALU_FLOAT       1
+    #define DSP_SAMPLE_INT      1
+    #define DSP_SAMPLE_FLOAT    0
     #define DSP_RUNTIME_FORMAT(name) name ## _4
 
 #elif (DSP_FORMAT == 5)               // sample float, alu float32, param float32
 
-    #define dspSample_t float
-    #define dspALU_t    float
-    #define dspALU_SP_t float       // single precision, for storage in standard delay line
-    #define dspParam_t  float
-    #define DSP_ALU_FLOAT 1
-    #define DSP_ALU_FLOAT32 1
-    #define DSP_ALU_FLOAT64 0
-    #define DSP_ALU_32B 1
-    #define DSP_SAMPLE_INT 0
-    #define DSP_SAMPLE_FLOAT 1
+    typedef dspALU32_t  dspALU_u;
+    typedef float       dspSample_t;
+    typedef float       dspALU_t;
+    typedef float       dspALU_SP_t;
+    typedef float       dspParam_t;
+    #define DSP_ALU_INT         0
+    #define DSP_ALU_64B         0
+    #define DSP_ALU_FLOAT       1
+    #define DSP_SAMPLE_INT      0
+    #define DSP_SAMPLE_FLOAT    1
     #define DSP_RUNTIME_FORMAT(name) name ## _5
 
 #elif (DSP_FORMAT == 6)               // sample float, alu double float, param float32
 
-    #define dspSample_t float
-    #define dspALU_t double
-    #define dspALU_SP_t float       // single precision, for storage in standard delay line
-    #define dspParam_t float
-    #define DSP_ALU_FLOAT 1
-    #define DSP_ALU_FLOAT32 0
-    #define DSP_ALU_FLOAT64 1
-    #define DSP_ALU_64B 1
-    #define DSP_SAMPLE_INT 0
-    #define DSP_SAMPLE_FLOAT 1
+    typedef dspALU64_t  dspALU_u;
+    typedef float       dspSample_t;
+    typedef double      dspALU_t;
+    typedef float       dspALU_SP_t;
+    typedef float       dspParam_t;
+    #define DSP_ALU_INT         0
+    #define DSP_ALU_FLOAT       1
+    #define DSP_ALU_64B         1
+    #define DSP_SAMPLE_INT      0
+    #define DSP_SAMPLE_FLOAT    1
     #define DSP_RUNTIME_FORMAT(name) name ## _6
 
+#else
+#error "DSP_FORMAT undefined or not supported"
 #endif
+
+#if DSP_ALU_FLOAT
+#include <math.h>   // importing function sqrt
+#endif
+
+#if defined(__XS2A__)
+#define DSP_XS2A 2
+#define DSP_XS1  1
+#define DSP_ARCH DSP_XS2A
+#elif defined(__XS1__)
+#define DSP_XS1 1
+#define DSP_ARCH DSP_XS1
+#elif 0
+// other architecture defines here
+#define DSP_MYARCH 2
+#define DSP_ARCH DSP_MYARCH
+#endif
+
 
 // special syntax for XCore compiler...
 #if  defined(__XC__)
@@ -117,7 +153,7 @@
 #define XCunsafe
 #endif
 
-#if defined(DSP_ARCH) && defined( DSP_XS2A )     // specific for xmos xs2 architecture
+#if defined( DSP_XS2A )     // specific for xmos xs2 architecture
 // fast biquad assembly routine inspired from https://github.com/xmos/lib_dsp/blob/master/lib_dsp/src/dsp_biquad.S
 // value for DSP_MANTBQ is defined INSIDE the assembly file and must be updated according to DSP_MANT in dsp_header.h
 extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspSample_t * dataPtr, int num);
@@ -126,6 +162,7 @@ extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspSample
 
 //prototypes
 opcode_t * XCunsafe dspFindCore(opcode_t * XCunsafe ptr, const int numCore);
+opcode_t * XCunsafe dspFindCoreBegin(opcode_t * XCunsafe ptr);
 int dspRuntimeInit(opcode_t * XCunsafe codePtr, int maxSize, const int fs, int random);
 int DSP_RUNTIME_FORMAT(dspRuntime)(opcode_t * XCunsafe ptr, int * XCunsafe rundataPtr, dspSample_t * XCunsafe sampPtr);
 

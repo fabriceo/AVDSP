@@ -16,7 +16,8 @@
 
 extern dspHeader_t* dspHeaderPtr;
 //prototypes from dsp_encoder.c
-void dspEncoderInit(opcode_t * opcodeTable, int max, int type, int minFreq, int maxFreq, int maxIO);
+void dspEncoderFormat(int format);
+void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
 
 void dsp_dumpParameter(int addr, int size, char * name);
 void dsp_dumpParameterNum(int addr, int size, char * name, int num);
@@ -54,7 +55,7 @@ int  opcodeIndexMisAligned8();
  void dsp_TPDF(int bits);
  // load the ALU with the random number
  void dsp_WHITE();
- //saturate the ALU to keep value between -1..+1 and transform to 0.31 format (for int64 ALU)
+ //saturate the ALU to keep value between -1..+1 and transform to s.31 format (for int64 ALU)
  void dsp_SAT0DB();
  //apply a gain before saturation
  void dsp_SAT0DB_GAIN(int paramAddr);
@@ -70,9 +71,9 @@ int  opcodeIndexMisAligned8();
  // exact same as above, adding this name for consistency with naming convention
  void dsp_SHIFT_FixedInt(int bits);
 
-// load the ALU with the raw sample 0.31. ALU is 33.31 and can be used only for DELAY or STORE.
+// load the ALU with the raw sample s.31. ALU is 33.31 and can be used only for DELAY or STORE.
  void dsp_LOAD(int IO);
-// load a sample in 0.31 and apply a gain (4.28) resulting in format 5.59
+// load a sample in s.31 and apply a gain (4.28) resulting in format 5.59
  void dsp_LOAD_GAIN(int IO, int paramAddr);
  void dsp_LOAD_GAIN_Fixed(int IO, dspGainParam_t gain);
 
@@ -83,7 +84,7 @@ int  opcodeIndexMisAligned8();
  // describe each couple IO - gain
  void dspLoadMux_Data(int in, dspGainParam_t gain);
 
- // store a 0.31 sample from ALU lsb. msb is discarded
+ // store a s.31 sample from ALU lsb. msb is discarded
  void dsp_STORE(int IO);
 
 // load inputs and store them imediately (32 bits)
@@ -127,7 +128,6 @@ int  opcodeIndexMisAligned8();
  void dsp_VALUE_FixedInt(int value);
  void dsp_VALUE(int paramAddr);
  int  dspValue_Default(float value);
- int  dspValue_DefaultInt(int value);
 
  // divide the ALU by a fixed number coded 4.28
  void dsp_DIV_Fixed(float value);
@@ -139,7 +139,9 @@ int  opcodeIndexMisAligned8();
  // multiply the ALU by a fixed int32 number
  void dsp_MUL_FixedInt(int value);
 
-// apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
+ void dsp_AND_FixedInt(int value);
+
+ // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);
  // used to define the delay , in a PARAM or PARAMNUM section
  int  dspDelay_MicroSec_Max(int maxus);
@@ -150,11 +152,9 @@ int  opcodeIndexMisAligned8();
  void dsp_DELAY_FixedMicroSec(int microSec);
  void dsp_DELAY_FixedMilliMeter(int mm,float speed);
 
-#if (DSP_FORMAT == DSP_FORMAT_INT64)
  void dsp_DELAY_DP(int paramAddr);
  void dsp_DELAY_DP_FixedMicroSec(int microSec);
  void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed);
-#endif
 
  // used to read a predefined wave form.
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);
