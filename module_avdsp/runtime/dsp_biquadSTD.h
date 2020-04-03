@@ -16,5 +16,5 @@ extern dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspSamp
 #endif
 
 #if DSP_ALU_FLOAT // not tested
-extern dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspSample_t * dataPtrParam, short num, int skip) ;
+extern dspALU_t dsp_calc_biquads_float(dspALU_SP_t x, dspParam_t * coefPtr, dspALU_SP_t * dataPtr, short num, int skip) ;
 #endif

@@ -8,7 +8,7 @@
 
 //#define DSP_MANT_FLEXIBLE 1 // this force the runtime to accept programs encoded with any value for DSP_MANT (slower execution)
 //#define DSP_SINGLE_CORE 1   // to be used when the target architecture support only one core. then all cores are just chained
-#define DSP_IEEE754_OPTIMISE 63   // 63 is the default value if not defined here
+#define DSP_IEEE754_OPTIMISE 63   // 63 is the default value if not defined here, check yourself against your F.P. CPU
 
 #include "dsp_runtime.h"        // enum dsp codes, typedefs and QNM definition
 #include "dsp_ieee754.h"        // some optimized function for IEEE float/double number as static inline
@@ -268,9 +268,9 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
                 cptr+=2;    // skip Q and Gain
                 for (int j=0; j< dspNumSamplingFreq; j++) {
                     for (int k=0; k<5; k++) {
-                        if ((k==3)&&(oldFormat==0)&&(newFormat!=0)) *(float*)cptr -= 1.0;
+                        //if ((k==3)&&(oldFormat==0)&&(newFormat!=0)) *(float*)cptr -= 1.0;
                         dspChangeThisData(cptr, oldFormat, newFormat);
-                        if ((k==3)&&(oldFormat!=0)&&(newFormat==0)) *(float*)cptr += 1.0;
+                        //if ((k==3)&&(oldFormat!=0)&&(newFormat==0)) *(float*)cptr += 1.0;
                     cptr++; // next coef
                     }
                 cptr++; // round up to 6th position
@@ -832,9 +832,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("BIQUAD\n");
             #if DSP_ALU_INT
             asm("#biquadentry:");
-            int sample = dspShiftInt( ALU, DSP_MANTBQ );    //remove the size of a biquad coef, as the result will be scaled accordingly
+            dspSample_t sample = dspShiftInt( ALU, DSP_MANTBQ );    //remove the size of a biquad coef, as the result will be scaled accordingly
             #endif
-            dspSample_t * dataPtr = (dspSample_t*)(rundataPtr + *cptr++);
+            dspALU_SP_t * dataPtr = (dspALU_SP_t*)(rundataPtr + *cptr++);
             int * numPtr = (int*)(ptr + *cptr);    // point on the number of sections
             dspParam_t * coefPtr = (dspParam_t*)(numPtr+dspBiquadFreqOffset); //point on the right coefficient according to fs
             int num = *numPtr++;    // number of sections in 16 lsb, biquad routine should keep only 16bits lsb
@@ -887,17 +887,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 #elif DSP_ALU_FLOAT
                     #if DSP_SAMPLE_INT
                         dspALU_SP_t tmp = dspIntToFloatScaled(sample,31);
-                        #if DSP_ALU_64B
-                            ALU += dspMulFloatDouble( tmp, *gainPtr);
-                        #else
-                            ALU += dspMulFloatFloat(  tmp, *gainPtr);
-                        #endif
+                        dspMaccFloatFloat( tmp, *gainPtr, &ALU);
                     #else
-                        #if DSP_ALU_64B
-                            ALU += dspMulFloatDouble( sample, *gainPtr );
-                        #else
-                            ALU += dspMulFloatFloat(  sample, *gainPtr );
-                        #endif
+                        dspMaccFloatFloat( sample, *gainPtr, &ALU);
                     #endif
                 #endif
                 max--;
@@ -1101,11 +1093,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 ALU = dspShiftInt( ALU, DSP_MANT_FLEX);    // reduce precision and store Yn
             #elif DSP_ALU_FLOAT
                 ALU += Xn;
-                #if DSP_ALU_64B
-                    ALU += dspMulFloatDouble( prevY, pole );
-                #else
-                    ALU += dspMulFloatFloat( prevY, pole );
-                #endif
+                dspMaccFloatFloat( prevY, pole, &ALU );
                 *accPtr = ALU;  // store ALU for re-integration at the next cycle, not really needed in float32bits mode ..
             #endif
             *(dataPtr+1) = ALU; // store Yn
@@ -1168,15 +1156,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     dspmacs64_32_32(&ALU, err1, coef1);
                     dspmacs64_32_32(&ALU, err2, coef2);
                 #elif DSP_ALU_FLOAT
-                    #if DSP_ALU_64B
-                        ALU += dspMulFloatDouble(err0,coef0);
-                        ALU += dspMulFloatDouble(err1,coef1);
-                        ALU += dspMulFloatDouble(err2,coef2);
-                    #else
-                        ALU += dspMulFloatFloat(err0,coef0);
-                        ALU += dspMulFloatFloat(err1,coef1);
-                        ALU += dspMulFloatFloat(err2,coef2);
-                    #endif
+                    dspMaccFloatFloat( err0,coef0 , &ALU );
+                    dspMaccFloatFloat( err1,coef1 , &ALU );
+                    dspMaccFloatFloat( err2,coef2 , &ALU );
                 #endif
                 *(errorPtr+1) = err0;
                 *(errorPtr+2) = err1;
@@ -1236,13 +1218,13 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     dspmacs64_32_32_0(&ALU2, (int)DSP_Q31(-0.5), (*gainPtr));       // square wave -0.5
             #elif DSP_ALU_FLOAT
                 #if DSP_ALU_64B
-                    ALU += dspMulFloatDouble( +0.5, *gainPtr);
+                    ALU = dspMulFloatDouble( +0.5, *gainPtr);
                 else
-                    ALU += dspMulFloatDouble( -0.5, *gainPtr);
+                    ALU = dspMulFloatDouble( -0.5, *gainPtr);
                 #else
-                    ALU += dspMulFloatFloat(  +0.5, *gainPtr);
+                    ALU = dspMulFloatFloat(  +0.5, *gainPtr);
                 else
-                    ALU += dspMulFloatFloat(  -0.5, *gainPtr);
+                    ALU = dspMulFloatFloat(  -0.5, *gainPtr);
                 #endif
             #endif
                 counter--;

@@ -8,7 +8,7 @@
 // +4  : void dspSaturateFloat0db(float *f)                     OK
 // +8  : float dspIntToFloatScaled(int X, const int shift)      OK
 // +16 : void dspShiftFloat(float *f, int shift)                OK
-// +32 : double dspMulFloatFloat(float a, float b)              problem eg 0.5
+// +32 : double dspMulFloatFloat(float a, float b)              OK
 #endif
 
 
@@ -193,8 +193,6 @@ static inline void dspSaturateDouble0db(double *d){
 }
 
 
-
-
 // fast conversion from an integer (typically an audio sample)
 // to a float IEEE format number, with scale reduction by 2^shift
 static inline float dspIntToFloatScaled(int X, const int shift){
@@ -244,7 +242,6 @@ static inline float dspIntToFloatScaled(int X, const int shift){
 #endif
         return (float)X / (float)(1ULL<<shift);
 }
-
 
 
 static inline double dspIntToDoubleScaled(int X, const int shift){
@@ -330,7 +327,7 @@ static inline void dspShiftDouble(double *f, int shift){
     }
 }
 
-static inline double dspMulFloatFloat(float a, float b){
+static inline float dspMulFloatFloat(float a, float b){
 #if defined(DSP_IEEE754_OPTIMISE) && (DSP_IEEE754_OPTIMISE & 32)
     if (dspFloatIsIEE754()){
         dspALU32_t A = { .f=a };
@@ -368,9 +365,7 @@ static inline double dspMulFloatFloat(float a, float b){
         return R.f;
     } else
 #endif
-    {   double res = a;
-        res *= b;
-        return res; }
+    {  return a * b; }
 }
 
 static inline double dspMulFloatDouble(float a, float b){
@@ -408,3 +403,32 @@ static inline double dspMulFloatDouble(float a, float b){
         return res; }
 }
 
+static inline void dspMaccFloatFloat(dspALU_SP_t a, dspALU_SP_t b, dspALU_t *acc){
+#if defined(DSP_IEEE754_OPTIMISE) && (DSP_IEEE754_OPTIMISE & 32)
+    if (sizeof(dspALU_t)==sizeof(dspALU_SP_t)){
+        if (dspFloatIsIEE754()){
+            *acc += dspMulFloatFloat(a, b);
+            return; }
+    } else
+        if (dspDoubleIsIEE754()) {    // target is double
+            *acc += dspMulFloatDouble(a, b);
+        return; }
+#endif
+        *acc += (dspALU_t)a * b;
+}
+
+static inline double dspFloatToDouble(float f){
+    return f;
+}
+
+static inline float dspDoubleToFloat(double d){
+    return d;
+}
+
+static inline void dspAddDoubleFloat(double *d, float f){
+    *d += f;
+}
+
+static inline void dspAddDoubleDouble(double *d, double dd){
+    *d += dd;
+}

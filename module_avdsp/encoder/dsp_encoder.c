@@ -1243,7 +1243,7 @@ void dsp_BIQUADS(int paramAddr){
     checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
-    addDataSpaceAligned8(num*8);           // 2 words for each data (xn-1, xn-2, yn-1, yn-2)
+    addDataSpaceAligned8(num*6);           // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
     addCodeOffset(paramAddr, base);        // store pointer on the table of coefficients
 }
 
@@ -1301,7 +1301,7 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
         addFloat(b0);
         addFloat(b1);
         addFloat(b2);
-        addFloat(a1);
+        addFloat(a1 - 1.0); // now even float model is using mantissa reintegration
         addFloat(a2);
     }
     return tmp;

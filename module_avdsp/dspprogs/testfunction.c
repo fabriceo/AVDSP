@@ -100,16 +100,20 @@ int dspProg_testFloat(int dither){
 
     dsp_PARAM();
     int nscoefs = dspDataTableFloat(noiseshaper2, 3*6);
+    int lowpass1 = dspBiquad_Sections_Flexible();
+        dsp_LP_LR8(1000);
+
 
     dsp_CORE();
-    dsp_TPDF(dither);
-    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
-    dsp_DITHER_NS2(nscoefs);
-    dsp_SAT0DB();
+    //dsp_TPDF(dither);
+    //dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
+    dsp_LOAD( USBOUT(0) );
+    dsp_BIQUADS(lowpass1);
+    //dsp_SAT0DB_TPDF();
     dsp_STORE( USBIN(0) );
 
-    dsp_LOAD( USBOUT(1) );
-    dsp_STORE( USBIN(1) );
+    dsp_LOAD_STORE();
+    dspLoadStore_Data( USBOUT(1), USBIN(1) );
 
     return dsp_END_OF_CODE();
 
