@@ -403,7 +403,7 @@ static inline double dspMulFloatDouble(float a, float b){
         return res; }
 }
 
-static inline void dspMaccFloatFloat(dspALU_SP_t a, dspALU_SP_t b, dspALU_t *acc){
+static inline void dspMaccFloatFloat(dspALU_t *acc, dspALU_SP_t a, dspALU_SP_t b){
 #if defined(DSP_IEEE754_OPTIMISE) && (DSP_IEEE754_OPTIMISE & 32)
     if (sizeof(dspALU_t)==sizeof(dspALU_SP_t)){
         if (dspFloatIsIEE754()){
@@ -412,23 +412,11 @@ static inline void dspMaccFloatFloat(dspALU_SP_t a, dspALU_SP_t b, dspALU_t *acc
     } else
         if (dspDoubleIsIEE754()) {    // target is double
             *acc += dspMulFloatDouble(a, b);
-        return; }
+            return; }
 #endif
         *acc += (dspALU_t)a * b;
 }
 
-static inline double dspFloatToDouble(float f){
-    return f;
-}
-
-static inline float dspDoubleToFloat(double d){
-    return d;
-}
-
-static inline void dspAddDoubleFloat(double *d, float f){
-    *d += f;
-}
-
-static inline void dspAddDoubleDouble(double *d, double dd){
-    *d += dd;
+static inline void dspAddFloat(dspALU_t *acc, dspALU_SP_t a){
+    *acc += a;
 }

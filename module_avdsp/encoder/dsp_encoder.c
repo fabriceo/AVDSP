@@ -1472,7 +1472,7 @@ void dsp_DCBLOCK(int lowfreq){
     addOpcodeLengthPrint(DSP_DCBLOCK);
     checkInRange(lowfreq, 1, 100);
     float lowf = lowfreq;
-    addDataSpaceAligned8(6);
+    addDataSpaceAligned8(4);    // 2 words for ACC, 1 word for prevX prevY
 
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of pole according to fs

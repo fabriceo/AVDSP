@@ -887,9 +887,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 #elif DSP_ALU_FLOAT
                     #if DSP_SAMPLE_INT
                         dspALU_SP_t tmp = dspIntToFloatScaled(sample,31);
-                        dspMaccFloatFloat( tmp, *gainPtr, &ALU);
+                        dspMaccFloatFloat( &ALU , tmp, *gainPtr);
                     #else
-                        dspMaccFloatFloat( sample, *gainPtr, &ALU);
+                        dspMaccFloatFloat( &ALU , sample, *gainPtr);
                     #endif
                 #endif
                 max--;
@@ -1058,45 +1058,31 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_DCBLOCK: {
             //inspired from here : http://dspguru.com/dsp/tricks/fixed-point-dc-blocking-filter-with-noise-shaping/
             int offset = *cptr++;                   // where is the data space for state data calculation
-            dspSample_t * dataPtr  = (dspSample_t*)(rundataPtr+offset);
+            dspALU_t * accPtr = (dspALU_t *)(rundataPtr+offset);
+            dspALU_SP_t * dataPtr  = (dspALU_SP_t*)(accPtr+1);
             int freq = dspSamplingFreqIndex;        // 1 pole per freq
             dspParam_t * tablePtr = (dspParam_t*)(cptr+freq);   // point on the offset to be used for the current frequency
             dspParam_t pole = *tablePtr;                 // pole of the integrator part
-            // structure of the data space preallocated by encoder
-            // 1 prevX  (0)
-            // 1 prevY  (1)
-            // 2 acc    (2)
-            dspALU_t * accPtr = (dspALU_t*)(dataPtr+2);
-            dspSample_t prevX = *(dataPtr+0);
-        #if DSP_ALU_INT
-            dspSample_t Xn = ALU;
-        #elif DSP_ALU_FLOAT
-            #if DSP_SAMPLE_INT
-                #if DSP_ALU_64B
-                    dspSample_t Xn = dsps31Double0DB(ALU);
-                #else
-                    dspSample_t Xn = dsps31Float0DB(ALU);
-                #endif
-            #else
-                    dspSample_t Xn = ALU;
-            #endif
-        #endif
+
+            dspALU_SP_t Xn = ALU;
+            dspALU_SP_t prevX = *(dataPtr+0);
             *(dataPtr+0) = Xn;
             Xn -= prevX;
-            ALU = *accPtr;  // retreive ALU from previous cycle, approach not really needed in Float32bits mode
-            dspSample_t prevY = *(dataPtr+1);
+            ALU = *accPtr;  // retreive ALU from previous cycle
             #if DSP_ALU_INT
             // ALU expected to contain s.31 sample (typically after LOAD or before STORE)
+                dspALU_SP_t prevY = *(dataPtr+1);
                 dspmacs64_32_32( &ALU, Xn, 1<<DSP_MANT_FLEX );     // add (Xn-X[n-1]) scaled 28bit up
                 dspmacs64_32_32( &ALU, prevY, pole);    // add Y[n-1] * pole (pole is negative and small like -0.001)
                 *accPtr = ALU;  // store ALU for re-integration at the next cycle
-                ALU = dspShiftInt( ALU, DSP_MANT_FLEX);    // reduce precision and store Yn
+                ALU = dspShiftInt( ALU, DSP_MANT_FLEX);    // reduce precision
+                *(dataPtr+1) = ALU;  // store Yn
             #elif DSP_ALU_FLOAT
-                ALU += Xn;
-                dspMaccFloatFloat( prevY, pole, &ALU );
-                *accPtr = ALU;  // store ALU for re-integration at the next cycle, not really needed in float32bits mode ..
+                dspALU_SP_t prevY = ALU;
+                dspAddFloat( &ALU, Xn );
+                dspMaccFloatFloat( &ALU , prevY, pole );
+                *accPtr = ALU;  // store ALU for re-integration at the next cycle
             #endif
-            *(dataPtr+1) = ALU; // store Yn
         break; }
 
         /* MPD code for dithering
@@ -1118,9 +1104,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 int offset = *cptr++;                   // where is the data space for state data calculation
                 dspALU_t * errorPtr  = (dspALU_t*)(rundataPtr+offset);
                 dspALU_t temp0 = *(errorPtr+0);
+                dspALU_t temp1 = *(errorPtr+1);
+                dspALU_t temp2 = *(errorPtr+2);
                 ALU += temp0;
                 #if DSP_ALU_INT
-                    *(errorPtr+1) = temp0 >> 1;
+                    temp0 >>= 1;
                 #elif DSP_ALU_FLOAT
                     #if DSP_ALU_64B
                         dspShiftDouble( &temp0, -1);
@@ -1128,9 +1116,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                         dspShiftFloat(  &temp0, -1);
                     #endif
                 #endif
-                dspALU_t temp1 = *(errorPtr+1);
                 ALU -= temp1;
-                ALU += *(errorPtr+2);
+                ALU += temp2;
+                *(errorPtr+1) = temp0;
                 *(errorPtr+2) = temp1;
                 dspALU_t sample = ALU;
                 dspTpdfApply(tpdfPtr, &ALU );
@@ -1156,9 +1144,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     dspmacs64_32_32(&ALU, err1, coef1);
                     dspmacs64_32_32(&ALU, err2, coef2);
                 #elif DSP_ALU_FLOAT
-                    dspMaccFloatFloat( err0,coef0 , &ALU );
-                    dspMaccFloatFloat( err1,coef1 , &ALU );
-                    dspMaccFloatFloat( err2,coef2 , &ALU );
+                    dspMaccFloatFloat( &ALU , err0, coef0 );
+                    dspMaccFloatFloat( &ALU , err1, coef1 );
+                    dspMaccFloatFloat( &ALU , err2, coef2 );
                 #endif
                 *(errorPtr+1) = err0;
                 *(errorPtr+2) = err1;
@@ -1178,7 +1166,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_DISTRIB:{
             int size = *cptr++;     // get size of the array, this factor is also used to scale the ALU
             int offset = *cptr;
-            int * dataPtr = (int*) rundataPtr+offset;   // where we have a data space for us
+            int * dataPtr = rundataPtr+offset;   // where we have a data space for us
             int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
             #if DSP_ALU_INT
                 int pos = dspmuls32_32_32(ALU, size); // our sample is now between say -256..+255 for size = 512
@@ -1197,7 +1185,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
         case DSP_DIRAC:{
             int offset = *cptr++;
-            int * dataPtr = (int*)rundataPtr+offset;   // space for the counter
+            int * dataPtr = rundataPtr+offset;   // space for the counter
             int counter = *dataPtr;
             dspParam_t * gainPtr = (dspParam_t*)cptr++;
             int freq = dspSamplingFreqIndex;

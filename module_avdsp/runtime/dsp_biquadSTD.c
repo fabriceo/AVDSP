@@ -69,17 +69,17 @@ dspALU_t dsp_calc_biquads_float(dspALU_SP_t xn, dspParam_t * coefPtr, dspALU_SP_
         dspALU_t* p = (dspALU_t*)dataPtr;
         ALU = *p; dataPtr += 2;                 // load latest value of the biquad (potentially dual precision)
 
-        dspMaccFloatFloat( xn, b0 , &ALU);
+        dspMaccFloatFloat( &ALU, xn, b0);
         dspALU_SP_t xn1 = (*dataPtr);           //load xn-1
-        dspMaccFloatFloat( xn1, b1 , &ALU);     // b1*xn-1
+        dspMaccFloatFloat( &ALU , xn1, b1);     // b1*xn-1
         (*dataPtr++) = xn;                      // store xn => xn-1
         dspALU_SP_t xn2 = (*dataPtr);           // load xn-2
-        dspMaccFloatFloat( xn2, b2 , &ALU);     //b2*xn-2
+        dspMaccFloatFloat( &ALU , xn2, b2);     //b2*xn-2
         (*dataPtr++) = xn1;                     //store xn-1 => xn-2
         dspALU_SP_t yn1 = (*dataPtr++);         //load yn-1
-        dspMaccFloatFloat( yn1, a1 , &ALU);     //yn-1*a1 (this coef is reduced by 1.0 by encoder)
+        dspMaccFloatFloat( &ALU , yn1, a1);     //yn-1*a1 (this coef is reduced by 1.0 by encoder)
         dspALU_SP_t yn2 = (*dataPtr);           // load yn-2
-        dspMaccFloatFloat( yn2, a2 , &ALU);     //yn-2*a2
+        dspMaccFloatFloat( &ALU , yn2, a2);     //yn-2*a2
         *p = ALU;               // store last biquad computed in "prev" for mantissa reintegration at next cycle
         (*dataPtr--) = yn1;     // store yn-1 => yn-2 and point on yn-1
         dspALU_SP_t yn = ALU;
