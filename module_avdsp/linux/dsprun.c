@@ -13,7 +13,6 @@
 
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
 
-#define DSP_FORMAT DSP_FORMAT_INT64
 #include "dsp_runtime.h"
 
 #define opcodesMax 10000
@@ -109,7 +108,7 @@ int main(int argc, char **argv) {
 	 SF_INFO infsnd;
     	 dspSample_t Outputs[inputOutputMax];
 
-         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_32;
+         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
          infsnd.samplerate = fs;
          infsnd.channels = nbchout;
 
