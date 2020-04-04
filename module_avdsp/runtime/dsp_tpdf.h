@@ -120,7 +120,7 @@ static inline dspALU_t dspTpdfCalc(){
 }
 
 
-static inline void dspTpdfApply(tpdf_t * p, dspALU_t *alu){
+static inline void dspTpdfApply(dspALU_t *alu, tpdf_t * p){
 #if DSP_ALU_INT
 #ifdef DSP_XS1
     int tpdf = dspTpdfValue >> p->shift;    // preconditioning
@@ -144,7 +144,7 @@ static inline void dspTpdfApply(tpdf_t * p, dspALU_t *alu){
 }
 
 
-static inline void dspTpdfTruncate(tpdf_t * p, dspALU_t *alu){
+static inline void dspTpdfTruncate(dspALU_t *alu , tpdf_t * p){
 #if DSP_ALU_INT
     *alu &= p->mask64;
 #elif DSP_ALU_FLOAT

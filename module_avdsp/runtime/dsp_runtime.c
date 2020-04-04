@@ -232,7 +232,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
             dspChangeThisInt(cptr, oldFormat, newFormat);
             break;}
 
-        case DSP_DIRAC: // dataptr then imediate value
+        case DSP_DIRAC:     // dataptr then imediate value
+        case DSP_SQUAREWAVE:
              cptr++;
         case DSP_MUL_VALUE:         // immediate value
         case DSP_DIV_VALUE:
@@ -255,8 +256,7 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
             short num = *cptr++;          // load size of table (lsb)
             for (int i=0;i<num;i++) {
                 cptr++;
-                dspChangeThisData(cptr, oldFormat, newFormat);
-                cptr++;  }
+                dspChangeThisData(cptr++, oldFormat, newFormat); }
             break;}
 
         case DSP_BIQUADS: {// dataspace then tableptr
@@ -267,13 +267,9 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
             for (int i=0; i< numSection; i++) {
                 cptr+=2;    // skip Q and Gain
                 for (int j=0; j< dspNumSamplingFreq; j++) {
-                    for (int k=0; k<5; k++) {
-                        //if ((k==3)&&(oldFormat==0)&&(newFormat!=0)) *(float*)cptr -= 1.0;
-                        dspChangeThisData(cptr, oldFormat, newFormat);
-                        //if ((k==3)&&(oldFormat!=0)&&(newFormat==0)) *(float*)cptr += 1.0;
-                    cptr++; // next coef
-                    }
-                cptr++; // round up to 6th position
+                    for (int k=0; k<5; k++)
+                        dspChangeThisData(cptr++, oldFormat, newFormat);
+                    cptr++; // round up to 6th position
                 }
             }
         } break;
@@ -291,11 +287,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
 
         case DSP_DCBLOCK: { // dataspace then imediate table
             cptr++; // skip data space
-            for (int i=0; i< dspNumSamplingFreq; i++) {
-                if ((oldFormat==0)&&(newFormat!=0)) *(float*)cptr -= 1.0;
-                dspChangeThisData(cptr, oldFormat, newFormat);
-                if ((oldFormat!=0)&&(newFormat==0)) *(float*)cptr += 1.0;
-                cptr++; }
+            for (int i=0; i< dspNumSamplingFreq; i++)
+                dspChangeThisData(cptr++, oldFormat, newFormat);
         } break;
 
         } // switch
@@ -399,11 +392,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             int shift = *cptr;      // get parameter
             #if DSP_ALU_INT
                 if (shift >= 0)
-                     ALU <<= shift;
+                     ALU <<= (shift>=100? DSP_MANT_FLEX : shift);
                 else
-                    if (shift == -100)
-                        ALU >>= DSP_MANT_FLEX;
-                    else ALU >>= -shift;
+                    ALU >>= (shift<=-100? DSP_MANT_FLEX : -shift);
             #elif DSP_ALU_FLOAT
                 #if DSP_ALU_64B
                     dspShiftDouble( &ALU, shift);
@@ -485,12 +476,12 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_SAT0DB_TPDF: {
-            dspprintf2("SATURATE_TPDF");
+            dspprintf2("SAT0DB_TPDF");
             #if DSP_ALU_INT
-                dspTpdfApply(tpdfPtr, &ALU );
+                dspTpdfApply( &ALU , tpdfPtr);
                 dspSaturate64_031( &ALU , DSP_MANT_FLEX);   // now s31
             #elif DSP_ALU_FLOAT
-                dspTpdfApply(tpdfPtr, &ALU );
+                dspTpdfApply( &ALU , tpdfPtr);
                 #if DSP_ALU_64B
                     dspSaturateDouble0db( &ALU );
                 #else
@@ -526,17 +517,17 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #if DSP_ALU_INT
                 ALU >>= DSP_MANT_FLEX;
                 ALU *= (*gainPtr);
-                dspTpdfApply(tpdfPtr,&ALU);
+                dspTpdfApply( &ALU , tpdfPtr);
                 dspSaturate64_031( &ALU , DSP_MANT_FLEX);
             #elif DSP_ALU_FLOAT
                 #if DSP_ALU_64B
                     dspALU_SP_t tmp = ALU;
                     ALU = dspMulFloatDouble( tmp, *gainPtr );
-                    dspTpdfApply(tpdfPtr,&ALU);
+                    dspTpdfApply( &ALU , tpdfPtr);
                     dspSaturateDouble0db( &ALU );
                 #else
                     ALU = dspMulFloatFloat( ALU, *gainPtr );
-                    dspTpdfApply(tpdfPtr,&ALU);
+                    dspTpdfApply( &ALU , tpdfPtr);
                     dspSaturateFloat0db( &ALU );
                 #endif
             #endif
@@ -614,16 +605,17 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break; }
 
 
-        case DSP_STORE: {   // store the ALU, expecting it to be already saturated -in rage -1..+1
+        case DSP_STORE: {   // store the ALU
             int index = *cptr;
             dspprintf2("STORE output[%d]",index);
             dspSample_t * samplePtr = sampPtr+index;
-            #if DSP_ALU_INT
-                ALU &= tpdfPtr->mask;   // remove lowest bits according to dither
-                *samplePtr = ALU;
+            dspSample_t sample;
+            #if DSP_ALU_INT             // expect value to be already satirated and in s31 format!
+                sample = ALU;
+                sample &= tpdfPtr->mask;   // remove lowest bits according to dither
+                *samplePtr = sample;
             #elif DSP_ALU_FLOAT
                 #if DSP_SAMPLE_INT
-                    dspSample_t sample;
                     #if DSP_ALU_64B
                         sample =  dsps31Double0DB(ALU);
                     #else
@@ -632,7 +624,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     sample &= tpdfPtr->mask;
                     *samplePtr = sample;
                 #else
-                    *samplePtr = ALU;        // no conversion needed, no mask
+                    sample = ALU;    // no conversion needed, no mask
+                    *samplePtr = sample;
                 #endif
             #endif
             break; }
@@ -649,7 +642,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("VALUE");
             dspParam_t * valuePtr = (dspParam_t*)(ptr+*cptr);
             ALU2 = ALU;
-            ALU = (*valuePtr);
+            ALU = (*valuePtr);  // for DSP_INT, scalling has to be done by user with a SHIFT(100)
         break;}
 
 
@@ -1079,7 +1072,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 *(dataPtr+1) = ALU;  // store Yn
             #elif DSP_ALU_FLOAT
                 dspALU_SP_t prevY = ALU;
-                dspAddFloat( &ALU, Xn );
+                ALU += Xn;
                 dspMaccFloatFloat( &ALU , prevY, pole );
                 *accPtr = ALU;  // store ALU for re-integration at the next cycle
             #endif
@@ -1121,8 +1114,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 *(errorPtr+1) = temp0;
                 *(errorPtr+2) = temp1;
                 dspALU_t sample = ALU;
-                dspTpdfApply(tpdfPtr, &ALU );
-                dspTpdfTruncate(tpdfPtr, &ALU );    // remove lowest bits according to dither format
+                dspTpdfApply( &ALU , tpdfPtr);
+                dspTpdfTruncate( &ALU , tpdfPtr);    // remove lowest bits according to dither format
                 *(errorPtr+0) = sample - ALU;       // resulting total error
         break; }
 
@@ -1151,8 +1144,8 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 *(errorPtr+1) = err0;
                 *(errorPtr+2) = err1;
                 dspALU_t sample = ALU;
-                dspTpdfApply(tpdfPtr, &ALU );
-                dspTpdfTruncate(tpdfPtr, &ALU );
+                dspTpdfApply( &ALU , tpdfPtr);
+                dspTpdfTruncate( &ALU , tpdfPtr);
                 sample -= ALU;                // compute error
                 #if DSP_ALU_INT
                     *(errorPtr+0) = dspShiftInt(sample, DSP_MANT_FLEX);
@@ -1164,22 +1157,33 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_DISTRIB:{
+            int IO = *cptr++;       // get output number (like for STORE)
+            dspSample_t * samplePtr = sampPtr+IO;
             int size = *cptr++;     // get size of the array, this factor is also used to scale the ALU
             int offset = *cptr;
             int * dataPtr = rundataPtr+offset;   // where we have a data space for us
             int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
+            dspALU_SP_t sample = ALU;
+            int middle = size/2;
             #if DSP_ALU_INT
-                int pos = dspmuls32_32_32(ALU, size); // our sample is now between say -256..+255 for size = 512
+                int pos = dspmuls32_32_32(sample, size); // our sample is now between say -256..+255 if size = 512
             #elif DSP_ALU_FLOAT
-                int div2 = size/2;
-                int pos = ALU * div2;   // ALU expected to be -1..+1
+                int pos = sample * middle;   // ALU expected to be -1..+1
             #endif
-            pos += size/2;            // our array is 0..511 so centering the value
-            if (pos<size) (*(dataPtr+pos))++;   // one more sample counted
-            ALU = *(dataPtr+index); // retreive occurence for displaying as a curve with REW Scope function
+            pos += middle;            // our array is 0..511 so centering the value
+            if ((pos>=0) && (pos<size)) (*(dataPtr+pos))++;   // one more sample counted
+            int value = *(dataPtr+index); // retreive occurence for displaying as a curve with REW Scope function
             index++;
             if (index >= size) index = 0;
             *--dataPtr = index;
+            // store raw value
+            #if DSP_ALU_INT
+                *samplePtr = value;
+            #elif DSP_SAMPLE_INT
+                *samplePtr = value;
+            #elif DSP_ALU_FLOAT
+                *samplePtr = dspIntToFloatScaled(value,31);
+            #endif
         break;}
 
 
@@ -1191,19 +1195,32 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             int freq = dspSamplingFreqIndex;
             int * tablePtr = (int*)(cptr+freq);
             int maxCount = *tablePtr;
-            if (counter == 0){
-                *dataPtr = maxCount;   // reset counter
+            if (counter == 0)
             #if DSP_ALU_INT
                 dspmacs64_32_32_0(&ALU, dspQNMmax(), (*gainPtr));      // pulse in ALU
             #elif DSP_ALU_FLOAT
                 ALU = (*gainPtr);
             #endif
-            } else {
-                if (counter >= (maxCount/2))
+            counter++;
+            if (counter>=maxCount) counter = 0;
+            *dataPtr = counter;
+
+        break;}
+
+
+        case DSP_SQUAREWAVE:{
+            int offset = *cptr++;
+            int * dataPtr = rundataPtr+offset;   // space for the counter
+            int counter = *dataPtr;
+            dspParam_t * gainPtr = (dspParam_t*)cptr++;
+            int freq = dspSamplingFreqIndex;
+            int * tablePtr = (int*)(cptr+freq);
+            int maxCount = *tablePtr;
+            if (counter <= (maxCount/2))
             #if DSP_ALU_INT
-                    dspmacs64_32_32_0(&ALU2, (int)DSP_Q31(0.5), (*gainPtr));       // square wave +0.5
-                else
-                    dspmacs64_32_32_0(&ALU2, (int)DSP_Q31(-0.5), (*gainPtr));       // square wave -0.5
+                dspmacs64_32_32_0(&ALU, (int)DSP_Q31(0.5), (*gainPtr));       // square wave +0.5
+            else
+                dspmacs64_32_32_0(&ALU, (int)DSP_Q31(-0.5), (*gainPtr));       // square wave -0.5
             #elif DSP_ALU_FLOAT
                 #if DSP_ALU_64B
                     ALU = dspMulFloatDouble( +0.5, *gainPtr);
@@ -1215,9 +1232,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     ALU = dspMulFloatFloat(  -0.5, *gainPtr);
                 #endif
             #endif
-                counter--;
-                *dataPtr = counter;
-                ALU = 0; }
+            counter++;
+            if (counter >= maxCount) counter=0;
+            *dataPtr = counter;
         break;}
 
 

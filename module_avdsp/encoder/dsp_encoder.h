@@ -190,14 +190,24 @@ int  opcodeIndexMisAligned8();
  void dsp_DCBLOCK(int lowfreq);
 
  // inject noise and apply 2nd order noise shapping. ( no input = no noise)
+ // fixed coefficients : +1 -0.5 +0.5
  void dsp_DITHER();
 
+ // provide a dithering with 2nd order noise shaping, with flexible coeficients (triplets x number of frequency covered)
  void dsp_DITHER_NS2(int paramAddr);
 
- void dsp_DISTRIB(int size);
+ // distribute the input (0DB or s31) into a table of "size" elements,
+ // and output this table as samples, one by one, to the output "IO"
+ // with a tpdf random input, this will draw a triangular wave form on a scope, with a period of size/FS
+ void dsp_DISTRIB(int IO, int size);
 
+ // generate a xDB pulse at frequency "freq", where x is the "gain" parameter
  void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain);
 
+ // generate a symetric square wave at frequency "freq" of yDB where y="gain"/2
+ void dsp_SQUAREWAVE_Fixed(int freq, dspGainParam_t gain);
+
+ // clip the sample to the given value
  void dsp_CLIP_Fixed(dspGainParam_t value);
 
  // convert a deciBell value to a float number. e.g. dB2gain(10.0) => 3.162277

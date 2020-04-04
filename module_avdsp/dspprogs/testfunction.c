@@ -52,14 +52,10 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
 
     dsp_CORE();
     dsp_TPDF(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
-   // use either swap or sat0db here below for 2 different example:
-    //dsp_SAT0DB();               // reduce precision to int32 and provide the 1bit vaue at dither prosition
-    //dsp_SWAPXY();             // ALU Y contains triangular noise at Full scale as int32
-    dsp_STORE( USBIN(0) );      // result is -96dBFS rms flat noise curve with SAT0DB or -5.5dBFS rms with SWAPXY
 
-    //dsp_SWAPXY();               // ALU Y contains triangular noise at Full scale as int32
-    dsp_DISTRIB(512);           // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
-    dsp_STORE( USBIN(2) );      // show perfect triangular noise distribution with REW Scope function
+    dsp_LOAD( USBOUT(0) );
+    dsp_DISTRIB(USBIN(0), 512);           // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
+    //dsp_STORE( USBIN(0) );      // show perfect triangular noise distribution with REW Scope function
 
     dsp_LOAD( USBOUT(1) );       // loopback rew, no treatments
     dsp_STORE( USBIN(1) );
@@ -76,10 +72,8 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_WHITE();                // provide white noise as an int32
     dsp_STORE( USBIN(4) );      // full white noise measured with REW -2.5dBFS rms
 
-    dsp_DIRAC_Fixed( 100, 1.0 );// generate 100 pulse per seconds
-    // try swapxy to replace dirac impulse by a square between -0.5 ... +0.5
-    dsp_SWAPXY();             // ALU Y contains a symetrical square signal at 100hz then
-    //dsp_BIQUADS(lowpass2);
+    dsp_SQUAREWAVE_Fixed( 100, 1.0 );// generate 100 value per seconds
+    dsp_BIQUADS(lowpass2);
     dsp_SAT0DB();
     dsp_STORE( USBIN(5) );      // show filter impulse response in REW with Scope
 
@@ -101,22 +95,28 @@ int dspProg_testFloat(int dither){
     dsp_PARAM();
     int nscoefs = dspDataTableFloat(noiseshaper2, 3*6);
     int lowpass1 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES6(1000);
+        dsp_LP_BES4(1000);
 
 
     dsp_CORE();
-    //dsp_TPDF(dither);
-    //dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
-    dsp_LOAD( USBOUT(0) );
-    dsp_VALUE_Fixed(0.01);
-    dsp_ADDXY();
+    dsp_TPDF(dither);
+    //dsp_DIRAC_Fixed(100, 1.0);
+    //dsp_LOAD( USBOUT(0) );
+    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
+    dsp_SAT0DB_TPDF();
+    dsp_STORE( USBIN(0) );
+    dsp_TPDF(20);
+    dsp_SAT0DB_TPDF();
+    dsp_STORE( USBIN(2) );
+    //dsp_CLIP_Fixed(0.5);
+    //dsp_VALUE_Fixed(0.03125);
+    //dsp_ADDXY();
     //dsp_BIQUADS(lowpass1);
     //dsp_SAT0DB_TPDF();
     //dsp_DITHER();
     //dsp_DITHER_NS2(nscoefs);
     //dsp_SAT0DB();
-    dsp_DCBLOCK(100);
-    dsp_STORE( USBIN(0) );
+    //dsp_DCBLOCK(100);
 
     dsp_LOAD_STORE();
     dspLoadStore_Data( USBOUT(1), USBIN(1) );

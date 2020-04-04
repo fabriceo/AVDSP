@@ -111,6 +111,7 @@ char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_DITHER_NS2",
     "DSP_DISTRIB",
     "DSP_DIRAC",
+    "DSP_SQUAREWAVE",
     "DSP_CLIP"
 };
 
@@ -1499,14 +1500,18 @@ void dsp_DITHER_NS2(int paramAddr){
     addCodeOffset(paramAddr, base);             // relative pointer to the data table
 }
 
-void dsp_DISTRIB(int size){
+void dsp_DISTRIB(int IO, int size){
     addOpcodeLengthPrint(DSP_DISTRIB);
+    checkIOmax(IO);
+    addCode(IO);
+    if (IO<32) usedOutputs |= 1ULL<<IO;
+    if (IO<32) usedOutputsCore |= 1ULL<<IO;
+    checkInRange(size, 8,1024);
     addCode(size);
     addDataSpace(1+size);
 }
 
-void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain){
-    addOpcodeLengthPrint(DSP_DIRAC);
+void dsp_DIRAC_(int freq, dspGainParam_t gain){
     int fmin = dspTableFreq[dspMinSamplingFreq];
     checkInRange(freq, 0,fmin/2);
     addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
@@ -1517,6 +1522,17 @@ void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain){
         addCode(count);
     }
 }
+
+void dsp_DIRAC_Fixed(int freq, dspGainParam_t gain){
+    addOpcodeLengthPrint(DSP_DIRAC);
+    dsp_DIRAC_(freq, gain);
+}
+
+void dsp_SQUAREWAVE_Fixed(int freq, dspGainParam_t gain){
+    addOpcodeLengthPrint(DSP_SQUAREWAVE);
+    dsp_DIRAC_(freq, gain);
+}
+
 
 void dsp_CLIP_Fixed(dspGainParam_t value){
     addOpcodeLengthPrint(DSP_CLIP);

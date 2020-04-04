@@ -417,6 +417,3 @@ static inline void dspMaccFloatFloat(dspALU_t *acc, dspALU_SP_t a, dspALU_SP_t b
         *acc += (dspALU_t)a * b;
 }
 
-static inline void dspAddFloat(dspALU_t *acc, dspALU_SP_t a){
-    *acc += a;
-}
