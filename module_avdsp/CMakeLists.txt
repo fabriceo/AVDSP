@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.10)
 # set the project name
 project(AVDSP C)
 
+add_definitions(-DDSP_FORMAT=2)
 include_directories(encoder runtime)
 
 add_executable(dsprun runtime/dsp_biquadSTD.c  runtime/dsp_firSTD.c  runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/alsa.c  linux/dsprun.c )
