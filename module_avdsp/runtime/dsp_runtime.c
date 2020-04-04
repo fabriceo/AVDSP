@@ -1165,14 +1165,20 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
             dspALU_SP_t sample = ALU;
             int middle = size/2;
+            if (sample) {
             #if DSP_ALU_INT
                 int pos = dspmuls32_32_32(sample, size); // our sample is now between say -256..+255 if size = 512
             #elif DSP_ALU_FLOAT
                 int pos = sample * middle;   // ALU expected to be -1..+1
             #endif
-            pos += middle;            // our array is 0..511 so centering the value
-            if ((pos>=0) && (pos<size)) (*(dataPtr+pos))++;   // one more sample counted
+                pos += middle;            // our array is 0..511 so centering the value
+                if ((pos>=0) && (pos<size)) (*(dataPtr+pos))++;   // one more sample counted
+            }
             int value = *(dataPtr+index); // retreive occurence for displaying as a curve with REW Scope function
+            if (value == 0) {   // special case to avoid one unique sample drop to 0
+                if (index) value = *(dataPtr+index-1);
+                else value = *(dataPtr+1);
+            }
             index++;
             if (index >= size) index = 0;
             *--dataPtr = index;

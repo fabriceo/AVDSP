@@ -53,7 +53,7 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_CORE();
     dsp_TPDF(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
 
-    dsp_LOAD( USBOUT(0) );
+    dsp_LOAD( USBOUT(0) );       // loopback rew, no treatments
     dsp_DISTRIB(USBIN(0), 512);           // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
     //dsp_STORE( USBIN(0) );      // show perfect triangular noise distribution with REW Scope function
 
@@ -61,18 +61,18 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_STORE( USBIN(1) );
 
     dsp_GAIN_Fixed( 1.0 );      // apply a gain on the previous LOAD above to bring it to dual precision
-    // try 3 combinations below, either clip(0.5) or clip(0.0) or clip(0.0) and swapxy togetehr
+    // try 2 combinations below, either clip(0.5) or clip(0.0)
     dsp_CLIP_Fixed( 0.5 );      // clip the signal below -0.5 and above +0.5
-    //dsp_CLIP_Fixed(0.0);        // special case to generate a synchronized dirac impulse overloading ALU X
-    //dsp_SWAPXY();             // ALU Y contains a square wave between 0..+1.0 if using clip(0.0)
-    dsp_BIQUADS(lowpass1);      // show filtered response of a clipped signal, or dirac impulse, or square
+    //dsp_CLIP_Fixed(0.0);        // special case to generate a synchronized Square wave
+    dsp_BIQUADS(lowpass1);      // show filtered response of a clipped signal, or squared
     dsp_SAT0DB();
     dsp_STORE( USBIN(3) );
 
     dsp_WHITE();                // provide white noise as an int32
     dsp_STORE( USBIN(4) );      // full white noise measured with REW -2.5dBFS rms
 
-    dsp_SQUAREWAVE_Fixed( 100, 1.0 );// generate 100 value per seconds
+    //dsp_SQUAREWAVE_Fixed( 100, 1.0 );// generate a 100hz square
+    dsp_DIRAC_Fixed( 100, 1.0 );    // generate 100 value per seconds of dirac impulse
     dsp_BIQUADS(lowpass2);
     dsp_SAT0DB();
     dsp_STORE( USBIN(5) );      // show filter impulse response in REW with Scope
