@@ -54,18 +54,22 @@ int main(int argc, char **argv) {
 
     int size,result;
     int nc,n,ch,o;
-    int impulse=0,sine=0;
+    int inmode=0;
 
     // parse and check args 
     if(argc<5) usage();
 
     if(strcmp(argv[1],"-i") == 0 )  {
 	filename = argv[2];
-	impulse=1;
+	inmode=1;
     } else 
       if(strcmp(argv[1],"-s") == 0 )  {
 	filename = argv[2];
-	sine=1;
+	inmode=2;
+    } else 
+      if(strcmp(argv[1],"-r") == 0 )  {
+	filename = argv[2];
+	inmode=3;
       } else {
     		alsainname=argv[1];
     		alsaoutname=argv[2];
@@ -147,10 +151,17 @@ int main(int argc, char **argv) {
 
         	for(ch=0;ch<coreio[nc].nbchin;ch++) {
     			inputOutput[coreio[nc].inputMap[ch]] = 0;
-			if(impulse && n==0) 
-    				inputOutput[coreio[nc].inputMap[ch]] = INT32_MAX/2;
-			if(sine) 
+			switch(inmode) {
+			case 1 :
+				if(n==0) inputOutput[coreio[nc].inputMap[ch]] = INT32_MAX/2;
+				break;
+			case 2 :
     				inputOutput[coreio[nc].inputMap[ch]] = round((double)INT32_MAX/2.0*sin(2.0*M_PI*1000.0*(double)n/(double)fs));
+				break;
+			case 3 :
+    				inputOutput[coreio[nc].inputMap[ch]] = RAND_MAX/16-(int)(rand()/8);
+				break;
+			}
 		}
 	
     		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
