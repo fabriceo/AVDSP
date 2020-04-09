@@ -129,11 +129,11 @@ static int encodeOneChannel(char *filename, int nc) {
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 6",4)==0) {
-		fprintf(stderr,"Filter %d : not implemented\n",nf);
+		dsp_Filter1stOrder(FLS1, Fc, G);
 		continue;
 	}
 	if(strncmp(&(line[15]),"HS 6",4)==0) {
-		fprintf(stderr,"Filter %d : not implemented\n",nf);
+		dsp_Filter1stOrder(FHS1, Fc, G);
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 12",5)==0) {
