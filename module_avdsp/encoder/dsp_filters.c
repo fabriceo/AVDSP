@@ -23,50 +23,37 @@ void dspFilter1stOrder( int type,
         dspFilterParam_t * a2
  )
 {
-
-    dspFilterParam_t a0, w0, cw0, sw0, tw2, alpha;
+    dspFilterParam_t a0, w0, tw2, alpha;
     w0 = M_PI * 2.0 * freq / fs;
-    cw0 = cos(w0);
-    sw0 = sin(w0);
     tw2 = tan(w0/2.0);
+    *a2 = 0;
+    *b2 = 0;
     switch (type) {
     case FLP1: {
         alpha = (1.0-tw2)/(1.0+tw2);
         *b0 = (1-alpha)/2.0;
         *b1 = *b0;
-        *b2 = 0;
         *a1 = alpha;
-        *a2 = 0;
     break; }
     case FHP1: {
         alpha = (1.0-tw2)/(1.0+tw2);
         *b0 = 1/(1+tw2);
         *b1 = -*b0;
-        *b2 = 0;
         *a1 = alpha;
-        *a2 = 0;
     break; }
     case FHS1: {
-        dspFilterParam_t A = gain;
-        dspFilterParam_t cos1 = cw0+1;
-        dspFilterParam_t alpha = (A-1)/(A+1);
-        a0 = cos1 + sw0*(1+alpha);
-        *a1 = -(sw0*(1+alpha) - cos1)/a0;
-        *a2 = 0;
-        *b0 = A*(cos1+sw0*(1-alpha))/a0;
-        *b1 = A*(sw0*(1-alpha)-cos1)/a0;
-        *b2 = 0;
+        dspFilterParam_t A = sqrt(gain);
+        a0 = A*tw2+1.0;
+        *a1 = -(A*tw2-1.0)/a0;
+        *b0 = (A*tw2+gain)/a0;
+        *b1 = (A*tw2-gain)/a0;
         break; }
     case FLS1: {
-        dspFilterParam_t A = gain;
-        dspFilterParam_t cos1 = cw0+1;
-        dspFilterParam_t alpha = (A-1)/(A+1);
-        a0 = cos1+sw0*(1-alpha);
-        *a1 = -(sw0*(1-alpha)-cos1)/a0;
-        *a2 = 0;
-        *b0 = A*(cos1+sw0*(1+alpha))/a0;
-        *b1 = A*(sw0*(1+alpha)-cos1)/a0;
-        *b2 = 0;
+        dspFilterParam_t A = sqrt(gain);
+        a0 = tw2+A;
+        *a1 = -(tw2-A)/a0;
+        *b0 = (gain*tw2+A)/a0;
+        *b1 = (gain*tw2-A)/a0;
         break; }
     case FAP1: {
         break;

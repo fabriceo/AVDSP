@@ -3,6 +3,9 @@
 #include <string.h>
 #include "dsp_encoder.h"
 
+#define DACOUT(x) (x)
+#define DACIN(x)  (8+(x))
+
 static int encodeOneChannel(char *filename, int nc) {
   FILE *fd;
   char *line;
@@ -35,9 +38,9 @@ static int encodeOneChannel(char *filename, int nc) {
   }
 
   dsp_CORE(); 
-  if(nc==0) dsp_TPDF(24); 
+  dsp_TPDF(24); 
 
-  dsp_LOAD_GAIN_Fixed(nc,1.0);
+  dsp_LOAD_GAIN_Fixed(DACIN(nc),1.0);
 
   dsp_PARAM();
   int filter = dspBiquad_Sections_Flexible();
@@ -126,11 +129,11 @@ static int encodeOneChannel(char *filename, int nc) {
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 6",4)==0) {
-		fprintf(stderr,"Filter %d : not implemented\n",nf);
+		dsp_Filter1stOrder(FLS1, Fc, G);
 		continue;
 	}
 	if(strncmp(&(line[15]),"HS 6",4)==0) {
-		fprintf(stderr,"Filter %d : not implemented\n",nf);
+		dsp_Filter1stOrder(FHS1, Fc, G);
 		continue;
 	}
 	if(strncmp(&(line[15]),"LS 12",5)==0) {
@@ -157,7 +160,7 @@ static int encodeOneChannel(char *filename, int nc) {
 
    dsp_SAT0DB_TPDF(); 
 
-   dsp_STORE(nc+8);
+   dsp_STORE(DACOUT(nc));
 
    fclose(fd);
    return 0;
