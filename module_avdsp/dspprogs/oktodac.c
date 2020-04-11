@@ -141,149 +141,169 @@ int dspProgTest(){
     return dsp_END_OF_CODE();
 }
 
-int mono = 0;
-
-const int left  = USBOUT(0);
-const int right = USBOUT(1);
-
-void crossoverLV6(int freq, int defaultGain, int gd, float gaincomp, int distlow, int in, int outlow, int outhigh){
-
-    dsp_PARAM();
-    int lowpassLV6 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES6(freq);
-        dsp_filter(FPEAK,200,3,dB2gain(4.0));
-
-    int compEQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FPEAK,1200,4,dB2gain(4.0));
-        dsp_filter(FHS2,3000,1,dB2gain(4.0));
-
-    int avgLR = dspLoadMux_Inputs(2);
-        dspLoadMux_Data(left,0.5 * defaultGain);
-        dspLoadMux_Data(right,0.5 * defaultGain);
-
-
-#if 0
-    if (mono) {
-        dsp_LOAD(left);
-        dsp_LOAD(right);
-        dsp_AVGXY();
-    } else
-        dsp_LOAD(in);
-    dsp_COPYXY();
-    dsp_DELAY_FixedMicroSec(gd);
-    dsp_GAIN_Fixed( defaultGain * 0.5 );
-    dsp_SWAPXY();
-    dsp_GAIN_Fixed( defaultGain * 0.5 );
-    dsp_BIQUADS(lowpassLV6);    //compute lowpass filter
-    dsp_SUBYX();                // compute high pass
-#else
-    if (mono)
-         dsp_LOAD_MUX(avgLR);
-    else dsp_LOAD_GAIN_Fixed(in, defaultGain);
-    dsp_COPYXY();
-    dsp_DELAY_DP_FixedMicroSec(gd);
-    dsp_SWAPXY();
-    dsp_BIQUADS(lowpassLV6);    //compute lowpass filter
-    dsp_SUBYX();                // compute high pass
-#endif
-    dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain / 0.5 );
-    if (distlow) dsp_DELAY_FixedMilliMeter(distlow,340.0);
-    dsp_STORE( DACOUT(outlow) ); // low driver
-    //dsp_STORE( USBIN(outlow) );
-    dsp_SWAPXY();
-    dsp_NEGX();
-    dsp_BIQUADS(compEQ);
-    dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * ( defaultGain / 0.5 ) );
-    dsp_STORE( DACOUT(outhigh) );
-    //dsp_STORE( USBIN(outhigh) );
-}
-
-void crossoverLR4(int freq, int defaultGain, int gd, float gaincomp, int distlow, int in, int outlow, int outhigh){
+#if 1
+void crossoverLR8_4(int freq, int defaultGain, int gd, float gaincomp, int microslow, int in, int outlow, int outhigh){
 
     dsp_PARAM();
     int lowpass = dspBiquad_Sections_Flexible();
-        dsp_LP_LR4(freq);
-        dsp_filter(FPEAK,200,3,dB2gain(4.0));
-
+        dsp_LP_BUT4(freq);
+        dsp_LP_BUT4(freq);
 
     int highpass = dspBiquad_Sections_Flexible();
-        dsp_HP_LR4(freq);
-        dsp_filter(FPEAK,1200,4,dB2gain(4.0));
-        dsp_filter(FHS2,3000,1,dB2gain(4.0));
+        dsp_HP_BUT4(freq);
 
-    int avgLR = dspLoadMux_Inputs(2);
-        dspLoadMux_Data(left,0.5 * defaultGain);
-        dspLoadMux_Data(right,0.5 * defaultGain);
-
-
-    if (mono)
-         dsp_LOAD_MUX(avgLR);
-    else dsp_LOAD_GAIN_Fixed(in, defaultGain);
-
-    dsp_COPYXY();
+    dsp_LOAD_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
-    dsp_SAT0DB_TPDF();
-    if (distlow) dsp_DELAY_FixedMilliMeter(distlow,340.0);
-    dsp_STORE( DACOUT(outlow) ); // low driver
+    dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
     //dsp_STORE( USBIN(outlow) );
-    dsp_SWAPXY();
+    if (microslow>0) {
+        dsp_DELAY_FixedMicroSec(microslow);
+        printf("woof delayed by %d us\n",microslow);
+    }
+    dsp_STORE( DACOUT(outlow) ); // low driver
+
+    dsp_LOAD_MEM(in);
     dsp_BIQUADS(highpass);   //compute lowpass filter
-    dsp_NEGX();
+    //dsp_NEGX();
     dsp_SAT0DB_TPDF_GAIN_Fixed(gaincomp * defaultGain);
-    dsp_STORE( DACOUT(outhigh) );
     //dsp_STORE( USBIN(outhigh) );
+    if (microslow<0) {
+        dsp_DELAY_FixedMicroSec(-microslow);
+        printf("comp delayed by %d us\n",-microslow);
+    }
+    dsp_STORE( DACOUT(outhigh) );
+}
+#endif
+
+
+void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, int microslow, int in, int outlow, int outhigh){
+
+    dsp_PARAM();
+    int lowpass = dspBiquad_Sections_Flexible();
+        dsp_LP_BES6(freq);
+
+    if (gd == 0) gd = 752000/freq;  // group delay of the bessel6
+    //if (gd == 0) gd = 986000/freq;  // group delay of the bessel8
+
+    int compEQ = dspBiquad_Sections_Flexible();
+        dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq
+        dsp_filter(FPEAK,1700,3,dB2gain(-3.0)); // 2,dB2gain(-4.8));
+        dsp_filter(FHS2,9000,0.6,dB2gain(6.0)); // 11500, 0.7,dB2gain(7.0)
+
+
+
+#if 0   // alternative solution with delay in single precision 32bits
+    dsp_LOAD(in);
+    dsp_COPYXY();
+    dsp_DELAY_FixedMicroSec(gd);
+    dsp_GAIN_Fixed( 1.0 );
+    dsp_SWAPXY();
+    dsp_GAIN_Fixed( 1.0 );
+    dsp_BIQUADS(lowpass);    //compute lowpass filter
+    dsp_SUBYX();                // compute high pass
+
+#else   // quickest solution with 64bits delay line
+    dsp_LOAD_MEM(in);
+    dsp_COPYXY();
+    dsp_DELAY_DP_FixedMicroSec(gd);
+    dsp_SWAPXY();
+    dsp_BIQUADS(lowpass);       //compute lowpass filter in X
+    dsp_SUBYX();                // compute high pass in Y
+#endif
+    if (dither)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
+    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
+    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+    if (microslow>0) {
+        dsp_DELAY_FixedMicroSec(microslow);
+        printf("woofer (ahead of compression) will be delayed by %d us\n",microslow); }
+    dsp_STORE( DACOUT(outlow) );
+
+    dsp_SWAPXY();               // get highpass
+    dsp_BIQUADS(compEQ);
+    //dsp_NEGX(); // invert phase due to cable mismatch ?
+    if (dither)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
+    else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
+    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+    if (microslow<0) {
+        dsp_DELAY_FixedMicroSec(-microslow);
+        printf("compression (behind woofer) will be additionally delayed by %d us\n",-microslow); }
+    dsp_STORE( DACOUT(outhigh) );
 }
 
+int mono = 0;
+const int leftin  = USBOUT(0);
+const int rightin = USBOUT(1);
 
-int dspProgDACFABRICEO(int fx, int gd, float gaincomp, int distlow, int dither){
+
+int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow){
     dspprintf("program for the dac belonging to the author\n");
 
     dsp_PARAM();
 
     int avgLR = dspLoadMux_Inputs(0);
-        dspLoadMux_Data(left,0.5);
-        dspLoadMux_Data(right,0.5);
+        dspLoadMux_Data(leftin,0.25);
+        dspLoadMux_Data(rightin,0.25);
 
-    dsp_CORE();  // first core
+    int leftmem  = dspMem_Location();
+    int rightmem = dspMem_Location();
+    int avgLRmem = dspMem_Location();
 
-    if (dither == 0) dither = 24;
-    dsp_TPDF(dither);   // returns nTh bit noise like the one used in SAT0DB_TPDF
+    int mainEQ = dspBiquad_Sections_Flexible();
+    dsp_filter(FLS1,250,0.5,dB2gain(-3.0));
+    //dsp_filter(FPEAK,50,3,dB2gain(-6.0));
+
+    int testEQ = dspBiquad_Sections_Flexible();
+    dsp_filter(FHP2,850,0.75,1.0);
+    dsp_HP_BUT4(510);
+
+dsp_CORE();  // first core
+
+    if (dither) {
+        printf("ditehring enable for %d usefull bits\n",dither);
+        dsp_TPDF(dither);
+    }
 
     dsp_LOAD_STORE();
-        dspLoadStore_Data( left,  DACOUT(0) );   // headphones
-        dspLoadStore_Data( right, DACOUT(1) );
-        //dspLoadStore_Data( ADCIN(0),  USBIN(0) );    // spdif in
-        //dspLoadStore_Data( ADCIN(1),  USBIN(1) );
-        dspLoadStore_Data( right, USBIN(1) );    // loopback REW
-/*
-    dsp_LOAD(left);
-    dsp_STORE( DACOUT(2) ); // low driver
-    dsp_STORE( USBIN(2) );  // low driver
-    dsp_LOAD(right);
-    dsp_STORE( DACOUT(3) ); // high driver
-    dsp_STORE( USBIN(3) );  // high driver
-     */
-    crossoverLV6(fx, 1.0 , gd, gaincomp, distlow, left, 2, 3);
-    //crossoverLR4(fx, 1.0 , gd, gaincomp, distlow, left, 2, 3);
+        dspLoadStore_Data( leftin,  DACOUT(0) );      // headphones
+        dspLoadStore_Data( rightin, DACOUT(1) );
+        dspLoadStore_Data( rightin, USBIN(7) );       // loopback rew
+        dspLoadStore_Data( ADCIN(0),  USBIN(0) );   // spdif in
+        dspLoadStore_Data( ADCIN(1),  USBIN(1) );
 
+    if (mono) {
+        dsp_LOAD_MUX(avgLR);        // load and mix left+right
+        dsp_STORE_MEM(avgLRmem);
+        dsp_BIQUADS(mainEQ);
+        dsp_STORE_MEM(leftmem);
+        dsp_STORE_MEM(rightmem);
 
-    dsp_CORE();  // second core for test
+        dsp_LOAD_MEM(avgLRmem);
+    } else {
+        dsp_LOAD_GAIN_Fixed(leftin, 0.5);
+        dsp_BIQUADS(mainEQ);
+        dsp_STORE_MEM(leftmem);
 
-    dsp_LOAD_MUX(avgLR);
-    dsp_DITHER();
+        dsp_LOAD_GAIN_Fixed(rightin, 0.5);
+        dsp_BIQUADS(mainEQ);
+        dsp_STORE_MEM(rightmem);
+
+        dsp_LOAD_MUX(avgLR);
+    }
+    //dsp_BIQUADS(testEQ);
     dsp_SAT0DB();
+    dsp_STORE(DACOUT(6));   // center = (left+right )/2
+    dsp_STORE(USBIN(6));
 
-    //dsp_LOAD(left);
-    //dsp_LOAD(right);
-    //dsp_AVGXY();
-
-    dsp_STORE(DACOUT(6));   // center
-    //dsp_STORE(USBIN(6));
-    dsp_STORE(DACOUT(7));   // lfe
+    //dsp_STORE(DACOUT(7));   // lfe
     //dsp_STORE(USBIN(7));
 
-    crossoverLV6(fx, 1.0 , gd, gaincomp, distlow, right, 4, 5);
-    //crossoverLR4(fx, 1.0 , gd, gaincomp, distlow, right, 4, 5);
+dsp_CORE();  // second core for test
+    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 2, 3);
+
+dsp_CORE();  // second core for test
+    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 4, 5);
 
     return dsp_END_OF_CODE();
 }
@@ -295,9 +315,9 @@ int dspProg(int argc,char **argv){
    int dither = 0;
    int outs;
    int fx = 800;
-   int gd = 930;    // typicall groupdelay for BES6 @ 800hz
-   float gaincomp = 1.0;
-   int distlow = 300;  //300mm ahead of compression driver
+   int gd = 0;
+   float gaincomp = 0.5;
+   int microslow = 900;  //300mm ahead of compression driver = 900us
    	for(int i=0 ; i<argc;i++) {
         // parse USER'S command line parameters
 
@@ -362,11 +382,11 @@ int dspProg(int argc,char **argv){
                     continue; }
 
                  if (strcmp(argv[i],"-dither") == 0) {
-                     dither = 24;
+                     dither = 23;
                       if (argc>=i) {
                           i++;
                           dither = strtol(argv[i], NULL,10); }
-                     dspprintf("add dithering %d \n",dither);
+                     dspprintf("add dithering %d bits \n",dither);
                      continue; }
 
                  if (strcmp(argv[i],"-dacfabriceo") == 0) {
@@ -394,11 +414,11 @@ int dspProg(int argc,char **argv){
                     dspprintf("substractive delay %dus\n",gd);
                     continue; }
 
-                if (strcmp(argv[i],"-distlow") == 0) {
+                if (strcmp(argv[i],"-microslow") == 0) {
                      if (argc>=i) {
                          i++;
-                         distlow = strtol(argv[i], NULL,10); }
-                    dspprintf("low driver ahead %dmm\n",distlow);
+                         microslow = strtol(argv[i], NULL,10); }
+                    dspprintf("low driver delayed by %duSec\n",microslow);
                     continue; }
 
                 if (strcmp(argv[i],"-gcomp") == 0) {
@@ -414,7 +434,7 @@ int dspProg(int argc,char **argv){
 	case 2:  return dspProgDACSTEREO(outs, dither);
 	case 3:  return dspProgUsbLoopBack(outs, dither);
     case 4:  return dspProgTest();
-    case 5:  return dspProgDACFABRICEO(fx, gd, gaincomp, distlow,dither);
+    case 5:  return dspProgDACFABRICEO(fx, gd, dither, gaincomp, microslow);
 	default: return dspNoProg();
 	}
 }

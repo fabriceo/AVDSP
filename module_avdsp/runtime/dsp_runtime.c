@@ -16,7 +16,7 @@
 #include "dsp_tpdf.h"           // functions related to randomizer, tpdf, truncation as static inline
 #include "dsp_biquadSTD.h"      // biquad functions prototypes
 #include "dsp_firSTD.h"         // fir functions prototypes (wip)
-#include "math.h"               // used for importing float sqrt()
+#include <math.h>               // used for importing float sqrt()
 
 //prototypes
 opcode_t * dspFindCore(opcode_t * ptr, const int numCore);  // search for a core and return begining of core code

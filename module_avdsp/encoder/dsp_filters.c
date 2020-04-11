@@ -64,8 +64,8 @@ void dspFilter1stOrder( int type,
         a0 = cos1+sw0*(1-alpha);
         *a1 = -(sw0*(1-alpha)-cos1)/a0;
         *a2 = 0;
-        *b0 = (cos1+sw0*(1+alpha))/a0;
-        *b1 = (sw0*(1+alpha)-cos1)/a0;
+        *b0 = A*(cos1+sw0*(1+alpha))/a0;
+        *b1 = A*(sw0*(1+alpha)-cos1)/a0;
         *b2 = 0;
         break; }
     case FAP1: {
