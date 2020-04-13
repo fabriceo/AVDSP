@@ -26,21 +26,36 @@ void dspFilter1stOrder( int type,
     dspFilterParam_t a0, w0, tw2, alpha;
     w0 = M_PI * 2.0 * freq / fs;
     tw2 = tan(w0/2.0);
+    a0 = gain;
     *a2 = 0;
     *b2 = 0;
     switch (type) {
     case FLP1: {
+        alpha = 1.0 + tw2;
+        *a1 = ((1.0-tw2)/alpha) / a0;
+        *b0 = tw2/alpha / a0;
+        *b1 = *b0;
+    break; }
+    case FHP1: {
+        alpha = 1.0 + tw2;
+        *a1 = ((1.0-tw2)/alpha) /a0;
+        *b0 = 1.0/alpha / a0;
+        *b1 = -1.0/alpha / a0;
+    break; }
+#if 0
+    case FLP1: {
         alpha = (1.0-tw2)/(1.0+tw2);
-        *b0 = (1-alpha)/2.0;
+        *b0 = (1.0-alpha)/2.0;
         *b1 = *b0;
         *a1 = alpha;
     break; }
     case FHP1: {
         alpha = (1.0-tw2)/(1.0+tw2);
-        *b0 = 1/(1+tw2);
+        *b0 = 1.0/(1.0+tw2);
         *b1 = -*b0;
         *a1 = alpha;
     break; }
+#endif
     case FHS1: {
         dspFilterParam_t A = sqrt(gain);
         a0 = A*tw2+1.0;
@@ -85,7 +100,7 @@ void dspFilter2ndOrder( int type,
     *a1 = -(-2.0 * cw0) / a0;
     *a2 = -(1.0 - alpha ) / a0;
     switch (type) {
-    case FLP2: { // b0,b1,b2 are very small and this LP2 filter requires double precision biquad
+    case FLP2: {
         *b1 = (1.0 - cw0) / a0 * gain;
         *b0 = *b1 / 2.0;
         *b2 = *b0;
@@ -105,6 +120,16 @@ void dspFilter2ndOrder( int type,
         *b1 = -*a1 * gain;
         *b2 = *b0;
         break; }
+    case FBPQ : { // peak gain = Q
+        *b0= sw0/2.0 / a0;
+        *b1 = 0;
+        *b2 = -sw0/2.0 / a0;
+        break; }
+    case FBP0DB : { // 0DB peak gain
+        *b0= alpha / a0;
+        *b1 = 0;
+        *b2 = -alpha / a0;
+    break; }
     case FPEAK: {
         dspFilterParam_t A = sqrt(gain);
         a0 = 1.0 + alpha / A;
@@ -534,6 +559,8 @@ int dsp_filter(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam
     case FAP2  : tmp = dsp_Filter2ndOrder(FAP2,freq,Q,gain); break;
     case FPEAK : tmp = dsp_Filter2ndOrder(FPEAK,freq,Q,gain); break;
     case FNOTCH: tmp = dsp_Filter2ndOrder(FNOTCH,freq,Q,gain); break;
+    case FBP0DB: tmp = dsp_Filter2ndOrder(FBP0DB,freq,Q,gain); break;
+    case FBPQ:   tmp = dsp_Filter2ndOrder(FBP0DB,freq,Q,gain); break;
 //first order
     case FLP1: tmp = dsp_Filter1stOrder(FLP1,freq, gain); break;
     case FHP1: tmp = dsp_Filter1stOrder(FHP1,freq, gain); break;

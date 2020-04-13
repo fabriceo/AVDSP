@@ -232,6 +232,80 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_STORE( DACOUT(outhigh) );
 }
 
+void crossoverNTM(int freq, int gd, int dither, int defaultGain, float gaincomp, int microslow, int in, int outlow, int outhigh){
+const float J = 1.0;
+const float K = 0.6;
+const float Q = 2.0;
+    dsp_PARAM();
+    int HPF1 = dspBiquad_Sections_Flexible();
+        dsp_filter(FHP1, 1000/J, 0.5, 1.0);
+    int HBPF2 = dspBiquad_Sections_Flexible();
+        dsp_filter(FBP0DB, 1000/J*K, Q, 1.0);
+    int LPF1 = dspBiquad_Sections_Flexible();
+        dsp_filter(FLP1, 1000*J, 0.5, 1.0);
+    int LBPF2 = dspBiquad_Sections_Flexible();
+        dsp_filter(FBP0DB, 1000*J/K, Q, 1.0);
+
+    int memHPF = dspMem_Location();
+    int memLPF = dspMem_Location();
+    int memHBPF = dspMem_Location();
+    int memLBPF = dspMem_Location();
+
+    int compEQ = dspBiquad_Sections_Flexible();
+        dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq
+        dsp_filter(FPEAK,1700,3,dB2gain(-3.0)); // 2,dB2gain(-4.8));
+        dsp_filter(FHS2,9000,0.6,dB2gain(6.0)); // 11500, 0.7,dB2gain(7.0)
+
+    dsp_LOAD_MEM(in);
+    dsp_BIQUADS(HPF1);
+    dsp_COPYXY();
+    dsp_BIQUADS(HBPF2);
+    dsp_STORE_MEM(memHBPF);
+    dsp_NEGX();
+    dsp_ADDXY();
+    dsp_STORE_MEM(memHPF);
+
+    dsp_LOAD_MEM(in);
+    dsp_BIQUADS(LPF1);
+    dsp_COPYXY();
+    dsp_BIQUADS(LBPF2);
+    dsp_STORE_MEM(memLBPF);
+    dsp_NEGX();
+    dsp_ADDXY();
+    dsp_LOAD_MEM(memHBPF);
+    dsp_ADDXY();
+    dsp_STORE_MEM(memLPF);
+    // low is ready
+    if (dither)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
+    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
+    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+    if (microslow>0) {
+        dsp_DELAY_FixedMicroSec(microslow);
+        printf("woofer (ahead of compression) will be delayed by %d us\n",microslow); }
+    dsp_STORE( DACOUT(outlow) );
+
+
+    dsp_LOAD_MEM(memHPF);
+    dsp_LOAD_MEM(memLBPF);
+    dsp_ADDXY();
+    dsp_LOAD_MEM(memLPF);
+    dsp_ADDXY();
+    // high ready
+
+    //dsp_BIQUADS(compEQ);
+    //dsp_NEGX(); // invert phase due to cable mismatch ?
+    if (dither)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
+    else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
+    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+    if (microslow<0) {
+        dsp_DELAY_FixedMicroSec(-microslow);
+        printf("compression (behind woofer) will be additionally delayed by %d us\n",-microslow); }
+    dsp_STORE( DACOUT(outhigh) );
+}
+
+
 int mono = 0;
 const int leftin  = USBOUT(0);
 const int rightin = USBOUT(1);
@@ -255,8 +329,9 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     //dsp_filter(FPEAK,50,3,dB2gain(-6.0));
 
     int testEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FHP2,850,0.75,1.0);
-    dsp_HP_BUT4(510);
+    //dsp_filter(FHP2,850,0.75,1.0);
+    //dsp_HP_BUT4(510);
+    dsp_filter(FBPQ,1000,2.0,1.0);
 
 dsp_CORE();  // first core
 
@@ -275,23 +350,23 @@ dsp_CORE();  // first core
     if (mono) {
         dsp_LOAD_MUX(avgLR);        // load and mix left+right
         dsp_STORE_MEM(avgLRmem);
-        dsp_BIQUADS(mainEQ);
+        //dsp_BIQUADS(mainEQ);
         dsp_STORE_MEM(leftmem);
         dsp_STORE_MEM(rightmem);
 
         dsp_LOAD_MEM(avgLRmem);
     } else {
         dsp_LOAD_GAIN_Fixed(leftin, 0.5);
-        dsp_BIQUADS(mainEQ);
+        //dsp_BIQUADS(mainEQ);
         dsp_STORE_MEM(leftmem);
 
         dsp_LOAD_GAIN_Fixed(rightin, 0.5);
-        dsp_BIQUADS(mainEQ);
+        //dsp_BIQUADS(mainEQ);
         dsp_STORE_MEM(rightmem);
 
         dsp_LOAD_MUX(avgLR);
     }
-    //dsp_BIQUADS(testEQ);
+    dsp_BIQUADS(testEQ);
     dsp_SAT0DB();
     dsp_STORE(DACOUT(6));   // center = (left+right )/2
     dsp_STORE(USBIN(6));
@@ -300,10 +375,10 @@ dsp_CORE();  // first core
     //dsp_STORE(USBIN(7));
 
 dsp_CORE();  // second core for test
-    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 2, 3);
+    crossoverNTM(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 2, 3);
 
 dsp_CORE();  // second core for test
-    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 4, 5);
+    crossoverNTM(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 4, 5);
 
     return dsp_END_OF_CODE();
 }

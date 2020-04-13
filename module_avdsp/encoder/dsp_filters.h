@@ -21,7 +21,7 @@ enum filterTypes {
         Fna1,LPLR2,LPLR3,LPLR4,Fna3,LPLR6,Fna4,LPLR8,
         Fna5,HPLR2,HPLR3,HPLR4,Fna7,HPLR6,Fna8,HPLR8,            // linkwitz rilley
         FLP1,FLP2,FHP1,FHP2,FLS1,FLS2,FHS1,FHS2,
-        FAP1,FAP2,FPEAK,FNOTCH,                  // other shelving, allpass, peaking, notch
+        FAP1,FAP2,FPEAK,FNOTCH, FBP0DB, FBPQ                 // other shelving, allpass, peaking, notch
 };
 
 
