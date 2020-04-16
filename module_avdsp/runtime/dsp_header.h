@@ -199,16 +199,18 @@ typedef struct dspHeader_s {    // 11 words
         } dspHeader_t;
 
 //prototypes
-
+#include <stdio.h>
 static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore){
     *sum = 0;
     *numCore = 0;
+    //printf("ptr = 0x%X\n",(int)ptr);
     while(1){
         int code = ptr->op.opcode;
         int skip = ptr->op.skip;
         if (skip == 0) break;   // end of program encountered
         if (code == DSP_CORE) (*numCore)++;
         *sum += ptr->u32;
+        //printf("ptr = 0x%X, *ptr=0x%X\n",(int)ptr,ptr->u32);
         ptr += skip;
     } // while(1)
     if (*numCore == 0) *numCore = 1;
