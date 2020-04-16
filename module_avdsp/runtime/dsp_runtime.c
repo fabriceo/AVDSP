@@ -128,18 +128,9 @@ static int dspBiquadFreqOffset;
 
 static void dspChangeFormat(opcode_t * ptr, int newFormat);
 
-// make the basic sanity check, predefine some FS related variable
-// DOES CLEAR THE DATA AREA from end of program to max_code_size
-// to be ran once before dspRuntime() and at EACH sampling frequency change.
-int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
-                    int maxSize,                    // size of the opcode table available in memory including data area
-                    const int fs,                   // sampling frequency currently in use
-                    int random) {                   // for tpdf / dithering
-
-    dspHeaderPtr = (dspHeader_t*)codePtr;
-    opcode_t* cptr = codePtr;
-    int code = cptr->op.opcode;
-    if (code == DSP_HEADER) {
+// to be ran after dspRuntimeInit() at EACH sampling frequency change.
+int dspRuntimeReset(const int fs)
+{
         int freqIndex = dspFindFrequencyIndex(fs);
         if (freqIndex<0) {
             dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
@@ -157,8 +148,31 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         dspBiquadFreqOffset = 5+6*dspSamplingFreqIndex; // skip also the 1+1+3 first words
         dspDelayLineFactor  = dspTableDelayFactor[freqIndex];
         dspRmsFactorFS      = dspTableRmsFactor[freqIndex];
+        // now clear the data area, just after the program area
+        int length = dspHeaderPtr->totalLength;    // lenght of the program
+        int size   = dspHeaderPtr->dataSize;       // size of the data needed
+        int * intPtr = (int*)dspHeaderPtr + length;  // point on data space
+        for (int i = 0; i < size; i++) *(intPtr+i) = 0;
+
+	return 0;
+}
+
+// make the basic sanity check, predefine some FS related variable
+// DOES CLEAR THE DATA AREA from end of program to max_code_size
+// to be ran once before dspRuntime().
+int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
+                    int maxSize,                    // size of the opcode table available in memory including data area
+                    const int fs,                   // sampling frequency currently in use
+                    int random) {                   // for tpdf / dithering
+
+    dspHeaderPtr = (dspHeader_t*)codePtr;
+    opcode_t* cptr = codePtr;
+    int code = cptr->op.opcode;
+    if (code == DSP_HEADER) {
+
         unsigned sum ;
         int numCores ;
+	int res;
         dspCalcSumCore(codePtr, &sum, &numCores);
         if (numCores < 1) {
             dspprintf("ERROR : no cores defined in the program.\n"); return -3; }
@@ -182,10 +196,9 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         if (dspHeaderPtr->format != 0)
             dspChangeFormat(codePtr, 0);
 #endif
+	res=dspRuntimeReset(fs);
+	if(res) return res;
 
-        // now clear the data area, just after the program area
-        int * intPtr = (int*)codePtr + length;  // point on data space
-        for (int i = 0; i < size; i++) *(intPtr+i) = 0;
         dspTpdfInit(random);
         return length;  // ok
     } else {
