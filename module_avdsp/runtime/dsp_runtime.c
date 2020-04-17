@@ -48,7 +48,7 @@ opcode_t * dspFindCore(opcode_t * codePtr, const int numCore){  // search core a
     int num = 0;
     while (1) {
         int code = ptr->op.opcode;
-        int skip = ptr->op.skip;
+        unsigned int skip = ptr->op.skip;
         //printf("1ptr @0x%X = %d-%d\n",(int)ptr,code, skip);
         if (skip == 0) {// = END_OF_CORE
             if (num == 0) return codePtr;   // if no dsp_CORE, then return begining of code
@@ -66,7 +66,7 @@ opcode_t * dspFindCoreBegin(opcode_t * ptr){
 if ((ptr != 0) && (ptr->op.opcode == DSP_CORE))
     while (1) { // skip garabage at begining of core code
         int code = ptr->op.opcode;
-        int skip = ptr->op.skip;
+        unsigned int skip = ptr->op.skip;
         if (skip == 0) return ptr; // = END_OF_CODE
         if ( (code == DSP_CORE) ||
              (code == DSP_NOP) ||
@@ -169,11 +169,17 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
     opcode_t* cptr = codePtr;
     int code = cptr->op.opcode;
     if (code == DSP_HEADER) {
-
         unsigned sum ;
         int numCores ;
 	int res;
-        dspCalcSumCore(codePtr, &sum, &numCores);
+
+    int length = dspHeaderPtr->totalLength;    // lenght of the program
+    int size   = dspHeaderPtr->dataSize;       // size of the data needed
+    //printf("lenght=%d, size=%d\n",length, size);
+    if ((size+length) > maxSize){
+        dspprintf("ERROR : total size (program+data = %d) is over the allowed size (%d).\n",length+size, maxSize); return -6; }
+
+        dspCalcSumCore(codePtr, &sum, &numCores,length);
         if (numCores < 1) {
             dspprintf("ERROR : no cores defined in the program.\n"); return -3; }
         if (sum != dspHeaderPtr->checkSum) {
@@ -182,11 +188,6 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         if (dspHeaderPtr->maxOpcode >= DSP_MAX_OPCODE) {
             dspprintf("ERROR : some opcodes in the program are not supported in this runtime version.\n"); return -5; }
 
-        int length = dspHeaderPtr->totalLength;    // lenght of the program
-        int size   = dspHeaderPtr->dataSize;       // size of the data needed
-        //printf("lenght=%d, size=%d\n",length, size);
-        if ((size+length) > maxSize){
-            dspprintf("ERROR : total size (program+data = %d) is over the allowed size (%d).\n",length+size, maxSize); return -6; }
 
         dspMantissa = DSP_MANT; // possibility to pass this as a parameter in a later version
 #if   DSP_ALU_INT
@@ -232,7 +233,7 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
     if (oldFormat == newFormat) return;
     while(1){
         int code = ptr->op.opcode;
-        int skip = ptr->op.skip;
+        unsigned int skip = ptr->op.skip;
         if (skip == 0) break;       // end of program encountered
         int * cptr = (int*)(ptr+1); // point on the first parameter
         switch(code){
@@ -325,7 +326,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
         int * cptr = (int*)ptr;
         int opcode = ptr->op.opcode;
-        int skip   = ptr->op.skip;
+        unsigned int skip   = ptr->op.skip;
         dspprintf2("[%2d] <+%3d> : ", opcode, skip);
         cptr++; // will point on the first potential parameter just after the opcode
 
@@ -747,7 +748,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_LOAD_STORE: {
-            int max = skip-1;   // length of following data in number of words
+            unsigned int max = skip-1;   // length of following data in number of words
             dspprintf2("LOAD_STORE (%d)",max);
             while (max) {
                 int index = *cptr++;
@@ -953,7 +954,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     dspALU_SP_t * linePtr = (dspALU_SP_t*)dataPtr+index;
                     dspALU_SP_t value = *linePtr;
                     #if DSP_ALU_INT
-                        *linePtr = dspShiftInt( ALU, DSP_MANTBQ );    //remove the size of a biquad coef, as the result will be scaled accordingly
+                        *linePtr = dspShiftInt( ALU, DSP_MANT_FLEX );    //remove the size of a biquad coef, as the result will be scaled accordingly
                     #else
                         *linePtr = ALU;
                     #endif

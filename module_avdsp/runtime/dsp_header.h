@@ -34,13 +34,13 @@
 // for INT32, DSP_MANT is maximum 15 by design
 // minimum is 8 by design
 #ifndef DSP_MANT
-#define DSP_MANT 28
+#define DSP_MANT 24
 #endif
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
 // remark for XS2 architecture, this value must be modified also in the biquad assembly file
 #ifndef DSP_MANTBQ
-#define DSP_MANTBQ 28
+#define DSP_MANTBQ 24
 #endif
 
 // special macro for s.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
@@ -200,20 +200,23 @@ typedef struct dspHeader_s {    // 11 words
 
 //prototypes
 #include <stdio.h>
-static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore){
+static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore, unsigned int maxcode){
     *sum = 0;
     *numCore = 0;
-    //printf("ptr = 0x%X\n",(int)ptr);
+    unsigned int p = 0;
     while(1){
         int code = ptr->op.opcode;
-        int skip = ptr->op.skip;
-        if (skip == 0) break;   // end of program encountered
+        unsigned int skip = ptr->op.skip;
+        if (skip == 0) {
+            if (*numCore == 0) *numCore = 1;
+            break;   // end of program encountered
+        }
         if (code == DSP_CORE) (*numCore)++;
         *sum += ptr->u32;
-        //printf("ptr = 0x%X, *ptr=0x%X\n",(int)ptr,ptr->u32);
+        p += skip;
+        if (p > maxcode) { printf("BUGG : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // issue
         ptr += skip;
     } // while(1)
-    if (*numCore == 0) *numCore = 1;
 }
 
 static inline long long dspQNMmax(){ return DSP_Q31_MAX; }

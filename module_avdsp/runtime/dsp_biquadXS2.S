@@ -3,7 +3,7 @@
 #if defined(__XS2A__)
 
 #define SKIP dspBiquadFreqSkip	/* global parameter from dsp_runtime.c to add a constatnt to coefptr*/
-#define DSP_MANTBQ  28
+#define DSP_MANTBQ  24
 #define NSTACKWORDS 8
 //.syntax default
 //.syntax architectural

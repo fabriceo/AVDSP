@@ -270,9 +270,9 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
 
     int compEQ = dspBiquad_Sections_Flexible();
         //dsp_filter(FNOTCH,  200,0.7,1.0);   // extra protection to remove lower freq
-        dsp_filter(FPEAK,1000,5,dB2gain(+4.0)); // 2,dB2gain(-4.8));
-        dsp_filter(FPEAK,1700,3,dB2gain(-3.0)); // 2,dB2gain(-4.8));
-        dsp_filter(FHS2, 9000,0.6,dB2gain(6.0)); // 11500, 0.7,dB2gain(7.0)
+        dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
+        dsp_filter(FPEAK,1700,3,dB2gain(-3.0));
+        dsp_filter(FHS2, 9000,0.6,dB2gain(6.0));
 
 
 
@@ -319,8 +319,8 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
 
 
 int mono = 0;
-const int leftin  = USBOUT(0);
-const int rightin = USBOUT(1);
+const int rightin = USBOUT(0);
+const int leftin  = USBOUT(1);
 
 
 int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow){
@@ -334,11 +334,11 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     int avgLRmem = dspMem_Location();
 
     int mainEQ = dspBiquad_Sections_Flexible();
-    //dsp_filter(FHP1, 20, 0.5, 1.0);
+    dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
     dsp_filter(FPEAK, 580,  2.0, dB2gain(-4.0));
-    //dsp_filter(FPEAK, 50,  1.0, dB2gain(1.0));
 
-    const float attenuation = dB2gain(-3.0); // to compensate above potential gains and avoid any saturation in first biquads.
+
+    const float attenuation = dB2gain(-6.0); // to compensate above potential gains and avoid any saturation in first biquads.
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(leftin,0.5 * attenuation);

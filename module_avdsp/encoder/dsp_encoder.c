@@ -571,7 +571,7 @@ int dsp_END_OF_CODE(){
     // now calculate the simplified checksum of all the opcodes and count number of cores
     unsigned int sum;
     int numCore;
-    dspCalcSumCore(opcodePtr(0), &sum, &numCore);
+    dspCalcSumCore(opcodePtr(0), &sum, &numCore,dspHeaderPtr->totalLength);
     dspHeaderPtr->checkSum = sum;           // comit checksum
     dspprintf1("check sum      = %d\n", sum);
     if (numCore == 0) numCore = 1;
