@@ -305,10 +305,12 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_STORE( DACOUT(outlow) );
 
     dsp_SWAPXY();               // get highpass
+    dsp_SHIFT_FixedInt(-100);   // by default -100 means DSP_MANT
+    dsp_GAIN_Fixed(gaincomp);
     dsp_BIQUADS(compEQ);
     if (dither)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
+         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
+    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
     if (microslow<0) {
         dsp_DELAY_FixedMicroSec(-microslow);
@@ -338,7 +340,7 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     dsp_filter(FPEAK, 580,  2.0, dB2gain(-4.0));
 
 
-    const float attenuation = dB2gain(-6.0); // to compensate above potential gains and avoid any saturation in first biquads.
+    const float attenuation = dB2gain(-3.0); // to compensate above potential gains and avoid any saturation in first biquads.
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(leftin,0.5 * attenuation);
