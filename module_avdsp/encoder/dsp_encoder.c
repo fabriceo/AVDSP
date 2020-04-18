@@ -1126,7 +1126,7 @@ void dsp_DELAY_DP(int paramAddr){
     dsp_DELAY_(paramAddr, DSP_DELAY_DP);
 }
 
-static const int dspTableFreq[FMAXpos] = {
+const int dspTableFreq[FMAXpos] = {
         8000, 16000,
         24000, 32000,
         44100, 48000,

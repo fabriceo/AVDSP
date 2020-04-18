@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
         dspFatalError("Cant load opcode file.");
  
     // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
-    int result = dspRuntimeInit(codePtr, 96000, opcodesMax, 0);   
+    int result = dspRuntimeInit(codePtr, 96000, opcodesMax, 0,23);
 
     if (result < 0) 
         dspFatalError("Problem with opcode header or compatibility.");

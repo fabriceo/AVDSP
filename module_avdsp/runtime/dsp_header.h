@@ -157,6 +157,27 @@ enum dspFreqs {
 };
 
 
+//search a literal frequency in the list of possible supported frequencies
+static inline int dspFindFrequencyIndex(int freq){
+    switch (freq) {
+    case  8000  : return F8000; break;
+    case 16000  : return F16000; break;
+    case 24000  : return F24000; break;
+    case 32000  : return F32000; break;
+    case 44100  : return F44100; break;
+    case 48000  : return F48000; break;
+    case 88200  : return F88200; break;
+    case 96000  : return F96000; break;
+    case 176400 : return F176400; break;
+    case 192000 : return F192000; break;
+    case 352800 : return F352800; break;
+    case 384000 : return F384000; break;
+    case 705600 : return F705600; break;
+    case 768000 : return F768000; break;
+    default     : return FMAXpos; break;
+    }
+}
+
 #define DSP_DEFAULT_MIN_FREQ (F44100)
 #define DSP_DEFAULT_MAX_FREQ (F192000)
 

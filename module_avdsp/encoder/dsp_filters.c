@@ -8,10 +8,10 @@
 
 #include "dsp_filters.h"      // enum dsp codes, typedefs and QNM definition
 
-extern int dspMinSamplingFreq;  // from encoder.c
+extern int dspMinSamplingFreq;  // from encoder.c, initialised by EncoderInit
 extern int dspMaxSamplingFreq;
 
-// calc the biquad coefficient for a given filter type
+// calc the biquad coefficient for a given filter type. dspFilterParam_t is double (see dsp_header.h)
 void dspFilter1stOrder( int type,
         dspFilterParam_t fs,
         dspFilterParam_t freq,
@@ -39,7 +39,7 @@ void dspFilter1stOrder( int type,
     case FHP1: {
         alpha = 1.0 + tw2;
         *a1 = ((1.0-tw2)/alpha) /a0;
-        *b0 = 1.0/alpha / a0;
+        *b0 =  1.0/alpha / a0;
         *b1 = -1.0/alpha / a0;
     break; }
 #if 0
@@ -97,8 +97,8 @@ void dspFilter2ndOrder( int type,
     tw2 = tan(w0/2.0);
     if (Q != 0.0) alpha = sw0 / 2.0 / Q; else alpha = 1;
     a0 = (1.0 + alpha);
-    *a1 = -(-2.0 * cw0) / a0;
-    *a2 = -(1.0 - alpha ) / a0;
+    *a1 = -(-2.0 * cw0) / a0;       // sign is changed to accomodate convention
+    *a2 = -(1.0 - alpha ) / a0;     // and coeficients are normalized vs a0
     switch (type) {
     case FLP2: {
         *b1 = (1.0 - cw0) / a0 * gain;
@@ -163,22 +163,12 @@ void dspFilter2ndOrder( int type,
 }
 
 
-// from des_encode.c
+// from dsp_encoder.c
 extern int  addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2);
-extern int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
+extern int  addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
 extern void sectionBiquadCoeficientsBegin();
 extern void sectionBiquadCoeficientsEnd();
-
-
-static const int dspTableFreq[FMAXpos] = {
-        8000, 16000,
-        24000, 32000,
-        44100, 48000,
-        88200, 96000,
-        176400,192000,
-        352800,384000,
-        705600, 768000 };
-
+extern const int dspTableFreq[FMAXpos];
 
 int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain){
     int coefPtr = 0;

@@ -25,7 +25,8 @@ opcode_t * dspFindCoreBegin(opcode_t * ptr);
 int dspRuntimeInit( opcode_t * codePtr,     // pointer on the dspprogram
                     int maxSize,            // size of the opcode table available in memory including data area
                     const int fs,           // sampling frequency to be used
-                    int random);            // initial value for random generator
+                    int random,             // initial value for random generator
+                    int defaultDither);     // dither value used for dsp_TPDF(0)
 
 int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the coree to be executed
                                     int * rundataPtr,       // pointer on the data area (end of code)
@@ -79,23 +80,6 @@ if ((ptr != 0) && (ptr->op.opcode == DSP_CORE))
     return ptr;
 }
 
-
-// this defines the maximum list of possible sampling frequencies
-static const int dspTableFreq[FMAXpos] = {
-        8000, 16000,
-        24000, 32000,
-        44100, 48000,
-        88200, 96000,
-        176400,192000,
-        352800,384000,
-        705600, 768000 };
-
-//search a literal frequency in the list of possible supported frequencies
-static inline int dspFindFrequencyIndex(int freq){
-    for (int i=0; i<FMAXpos; i++)
-        if (freq == dspTableFreq[i]) return i;
-    return -1;
-}
 
 // table of magic number to be multiplied by a number of microseconds to get a number of sample (x2^32)
 #define dspDelayFactor 4294.967296  // 2^32/10^6
@@ -163,7 +147,8 @@ int dspRuntimeReset(const int fs)
 int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
                     int maxSize,                    // size of the opcode table available in memory including data area
                     const int fs,                   // sampling frequency currently in use
-                    int random) {                   // for tpdf / dithering
+                    int random,                     // for tpdf / dithering
+                    int defaultDither) {            // dither value used for dsp_TPDF(0)
 
     dspHeaderPtr = (dspHeader_t*)codePtr;
     opcode_t* cptr = codePtr;
@@ -200,7 +185,7 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
 	res=dspRuntimeReset(fs);
 	if(res) return res;
 
-        dspTpdfInit(random);
+        dspTpdfInit(random,defaultDither);
         return length;  // ok
     } else {
         dspprintf("ERROR : no dsp header in this program.\n"); return -1; }
