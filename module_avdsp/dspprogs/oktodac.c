@@ -269,8 +269,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     //if (gd == 0) gd = 986000/freq;  // group delay of the bessel8
 
     int compEQ = dspBiquad_Sections_Flexible();
-        //dsp_filter(FNOTCH,  200,0.7,1.0);   // extra protection to remove lower freq
-        dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
+	dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq        	dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
         dsp_filter(FPEAK,1700,3,dB2gain(-3.0));
         dsp_filter(FHS2, 9000,0.6,dB2gain(6.0));
 
@@ -336,14 +335,15 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     int avgLRmem = dspMem_Location();
 
     int mainEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
+    dsp_filter(FPEAK,   73, 0.9, dB2gain(2.3));
+    dsp_filter(FPEAK,  150, 1.0, dB2gain(-3.0));
     dsp_filter(FPEAK, 580,  2.0, dB2gain(-4.0));
 
 
     const float attenuation = dB2gain(-3.0); // to compensate above potential gains and avoid any saturation in first biquads.
 
     int avgLR = dspLoadMux_Inputs(0);
-        dspLoadMux_Data(leftin,0.5 * attenuation);
+        dspLoadMux_Data(leftin, 0.5 * attenuation);
         dspLoadMux_Data(rightin,0.5 * attenuation);
 
 
