@@ -570,6 +570,7 @@ void getDacStatus(){
 }
 
 #define F28(x) ((double)(x)/(double)(1<<28))
+#define F(x,y) ((double)(x)/(double)(1<<y))
 void dspReadMem(int addr){
     unsigned data[16];
     unsigned char * p = (unsigned char*)&data[0];
@@ -578,7 +579,7 @@ void dspReadMem(int addr){
     for (int i=0; i<16; i++) {
         int x = data[i];
         float f = (float)data[i];
-        printf("0x%4X : %8X %d %f %f\n",i,x,x,F28(x),f);
+        printf("0x%4X : %8X %d %f %f\n",i,x,x,F(x,24),f);
     }
 }
 
@@ -614,14 +615,16 @@ void dspReadHeader(){
     libusb_control_transfer(devh, VENDOR_REQUEST_FROM_DEV,
             VENDOR_READ_DSP_MEM, 0, 0, p, sizeof(dspHeader_t), 0);
     printf("total length = %d\n",header.totalLength);
-    printf("data size    = %d\n",header.dataSize);
-    printf("num cores    = %d\n",header.numCores);
-    printf("version      = %X\n",header.version);
-    if (header.format)
-         printf("encoded int    %d.%d\n",(32-header.format),header.format);
-    else printf("encoded float\n");
-    printf("freq min     = %d (%d)\n",header.freqMin,dspTableFreq[header.freqMin]);
-    printf("freq max     = %d (%d)\n",header.freqMax,dspTableFreq[header.freqMax]);
+    if (header.totalLength) {
+        printf("data size    = %d\n",header.dataSize);
+        printf("num cores    = %d\n",header.numCores);
+        printf("version      = %X\n",header.version);
+        if (header.format)
+             printf("encoded int    %d.%d\n",(32-header.format),header.format);
+        else printf("encoded float\n");
+        printf("freq min     = %d (%d)\n",header.freqMin,dspTableFreq[header.freqMin]);
+        printf("freq max     = %d (%d)\n",header.freqMax,dspTableFreq[header.freqMax]);
+    }
 }
 
 int main(int argc, char **argv) {
@@ -665,7 +668,7 @@ int main(int argc, char **argv) {
     fprintf(stderr, "--dspwrite slot\n");    // save xmos dsp memory content to flash slot N (1..15)
     fprintf(stderr, "--dspread  slot\n");    // load xmos dsp memory content with flash slot 1..15
     fprintf(stderr, "--dspreadmem addr\n");  // read 16 word of data in the dsp data area
-    fprintf(stderr, "--dspreadheader\n");    // read dsp header of dsp program in memory
+    fprintf(stderr, "--dspheader\n");    // read dsp header of dsp program in memory
     fprintf(stderr, "--dspprog  val\n");     // set the dsp program number in the front panel menu settings and load it from flash
     fprintf(stderr, "--dacstatus\n");        // return the main registers providing informations on the dac and data stream status
     fprintf(stderr, "--dacmode  val\n");     // set the dac mode with the value given. front panel informed
@@ -728,7 +731,7 @@ int main(int argc, char **argv) {
         return -1; }
       dspreadmem = 1; }
   else
-  if (strcmp(argv[argi], "--dspreadheader") == 0) {
+  if (strcmp(argv[argi], "--dspheader") == 0) {
       dspreadheader = 1; }
   else
   if (strcmp(argv[argi], "--dspprog") == 0) {

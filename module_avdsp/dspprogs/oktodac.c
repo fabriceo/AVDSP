@@ -16,7 +16,7 @@ int dspProgDAC8PRO(int dither){
     for (int i=0; i<8; i++)
 	    dspLoadStore_Data( USBOUT(i), DACOUT(i) );
 
-    if (dither) {
+    if (dither>=0) {
     	dsp_TPDF(dither);	// calculate tpdf value for dithering
    
 	    for (int i=0; i<8; i++) {
@@ -37,7 +37,7 @@ int dspProgDACSTEREO(int outs, int dither){
 
     dsp_CORE();  // first and unique core
 
-    if (dither) {
+    if (dither>=0) {
 		dsp_TPDF(dither);	// calculate tpdf value for dithering
 
 	    for (int i=0; i<2; i++) {
@@ -100,7 +100,7 @@ int dspNoProg(){
 }
 
 int dspProgUsbLoopBack(int outs, int dither){
-    if (dither) {
+    if (dither>=0) {
 		dsp_TPDF(dither);	// calculate tpdf value for dithering
 
 	    for (int i=0; i<outs; i++) {
@@ -160,7 +160,7 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
     dsp_LOAD_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
 
-    if (dither)
+    if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
     else dsp_SAT0DB_GAIN_Fixed( defaultGain);
     dsp_STORE( USBIN(outlow) );
@@ -172,7 +172,7 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
 
     dsp_LOAD_MEM(in);
     dsp_BIQUADS(highpass);   //compute lowpass filter
-    if (dither)
+    if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
     else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
     dsp_STORE( USBIN(outhigh) );
@@ -229,7 +229,7 @@ const float Q = 2.0;
     dsp_ADDXY();
     dsp_STORE_MEM(memLPF);
     // low is ready
-    if (dither)
+    if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
     else dsp_SAT0DB_GAIN_Fixed( defaultGain);
     dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
@@ -246,7 +246,7 @@ const float Q = 2.0;
 
     //dsp_BIQUADS(compEQ);
     //dsp_NEGX(); // invert phase due to cable mismatch ?
-    if (dither)
+    if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
     else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
@@ -269,9 +269,9 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     //if (gd == 0) gd = 986000/freq;  // group delay of the bessel8
 
     int compEQ = dspBiquad_Sections_Flexible();
-	dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq        	dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
+		dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq        	dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
         dsp_filter(FPEAK,1700,3,dB2gain(-3.0));
-        dsp_filter(FHS2, 9000,0.6,dB2gain(6.0));
+        dsp_filter(FHS2, 9000,0.6,dB2gain(5.0));
 
 
 
@@ -294,7 +294,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_SUBYX();                // compute high pass in Y
 #endif
 
-    if (dither)
+    if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
     else dsp_SAT0DB_GAIN_Fixed( defaultGain);
     dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
@@ -307,7 +307,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_SHIFT_FixedInt(-100);   // by default -100 means DSP_MANT
     dsp_GAIN_Fixed(gaincomp);
     dsp_BIQUADS(compEQ);
-    if (dither)
+    if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
     else dsp_SAT0DB_GAIN_Fixed( defaultGain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
@@ -335,7 +335,7 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     int avgLRmem = dspMem_Location();
 
     int mainEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK,   73, 0.9, dB2gain(2.3));
+    dsp_filter(FPEAK,   73, 0.9, dB2gain(1.5));
     dsp_filter(FPEAK,  150, 1.0, dB2gain(-3.0));
     dsp_filter(FPEAK, 580,  2.0, dB2gain(-4.0));
 
@@ -349,7 +349,7 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
 
 dsp_CORE();  // first core
 
-    if (dither) {
+    if (dither>=0) {
         printf("ditehring enable for %d usefull bits\n",dither);
         dsp_TPDF(dither);
     }
@@ -405,7 +405,7 @@ dsp_CORE();
 
 int dspProg(int argc,char **argv){
    int prog = 0;
-   int dither = 0;
+   int dither = -1; // no dithering by default
    int outs;
    int fx = 800;
    int gd = 0;
@@ -475,7 +475,7 @@ int dspProg(int argc,char **argv){
                     continue; }
 
                  if (strcmp(argv[i],"-dither") == 0) {
-                     dither = 23;
+                     dither = 0;
                       if (argc>=i) {
                           i++;
                           dither = strtol(argv[i], NULL,10); }
@@ -483,7 +483,7 @@ int dspProg(int argc,char **argv){
                      continue; }
 
                  if (strcmp(argv[i],"-dacfabriceo") == 0) {
-                    dspprintf("cross over program for dac8pro and rew\n");
+                    dspprintf("cross over program for oktodac and rew\n");
                     prog = 5;
                     outs = 8;
                     continue; }
@@ -504,7 +504,7 @@ int dspProg(int argc,char **argv){
                      if (argc>=i) {
                          i++;
                          gd = strtol(argv[i], NULL,10); }
-                    dspprintf("substractive delay %dus\n",gd);
+                    dspprintf("substractive delay forced to %dus\n",gd);
                     continue; }
 
                 if (strcmp(argv[i],"-microslow") == 0) {

@@ -112,6 +112,7 @@ int main(int argc, char **argv) {
                     if (res >= FMAXpos) {
                         fprintf(stderr,"Could not find this sampling rate %d\n",f);
                         exit(-1); }
+                    fprintf(stderr,"sampling rate max = %d (%d)\n",f,res);
                     freqMax = res;
                     continue; } }
 	    break;
