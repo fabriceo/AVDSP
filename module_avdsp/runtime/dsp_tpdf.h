@@ -4,6 +4,7 @@
 // global variables related to TPDF
 int dspTpdfValue;               // global value of the tpdf update by dspTpdfCalc()
 int dspTpdfRandom;              // global white
+int dspTpdfDefaultDither;       // default value passed by runtime init
 
 typedef struct tpdf_s {
     int dither;         // position of the expeted dithering between 8..32 max
@@ -45,9 +46,10 @@ static inline uint32_t xoshiro128p(uint32_t *s32) {
 
 
 
-static inline void dspTpdfInit(int seed){
+static inline void dspTpdfInit(int seed, int defaultDither){
     dspTpdfRandom = seed;
     dspTpdfValue = 0;
+    dspTpdfDefaultDither = defaultDither;
     dspTpdfGlobal.dither = 0;
     dspTpdfGlobal.mask   = -1;
     dspTpdfGlobal.mask64 = -1;
@@ -63,6 +65,7 @@ static inline void dspTpdfInit(int seed){
 
 // prepare the tpdf structure according to requested dithering. check request with exisitng global value before creating new data
 static inline int dspTpdfPrepare(tpdf_t * current, tpdf_t * local, int dith){
+    if (dith == 0) dith = dspTpdfDefaultDither;
     if (dith != current->dither){
         local->dither = dith;
         local->mask = (-1 << (32-dith));  // 32bits version

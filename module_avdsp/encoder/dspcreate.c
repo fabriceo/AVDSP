@@ -17,8 +17,8 @@ extern int minidspCreateParameters(char * xmlName);
 
 #define inputOutputMax 32               // size of the future table containg samples of each IO accessible by LOAD & STORE
 
-#define myDspMin    F44100              // minimum frequency that is supported by the dsp runtime
-#define myDspMax    F192000             // same with max. biquad coef and delay lines are all generated now accordingly.
+int freqMin = DSP_DEFAULT_MIN_FREQ;     // default value from header.h
+int freqMax = DSP_DEFAULT_MAX_FREQ;
 
 const char * hexBegin = "const unsigned int dspFactory[] = {";
 const char * hexEnd = "};";
@@ -94,6 +94,26 @@ int main(int argc, char **argv) {
                 if (argc>i) {
                     defaultType = strtol(argv[i], &perr,10);
                     continue; } }
+            if (strcmp(argv[i],"-fsmin") == 0) {
+                i++;
+                if (argc>i) {
+                    int f = strtol(argv[i], &perr,10);
+                    int res = dspFindFrequencyIndex(f);
+                    if (res >= FMAXpos) {
+                        fprintf(stderr,"Could not find this sampling rate %d\n",f);
+                        exit(-1); }
+                    freqMin = res;
+                    continue; } }
+            if (strcmp(argv[i],"-fsmax") == 0) {
+                i++;
+                if (argc>i) {
+                    int f = strtol(argv[i], &perr,10);
+                    int res = dspFindFrequencyIndex(f);
+                    if (res >= FMAXpos) {
+                        fprintf(stderr,"Could not find this sampling rate %d\n",f);
+                        exit(-1); }
+                    freqMax = res;
+                    continue; } }
 	    break;
     }
 
@@ -126,7 +146,7 @@ int main(int argc, char **argv) {
     dspEncoderInit( opcodes,            // table where we store the generated opcodes
                     max,                // max number of words in this table
                     defaultType,        // format of the dsp : int64, float or double (see runtime.h)
-                    myDspMin, myDspMax, // list of frequencies treated by runtime. used to pre-generate biquad coef and delay lines
+                    freqMin, freqMax,   // list of frequencies treated by runtime. used to pre-generate biquad coef and delay lines
                     inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
 
 	size = dspProg(argc-i,&argv[i]);     

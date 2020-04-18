@@ -34,13 +34,13 @@
 // for INT32, DSP_MANT is maximum 15 by design
 // minimum is 8 by design
 #ifndef DSP_MANT
-#define DSP_MANT 28
+#define DSP_MANT 24
 #endif
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
 // remark for XS2 architecture, this value must be modified also in the biquad assembly file
 #ifndef DSP_MANTBQ
-#define DSP_MANTBQ 28
+#define DSP_MANTBQ 24
 #endif
 
 // special macro for s.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
@@ -157,6 +157,27 @@ enum dspFreqs {
 };
 
 
+//search a literal frequency in the list of possible supported frequencies
+static inline int dspFindFrequencyIndex(int freq){
+    switch (freq) {
+    case  8000  : return F8000; break;
+    case 16000  : return F16000; break;
+    case 24000  : return F24000; break;
+    case 32000  : return F32000; break;
+    case 44100  : return F44100; break;
+    case 48000  : return F48000; break;
+    case 88200  : return F88200; break;
+    case 96000  : return F96000; break;
+    case 176400 : return F176400; break;
+    case 192000 : return F192000; break;
+    case 352800 : return F352800; break;
+    case 384000 : return F384000; break;
+    case 705600 : return F705600; break;
+    case 768000 : return F768000; break;
+    default     : return FMAXpos; break;
+    }
+}
+
 #define DSP_DEFAULT_MIN_FREQ (F44100)
 #define DSP_DEFAULT_MAX_FREQ (F192000)
 
@@ -199,19 +220,24 @@ typedef struct dspHeader_s {    // 11 words
         } dspHeader_t;
 
 //prototypes
-
-static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore){
+#include <stdio.h>
+static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore, unsigned int maxcode){
     *sum = 0;
     *numCore = 0;
+    unsigned int p = 0;
     while(1){
         int code = ptr->op.opcode;
-        int skip = ptr->op.skip;
-        if (skip == 0) break;   // end of program encountered
+        unsigned int skip = ptr->op.skip;
+        if (skip == 0) {
+            if (*numCore == 0) *numCore = 1;
+            break;   // end of program encountered
+        }
         if (code == DSP_CORE) (*numCore)++;
         *sum += ptr->u32;
+        p += skip;
+        if (p > maxcode) { printf("BUGG : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // issue
         ptr += skip;
     } // while(1)
-    if (*numCore == 0) *numCore = 1;
 }
 
 static inline long long dspQNMmax(){ return DSP_Q31_MAX; }

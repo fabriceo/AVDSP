@@ -571,7 +571,7 @@ int dsp_END_OF_CODE(){
     // now calculate the simplified checksum of all the opcodes and count number of cores
     unsigned int sum;
     int numCore;
-    dspCalcSumCore(opcodePtr(0), &sum, &numCore);
+    dspCalcSumCore(opcodePtr(0), &sum, &numCore,dspHeaderPtr->totalLength);
     dspHeaderPtr->checkSum = sum;           // comit checksum
     dspprintf1("check sum      = %d\n", sum);
     if (numCore == 0) numCore = 1;
@@ -1126,7 +1126,7 @@ void dsp_DELAY_DP(int paramAddr){
     dsp_DELAY_(paramAddr, DSP_DELAY_DP);
 }
 
-static const int dspTableFreq[FMAXpos] = {
+const int dspTableFreq[FMAXpos] = {
         8000, 16000,
         24000, 32000,
         44100, 48000,
@@ -1312,7 +1312,7 @@ int dspFir_Impulses(){
     startParamSection(DSP_FIR, numberFrequencies);
     int pos = paramMisAligned8();
     lastSectionIndex = pos; // to adjust in case the index was not alligned previously
-    addOpcodeValue(DSP_FIR, numberFrequencies);
+    addOpcodeValue(DSP_FIR, numberFrequencies); // header , will be folowwed by impulses
     return pos;
 }
 
@@ -1332,7 +1332,7 @@ void dsp_FIR(int paramAddr){    // possibility to restrict the number of impulse
         int delay = opcodePtr(paramAddr)->s16.high;      // or the delay
         if (delay) {
             delay++;                                // +1 because the first data stored in the delay line is the current index position
-            length = 1;
+            length = 1;                             // 1 dummy data is stored just after the delay value
             if (delay > lengthMax)
                 lengthMax = delay;                  // calculate filter maximum lenght of data regarded all possible frequencies
         } else
@@ -1343,9 +1343,9 @@ void dsp_FIR(int paramAddr){    // possibility to restrict the number of impulse
         if ((paramAddr & 1) == 0) paramAddr++;      // padd according to how this is supposed to be stored
         if (paramAddr >= end)
            dspFatalError("FIR Impulse list goes outside of PARAM section.(encoder bug?)");
-        addCodeOffset(tableFreq[f], base);
+        addCodeOffset(tableFreq[f], base);          // add pointer on the impulse, relative to DSP_FIR opcode
         }
-    addDataSpace(lengthMax);      // request a data space in the data area corresponding to the largest impulse discovered
+    addDataSpaceAligned8(lengthMax);                // request a data space in the data area corresponding to the largest impulse discovered
 }
 
 
@@ -1356,7 +1356,7 @@ int dspFir_Delay(int value){            // to be used when a frequency is not co
     if (value > 1) {
         addOpcodeValue(value, 0);           // store the expected delay (in samples) in msb, same format as for DELAY opcode
     } else
-        addCode(1);
+        addCode(1);             // simulate an impulse of length 1
     addCode(0);
     return pos;
 }
@@ -1373,7 +1373,7 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     if (-1 == dspfopenRead("r"))
         dspFatalError("cant open impulse file.");
 
-    addCode(length);
+    addCode(length);    // first word (misalligned) is the length of the impulse
     float * codePtr = (float *)opcodeIndexPtr();
     int tmp = dspfreadImpulse(codePtr, length);
     if (tmp == -1) {
