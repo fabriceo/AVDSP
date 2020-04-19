@@ -320,8 +320,8 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
 
 
 int mono = 0;
-const int rightin = USBOUT(0);
-const int leftin  = USBOUT(1);
+const int leftin  = USBOUT(0);
+const int rightin = USBOUT(1);
 
 
 int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow){
@@ -334,17 +334,26 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     int rightmem = dspMem_Location();
     int avgLRmem = dspMem_Location();
 
-    int mainEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK,   73, 0.9, dB2gain(1.5));
+    int rightEQ = dspBiquad_Sections_Flexible();
     dsp_filter(FPEAK,  150, 1.0, dB2gain(-3.0));
     dsp_filter(FPEAK, 580,  2.0, dB2gain(-4.0));
+    dsp_filter(FHP2,  10, 0.7, 1.0);
+    dsp_filter(FPEAK,  73,  0.9, dB2gain(+2.0));
+
+    int leftEQ = dspBiquad_Sections_Flexible();
+    dsp_filter(FPEAK,  150, 1.0, dB2gain(-3.0));
+    dsp_filter(FPEAK,  580, 2.0, dB2gain(-4.0));
+    dsp_filter(FHP2,  10, 0.7, 1.0);
+    //dsp_filter(FLS2,   150, 0.5, dB2gain(-1.0));
+    dsp_filter(FPEAK,   73, 0.9, dB2gain(+1.0));
 
 
-    const float attenuation = dB2gain(-3.0); // to compensate above potential gains and avoid any saturation in first biquads.
+    const float attRight = dB2gain(-3.0); // to compensate above potential gains and avoid any saturation in first biquads.
+    const float attLeft  = dB2gain(-4.0); // to compensate above potential gains and avoid any saturation in first biquads.
 
     int avgLR = dspLoadMux_Inputs(0);
-        dspLoadMux_Data(leftin, 0.5 * attenuation);
-        dspLoadMux_Data(rightin,0.5 * attenuation);
+        dspLoadMux_Data(leftin, 0.5 * attLeft);
+        dspLoadMux_Data(rightin,0.5 * attRight);
 
 
 dsp_CORE();  // first core
@@ -365,20 +374,20 @@ dsp_CORE();  // first core
         dsp_LOAD_MUX(avgLR);        // load and mix left+right
         dsp_STORE_MEM(avgLRmem);
         //dsp_DCBLOCK(10);
-        dsp_BIQUADS(mainEQ);
+        dsp_BIQUADS(rightEQ);
         dsp_STORE_MEM(leftmem);
         dsp_STORE_MEM(rightmem);
 
         dsp_LOAD_MEM(avgLRmem);
     } else {
-        dsp_LOAD_GAIN_Fixed(leftin, attenuation);
-        dsp_DCBLOCK(10);
-        dsp_BIQUADS(mainEQ);
+        dsp_LOAD_GAIN_Fixed(leftin, attLeft);
+        //dsp_DCBLOCK(10);
+        dsp_BIQUADS(leftEQ);
         dsp_STORE_MEM(leftmem);
 
-        dsp_LOAD_GAIN_Fixed(rightin, attenuation);
-        dsp_DCBLOCK(10);
-        dsp_BIQUADS(mainEQ);
+        dsp_LOAD_GAIN_Fixed(rightin, attRight);
+        //dsp_DCBLOCK(10);
+        dsp_BIQUADS(rightEQ);
         dsp_STORE_MEM(rightmem);
 
         dsp_LOAD_MUX(avgLR);
@@ -391,11 +400,11 @@ dsp_CORE();  // first core
     //dsp_STORE(USBIN(7));
 
 dsp_CORE();
-    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 2, 3);
+    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 4, 5);
     //crossoverLR6acoustic(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 2, 3);
 
 dsp_CORE();
-    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 4, 5);
+    crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 2, 3);
     //crossoverLR6acoustic(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 4, 5);
 
     return dsp_END_OF_CODE();
