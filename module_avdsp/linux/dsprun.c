@@ -9,7 +9,6 @@
 #include <stdlib.h>
 #include <sndfile.h>
 #include <math.h>
-#include "alsa.h"
 
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
 #include "dsp_runtime.h"
@@ -23,8 +22,7 @@
 #define INOFFSET 8
 
 static void usage() {
-	fprintf(stderr,"dsprun alsainname alsaoutname dspprog.bin fs\n");
-	fprintf(stderr,"or : \ndsprun -i impulsefilename  dspprog.bin fs\n");
+	fprintf(stderr,"or : \ndsprun -i|-r|-s outwavefile  dspprog.bin fs\n");
 	exit(-1);
 }
 
@@ -56,6 +54,10 @@ int main(int argc, char **argv) {
     int nc,n,ch,o;
     int inmode=0;
 
+    SNDFILE *outsnd;
+    SF_INFO infsnd;
+    dspSample_t *Outputs;
+
     // parse and check args 
     if(argc<5) usage();
 
@@ -71,8 +73,8 @@ int main(int argc, char **argv) {
 	filename = argv[2];
 	inmode=3;
       } else {
-    		alsainname=argv[1];
-    		alsaoutname=argv[2];
+	fprintf(stderr,"error nedd -i | -r | -s\n");
+	exit(-1);
       }
 
     dspfilename=argv[3];
@@ -128,10 +130,6 @@ int main(int argc, char **argv) {
             if (corePtr == 0) break;
     }
 
-    if(filename) {
-	 SNDFILE *outsnd;
-	 SF_INFO infsnd;
-    	 dspSample_t *Outputs;
 
          infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
          infsnd.samplerate = fs;
@@ -178,43 +176,6 @@ int main(int argc, char **argv) {
 
 	sf_close(outsnd);
 
-    } else {
-	int *inbuffer,*outbuffer;
-
-    	if(initAlsaIO(alsainname, maxnbchin, alsaoutname, maxnbchout, fs)) {
-        	dspprintf("Alsa init error\n");
-        	exit(-1);
-    	}
-
-	inbuffer=(int*)malloc(sizeof(int)*maxnbchin*8192);
-	outbuffer=(int*)malloc(sizeof(int)*maxnbchout*8192);
-
-    	// infinite loop
-    	while(1) {
-		int sz;
-
-		sz=(int)readAlsa(inbuffer , 8192) ;
-		if(sz<0) break;
-
-		for(nc=0;nc<nbcores;nc++)  {
-
-		  for (n=0;n < sz ; n++) {
-
-        	     for(ch=0;ch<coreio[nc].nbchin;ch++) 
-    			inputOutput[coreio[nc].inputMap[ch]] = inbuffer[n*maxnbchin+(coreio[nc].inputMap[ch]-INOFFSET)];
-	
-    		     DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
-
-       		     for(ch=0;ch<coreio[nc].nbchout;ch++) 
-    			outbuffer[n*maxnbchout+(coreio[nc].outputMap[ch]-OUTOFFSET)]=inputOutput[coreio[nc].outputMap[ch]] ;
-
-	          }
-		}
-
-	        writeAlsa(outbuffer , sz) ;
-	}
-
-  } 
   return 0;
 }
 

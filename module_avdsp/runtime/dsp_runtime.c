@@ -113,8 +113,9 @@ static int dspBiquadFreqOffset;
 static void dspChangeFormat(opcode_t * ptr, int newFormat);
 
 // to be ran after dspRuntimeInit() at EACH sampling frequency change.
-int dspRuntimeReset(const int fs)
-{
+int dspRuntimeReset(const int fs,
+                    int random,                     // for tpdf / dithering
+                    int defaultDither) {            // dither value used for dsp_TPDF(0)
         int freqIndex = dspFindFrequencyIndex(fs);
         if (freqIndex<0) {
             dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
@@ -138,6 +139,7 @@ int dspRuntimeReset(const int fs)
         int * intPtr = (int*)dspHeaderPtr + length;  // point on data space
         for (int i = 0; i < size; i++) *(intPtr+i) = 0;
 
+        dspTpdfInit(random,defaultDither);
 	return 0;
 }
 
@@ -146,7 +148,7 @@ int dspRuntimeReset(const int fs)
 // to be ran once before dspRuntime().
 int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
                     int maxSize,                    // size of the opcode table available in memory including data area
-                    const int fs,                   // sampling frequency currently in use
+                    const int fs,                   // sampling frequency currently in use or 0 if set later by dsp_RuntimeReset
                     int random,                     // for tpdf / dithering
                     int defaultDither) {            // dither value used for dsp_TPDF(0)
 
@@ -182,10 +184,11 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         if (dspHeaderPtr->format != 0)
             dspChangeFormat(codePtr, 0);
 #endif
-	res=dspRuntimeReset(fs);
-	if(res) return res;
+	if(fs) {
+		res=dspRuntimeReset(fs,random,defaultDither);
+		if(res) return res;
+	}
 
-        dspTpdfInit(random,defaultDither);
         return length;  // ok
     } else {
         dspprintf("ERROR : no dsp header in this program.\n"); return -1; }

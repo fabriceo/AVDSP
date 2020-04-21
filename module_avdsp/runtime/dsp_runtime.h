@@ -163,7 +163,7 @@ extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspALU_SP
 //prototypes
 opcode_t * XCunsafe dspFindCore(opcode_t * XCunsafe ptr, const int numCore);
 opcode_t * XCunsafe dspFindCoreBegin(opcode_t * XCunsafe ptr);
-int dspRuntimeReset(const int fs);
+int dspRuntimeReset(const int fs, int random, int defaultDither);
 int dspRuntimeInit(opcode_t * XCunsafe codePtr, int maxSize, const int fs, int random, int defaultDither);
 int DSP_RUNTIME_FORMAT(dspRuntime)(opcode_t * XCunsafe ptr, int * XCunsafe rundataPtr, dspSample_t * XCunsafe sampPtr);
 

@@ -8,8 +8,7 @@ add_compile_options(-Ofast -march=native )
 
 include_directories(encoder runtime)
 
-add_executable(dsprun runtime/dsp_biquadSTD.c  runtime/dsp_firSTD.c  runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/alsa.c  linux/dsprun.c )
-target_link_libraries(dsprun asound)
+add_executable(dsprun runtime/dsp_biquadSTD.c  runtime/dsp_firSTD.c  runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/dsprun.c )
 target_link_libraries(dsprun sndfile)
 target_link_libraries(dsprun m)
 

@@ -41,6 +41,7 @@ typedef struct {
     snd_pcm_extplug_t ext;
 
     int nbcores;
+    int	dither;
     int nbchin,nbchout;
     coreio_t coreio[nbCoreMax];
 
@@ -65,24 +66,28 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	     snd_pcm_uframes_t src_offset,
 	     snd_pcm_uframes_t size)
 {
-	snd_pcm_avdsp_t *dsp = (snd_pcm_avdsp_t *)ext;
-	int *src = area_addr(src_areas, src_offset);
+	snd_pcm_avdsp_t *dsp = ext->private_data;
+	void *src = area_addr(src_areas, src_offset);
 	int *dst = area_addr(dst_areas, dst_offset);
-	unsigned int count = size;
 	int nc,n,ch;
-
-        dspSample_t inputOutput[inputOutputMax];
 
 	for(nc=0;nc<dsp->nbcores;nc++)  {
 	  for (n=0;n < size ; n++) {
 
-	     for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) 
-    		inputOutput[dsp->coreio[nc].inputMap[ch]] = src[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
+             dspSample_t inputOutput[inputOutputMax];
+
+	     if(ext->format == SND_PCM_FORMAT_S32 ) {
+	      for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) 
+    		inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
+	     } else {
+	      for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) 
+    		inputOutput[dsp->coreio[nc].inputMap[ch]] = (int)(((short*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)])<<16;
+	     }
 	
               DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput); 
 
               for(ch=0;ch<dsp->coreio[nc].nbchout;ch++) 
-    			dst[n*dsp->nbchout+(dsp->coreio[nc].outputMap[ch]-OUTOFFSET)]=inputOutput[dsp->coreio[nc].outputMap[ch]] ;
+    		dst[n*dsp->nbchout+(dsp->coreio[nc].outputMap[ch]-OUTOFFSET)]=inputOutput[dsp->coreio[nc].outputMap[ch]] ;
 
 	  }
          }
@@ -92,19 +97,13 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 
 static int dsp_init(snd_pcm_extplug_t *ext)
 {
-	snd_pcm_avdsp_t *dsp = (snd_pcm_avdsp_t *)ext;
+	snd_pcm_avdsp_t *dsp = ext->private_data;
+	int dither;
 
-	SNDERR("open avdsp %d\n",ext->rate);
-	dspRuntimeReset(ext->rate);
-
-	return 0;
-}
-
-static int dsp_close(snd_pcm_extplug_t *ext)
-{
-	snd_pcm_avdsp_t *dsp = (snd_pcm_avdsp_t *)ext;
-
-	SNDERR("close avdsp\n");
+	if(dspRuntimeReset(ext->rate,0,dsp->dither)) {
+		SNDERR("avdsp filter not supported  sample freq : %d\n",ext->rate);
+		return -EINVAL;
+	}
 
 	return 0;
 }
@@ -112,7 +111,6 @@ static int dsp_close(snd_pcm_extplug_t *ext)
 static const snd_pcm_extplug_callback_t avdsp_callback = {
 	.transfer = dsp_transfer,
 	.init = dsp_init,
-	.close = dsp_close,
 };
 
 SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
@@ -122,9 +120,20 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	snd_config_t *sconf = NULL;
 	int err;
 	char *dspprogname = NULL;
+        const int format_list[] =  { SND_PCM_FORMAT_S16, SND_PCM_FORMAT_S32 };
 
     	int size,result;
     	int n,ch;
+
+	dsp = calloc(1, sizeof(*dsp));
+	if (!dsp)
+		return -ENOMEM;
+
+	dsp->ext.version = SND_PCM_EXTPLUG_VERSION;
+	dsp->ext.name = "Avdsp Plugin";
+	dsp->ext.callback = &avdsp_callback;
+	dsp->ext.private_data = dsp;
+	dsp->dither=31;
 
 	snd_config_for_each(i, next, conf) {
 		snd_config_t *n = snd_config_iterator_entry(i);
@@ -141,6 +150,15 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 		if (strcmp(id, "dspprog") == 0) {
 			if(snd_config_get_string(n,(const char **)&dspprogname)==0) 
 				continue;
+			SNDERR("Invalid dspprog name");
+		}
+
+		if (strcmp(id, "dither") == 0) {
+			long val;
+			if(snd_config_get_integer(n,&val)==0) {
+				dsp->dither=val;
+				continue;
+			}
 			SNDERR("Invalid dspprog name");
 		}
 
@@ -161,15 +179,6 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 		return -EINVAL;
 	}
 
-	dsp = calloc(1, sizeof(*dsp));
-	if (!dsp)
-		return -ENOMEM;
-
-	dsp->ext.version = SND_PCM_EXTPLUG_VERSION;
-	dsp->ext.name = "Avdsp Plugin";
-	dsp->ext.callback = &avdsp_callback;
-	dsp->ext.private_data = dsp;
-
 	err = snd_pcm_extplug_create(&dsp->ext, name, root, sconf,
 				     stream, mode);
 	if (err < 0) {
@@ -186,7 +195,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
     }
 
     // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
-    result = dspRuntimeInit(dsp->opcodes, size, 44100, 0);
+    result = dspRuntimeInit(dsp->opcodes, size, 0, 0, 0);
     if (result < 0) {
         SNDERR("FATAL ERROR: problem with opcode header or compatibility\n");
         return -EINVAL;
@@ -228,13 +237,11 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
             if (corePtr == 0) break;
     }
 
-	SNDERR("avdsp init %s %d %d\n",dspprogname,dsp->nbchin,dsp->nbchout);
-
-
 	snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
 	snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
-	snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
-	snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
+
+        snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
+        snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
 
 	*pcmp = dsp->ext.pcm;
 	return 0;
