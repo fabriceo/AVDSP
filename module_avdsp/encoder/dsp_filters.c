@@ -168,14 +168,13 @@ extern int  addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilt
 extern int  addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
 extern void sectionBiquadCoeficientsBegin();
 extern void sectionBiquadCoeficientsEnd();
-extern const int dspTableFreq[FMAXpos];
 
 int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain){
     int coefPtr = 0;
     dspFilterParam_t a1, a2, b0, b1, b2;
     sectionBiquadCoeficientsBegin();
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
-        dspFilterParam_t fs = dspTableFreq[f];
+        dspFilterParam_t fs = dspFindFrequencyIndex(f);
         dspFilter2ndOrder(type, fs, freq, Q, gain, &b0, &b1, &b2, &a1, &a2);
 
         if (coefPtr==0) {
@@ -197,7 +196,7 @@ int dsp_Filter1stOrder(int type, dspFilterParam_t freq, dspGainParam_t gain){
     dspFilterParam_t a1, a2, b0, b1, b2;
     sectionBiquadCoeficientsBegin();
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
-        dspFilterParam_t fs = dspTableFreq[f];
+        dspFilterParam_t fs = dspFindFrequencyIndex(f);
         dspFilter1stOrder(type, fs, freq, gain, &b0, &b1, &b2, &a1, &a2);
 
         if (coefPtr==0) {

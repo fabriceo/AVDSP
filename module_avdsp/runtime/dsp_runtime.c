@@ -115,18 +115,19 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat);
 // to be ran after dspRuntimeInit() at EACH sampling frequency change.
 int dspRuntimeReset(const int fs)
 {
+    asm("#entry:");
         int freqIndex = dspFindFrequencyIndex(fs);
-        if (freqIndex<0) {
+        if (freqIndex>=FMAXpos) {
             dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
         int min = dspHeaderPtr->freqMin;
         int max = dspHeaderPtr->freqMax;
         if ((freqIndex < min) || (freqIndex > max)) {
-             dspprintf("ERROR : supported sampling freq not compatible with dsp program.\n"); return -2; }
+             dspprintf("ERROR : sampling freq not compatible with encoded dsp program.\n"); return -2; }
         //printf("INIT ** frequencies : min %d, max %d, num %d, index %d\n",min, max, max-min+1,freqIndex - min);
         dspSamplingFreq     = freqIndex;
         dspMinSamplingFreq  = min;
         dspMaxSamplingFreq  = max;
-        dspSamplingFreqIndex= freqIndex - min;
+        dspSamplingFreqIndex= freqIndex - min;  // relative index of the sampling freq vs the encoded min freq
         dspNumSamplingFreq  = max - min +1;
         dspBiquadFreqSkip   = 2+6*dspNumSamplingFreq;   // 3 words for filter user params (type+freq, Q, gain) + 5 coef alligned per biquad
         dspBiquadFreqOffset = 5+6*dspSamplingFreqIndex; // skip also the 1+1+3 first words
@@ -135,7 +136,7 @@ int dspRuntimeReset(const int fs)
         // now clear the data area, just after the program area
         int length = dspHeaderPtr->totalLength;    // lenght of the program
         int size   = dspHeaderPtr->dataSize;       // size of the data needed
-        int * intPtr = (int*)dspHeaderPtr + length;  // point on data space
+        int * intPtr = (int*)(dspHeaderPtr + length);  // point on data space
         for (int i = 0; i < size; i++) *(intPtr+i) = 0;
 
 	return 0;
@@ -147,8 +148,8 @@ int dspRuntimeReset(const int fs)
 int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
                     int maxSize,                    // size of the opcode table available in memory including data area
                     const int fs,                   // sampling frequency currently in use
-                    int random,                     // for tpdf / dithering
-                    int defaultDither) {            // dither value used for dsp_TPDF(0)
+                    int random,                     // for initialization of tpdf / dithering
+                    int defaultDither) {            // dither value used in case of dsp_TPDF(0)
 
     dspHeaderPtr = (dspHeader_t*)codePtr;
     opcode_t* cptr = codePtr;
@@ -160,7 +161,6 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
 
     int length = dspHeaderPtr->totalLength;    // lenght of the program
     int size   = dspHeaderPtr->dataSize;       // size of the data needed
-    //printf("lenght=%d, size=%d\n",length, size);
     if ((size+length) > maxSize){
         dspprintf("ERROR : total size (program+data = %d) is over the allowed size (%d).\n",length+size, maxSize); return -6; }
 
@@ -171,19 +171,19 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
             dspprintf("ERROR : checksum problem with the program.\n"); return -4; }
 
         if (dspHeaderPtr->maxOpcode >= DSP_MAX_OPCODE) {
-            dspprintf("ERROR : some opcodes in the program are not supported in this runtime version.\n"); return -5; }
+            dspprintf("ERROR : some recent opcodes in this dsp program are not supported by this runtime version.\n"); return -5; }
 
 
         dspMantissa = DSP_MANT; // possibility to pass this as a parameter in a later version
 #if   DSP_ALU_INT
-        if (dspHeaderPtr->format != DSP_MANT)
+        if (dspHeaderPtr->format != DSP_MANT_FLEX)
             dspChangeFormat(codePtr, DSP_MANT_FLEX);
 #elif DSP_ALU_FLOAT
-        if (dspHeaderPtr->format != 0)
+        if (dspHeaderPtr->format != 0)  // encoded 0 means float
             dspChangeFormat(codePtr, 0);
 #endif
-	res=dspRuntimeReset(fs);
-	if(res) return res;
+        res=dspRuntimeReset(fs);
+        if(res) return res;
 
         dspTpdfInit(random,defaultDither);
         return length;  // ok
@@ -215,7 +215,7 @@ static void dspChangeThisData(int * p, int old, int new){
 static void dspChangeFormat(opcode_t * ptr, int newFormat){
     dspHeader_t * headerPtr = (dspHeader_t *)ptr;
     int oldFormat = headerPtr->format;
-    if (oldFormat == newFormat) return;
+    if (oldFormat == newFormat) return; // sanity check
     while(1){
         int code = ptr->op.opcode;
         unsigned int skip = ptr->op.skip;
@@ -223,15 +223,7 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
         int * cptr = (int*)(ptr+1); // point on the first parameter
         switch(code){
 
-        case DSP_VALUE_INT: // indirect value
-             cptr = (int*)(ptr+*cptr);
-        case DSP_AND_VALUE_INT: // imediate value
-        case DSP_MUL_VALUE_INT: // imediate value
-        case DSP_DIV_VALUE_INT: {
-            dspChangeThisInt(cptr, oldFormat, newFormat);
-            break;}
-
-        case DSP_DIRAC:     // dataptr then imediate value
+        case DSP_DIRAC:             // dataptr then imediate value
         case DSP_SQUAREWAVE:
              cptr++;
         case DSP_MUL_VALUE:         // immediate value
@@ -241,18 +233,18 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
             dspChangeThisData(cptr, oldFormat, newFormat);
             break;}
 
-        case DSP_LOAD_GAIN: // index then gainptr
-             cptr++;
+        case DSP_LOAD_GAIN:         // index then gainptr
+             cptr++;                // skip index
         case DSP_GAIN:              // gainptr (indirect value)
         case DSP_SAT0DB_GAIN:
         case DSP_SAT0DB_TPDF_GAIN:{
-            cptr = (int*)(ptr+*cptr);
+            cptr = (int*)(ptr+*cptr);   // compute gainptr
             dspChangeThisData(cptr, oldFormat, newFormat);
             break;}
 
         case DSP_LOAD_MUX:{ // tableptr
-            cptr = (int*)(ptr+*cptr); //point on table
-            short num = *cptr++;          // load size of table (lsb)
+            cptr = (int*)(ptr+*cptr);   //point on table
+            short num = *cptr++;        // load size of table (lsb)
             for (int i=0;i<num;i++) {
                 cptr++;
                 dspChangeThisData(cptr++, oldFormat, newFormat); }
@@ -260,8 +252,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
 
         case DSP_BIQUADS: {// dataspace then tableptr
             cptr++; // skip data space
-            cptr = (int*)(ptr+*cptr); //point on coef table
-            short numSection = *cptr;        // number of section (lsb)
+            cptr = (int*)(ptr+*cptr);   //point on coef table
+            short numSection = *cptr;   // number of section (lsb)
             cptr+=3;    // point on 1st section
             for (int i=0; i< numSection; i++) {
                 cptr+=2;    // skip Q and Gain
@@ -279,9 +271,11 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
         case DSP_DITHER_NS2: {// data space then table ptr
             cptr++; // skip data space
             cptr = (int*)(ptr+*cptr); //point on coef table
-            for (int i=0; i< dspNumSamplingFreq; i++)
-                for (int j=0; j<3; j++)
-                    dspChangeThisData(cptr++, oldFormat, newFormat);
+            for (int i=0; i< dspNumSamplingFreq; i++) {
+                dspChangeThisData(cptr++, oldFormat, newFormat);
+                dspChangeThisData(cptr++, oldFormat, newFormat);
+                dspChangeThisData(cptr++, oldFormat, newFormat);
+            }
         } break;
 
         case DSP_DCBLOCK: { // dataspace then imediate table

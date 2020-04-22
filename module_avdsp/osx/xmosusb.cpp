@@ -617,6 +617,7 @@ void dspReadHeader(){
     printf("total length = %d\n",header.totalLength);
     if (header.totalLength) {
         printf("data size    = %d\n",header.dataSize);
+        printf("checksum     = 0x%X\n",header.checkSum);
         printf("num cores    = %d\n",header.numCores);
         printf("version      = %X\n",header.version);
         if (header.format)

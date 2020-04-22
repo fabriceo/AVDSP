@@ -562,7 +562,7 @@ int dsp_END_OF_CODE(){
     calcLength();                       // solve latest opcode length
     dspprintf2("DSP_END_OF_CODE\n")
     addOpcodeValue(DSP_END_OF_CODE,0);
-    if (opcodeIndex() & 1) addCode(0);
+    if (opcodeIndex() & 1) addCode(0);  // padding
     calcLength();                       // just for executing debug print
     dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program
     dspprintf1("dsptotallength = %d\n",opcodeIndex());
@@ -573,7 +573,7 @@ int dsp_END_OF_CODE(){
     int numCore;
     dspCalcSumCore(opcodePtr(0), &sum, &numCore,dspHeaderPtr->totalLength);
     dspHeaderPtr->checkSum = sum;           // comit checksum
-    dspprintf1("check sum      = %d\n", sum);
+    dspprintf1("check sum      = 0x%X\n", sum);
     if (numCore == 0) numCore = 1;
     dspHeaderPtr->numCores = numCore;       // comit number of declared cores
     dspprintf1("numcore       = %d\n",numCore);
@@ -646,9 +646,14 @@ static int addOpcodeLengthPrint(int code){
 }
 
 static int addGainCodeQNM(dspGainParam_t gain){
-    if (dspFormat < DSP_FORMAT_FLOAT)
-         return addCode(dspQNM(gain,dspMant));
-    else return addFloat(gain);
+    if (dspFormat < DSP_FORMAT_FLOAT) {
+        float max = 1 << (31 - dspMant);
+        float min = -max;
+        if ((gain>=max) || (gain<min))
+            dspprintf(">>>> WARNING : float parameter doent fit in integer format chosen (%d.%d).\n",31-dspMant,dspMant);
+        return addCode(dspQNM(gain,dspMant));
+    } else
+        return addFloat(gain);
 }
 
 // indicate No operation
@@ -1126,22 +1131,12 @@ void dsp_DELAY_DP(int paramAddr){
     dsp_DELAY_(paramAddr, DSP_DELAY_DP);
 }
 
-const int dspTableFreq[FMAXpos] = {
-        8000, 16000,
-        24000, 32000,
-        44100, 48000,
-        88200, 96000,
-        176400,192000,
-        352800,384000,
-        705600, 768000 };
-
-
 // genertae one word code combining the default uS value in LSB and with the max value in MSB
 static int dspDelay_MicroSec(unsigned short maxus, unsigned short us){
     if (us<0) us = -us;
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
     checkFinishedParamSection();
-    signed long long maxSamples = (((signed long long)maxus * dspTableFreq[dspMaxSamplingFreq] + 500000)) / 1000000;
+    signed long long maxSamples = (((signed long long)maxus * dspFindFrequencyIndex(dspMaxSamplingFreq) + 500000)) / 1000000;
     if (maxSamples > 16000) dspFatalError("delay too large.");  // arbitrary value in this code version TODO
     return addOpcodeValue(maxSamples, us);   // temporary storage of the maxsamples and us in a single word
 }
@@ -1421,7 +1416,7 @@ void dsp_RMS_(int timetot, int delay, int delayInSteps, int pwr){
 
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of optimized divisor and counter depending on delayline
-        int fs = dspTableFreq[f];
+        int fs = dspFindFrequencyIndex(f);
         double fsf = fs;
         double maxCounterf;
         if (delay) maxCounterf= fsf * timesecf / stepsf;
@@ -1477,7 +1472,7 @@ void dsp_DCBLOCK(int lowfreq){
 
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of pole according to fs
-        int fs = dspTableFreq[f];
+        int fs = dspFindFrequencyIndex(f);
         double fsf = fs;
         float pole = 2.0*M_PI*lowf/fsf; //-0.00125 -> 10hz@48k, 20hz@96k
         //dspprintf("F = %f, pole = %f\n",fsf,pole);
@@ -1512,12 +1507,12 @@ void dsp_DISTRIB(int IO, int size){
 }
 
 void dsp_DIRAC_(int freq, dspGainParam_t gain){
-    int fmin = dspTableFreq[dspMinSamplingFreq];
+    int fmin = dspFindFrequencyIndex(dspMinSamplingFreq);
     checkInRange(freq, 0,fmin/2);
     addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
     addGainCodeQNM(gain);
     for (int f=dspMinSamplingFreq; f<dspMaxSamplingFreq; f++){
-        int fs = dspTableFreq[f];
+        int fs = dspFindFrequencyIndex(f);
         int count = fs / freq;
         addCode(count);
     }
