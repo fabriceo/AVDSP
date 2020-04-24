@@ -125,6 +125,7 @@ int dspRuntimeReset(const int fs,
         if ((freqIndex < min) || (freqIndex > max)) {
              dspprintf("ERROR : sampling freq not compatible with encoded dsp program.\n"); return -2; }
         //printf("INIT ** frequencies : min %d, max %d, num %d, index %d\n",min, max, max-min+1,freqIndex - min);
+
         dspSamplingFreq     = freqIndex;
         dspMinSamplingFreq  = min;
         dspMaxSamplingFreq  = max;
@@ -137,8 +138,10 @@ int dspRuntimeReset(const int fs,
         // now clear the data area, just after the program area
         int length = dspHeaderPtr->totalLength;    // lenght of the program
         int size   = dspHeaderPtr->dataSize;       // size of the data needed
-        int * intPtr = (int*)(dspHeaderPtr + length);  // point on data space
+        int * intPtr = (int*)dspHeaderPtr;
+        intPtr += length;  // point on data space
         for (int i = 0; i < size; i++) *(intPtr+i) = 0;
+        printf("DSP runtime init Reset Inside lenght=%d, size=%d\n",length, size);
 
         dspTpdfInit(random,defaultDither);
 	return 0;
@@ -152,7 +155,6 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
                     const int fs,                   // sampling frequency currently in use
                     int random,                     // for initialization of tpdf / dithering
                     int defaultDither) {            // dither value used in case of dsp_TPDF(0)
-
 
     dspHeaderPtr = (dspHeader_t*)codePtr;
     opcode_t* cptr = codePtr;
@@ -190,6 +192,7 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
 		res=dspRuntimeReset(fs,random,defaultDither);
 		if(res) return res;
 	}
+    printf("DSP runtime init reset done\n");
 
         return length;  // ok
     } else {

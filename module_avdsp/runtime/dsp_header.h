@@ -158,23 +158,24 @@ enum dspFreqs {
 
 
 //search a literal frequency in the list of possible supported frequencies
-static inline int dspFindFrequencyIndex(int freq){
-    switch (freq) {
-    case  8000  : return F8000; break;
-    case 16000  : return F16000; break;
-    case 24000  : return F24000; break;
-    case 32000  : return F32000; break;
-    case 44100  : return F44100; break;
-    case 48000  : return F48000; break;
-    case 88200  : return F88200; break;
-    case 96000  : return F96000; break;
-    case 176400 : return F176400; break;
-    case 192000 : return F192000; break;
-    case 352800 : return F352800; break;
-    case 384000 : return F384000; break;
-    case 705600 : return F705600; break;
-    case 768000 : return F768000; break;
-    default     : return FMAXpos; break;
+// complier will replace this by a const table which was not possible to do inside a .h file :)
+static inline int dspFindFrequencyIndex(enum dspFreqs freqIndex){
+    switch (freqIndex) {
+    case  F8000  : return 8000; break;
+    case F16000  : return 16000; break;
+    case F24000  : return 24000; break;
+    case F32000  : return 32000; break;
+    case F44100  : return 44100; break;
+    case F48000  : return 48000; break;
+    case F88200  : return 88200; break;
+    case F96000  : return 96000; break;
+    case F176400 : return 176400; break;
+    case F192000 : return 192000; break;
+    case F352800 : return 352800; break;
+    case F384000 : return 384000; break;
+    case F705600 : return 705600; break;
+    case F768000 : return 768000; break;
+    case FMAXpos : return 768000; break;
     }
 }
 

@@ -1114,7 +1114,6 @@ static void dsp_DELAY_(int paramAddr, int opcode){
     checkInParamSpace(paramAddr, 1);
     int tmp = addOpcodeLengthPrint(opcode);
     int size = opcodePtr(paramAddr)->s16.high;  // get max delay line in samples
-    //opcodePtr(paramAddr)->s16.high = 0;       // cleanup parameter and only keep LSB (default delay value in uSec)
     addCode(size);                              // store the max size of the delay line for runtime to check due to user potential changes
     if (opcode == DSP_DELAY_DP)
          addDataSpaceMisAligned8(size*2+1);      // now we can request the data space
@@ -1133,11 +1132,11 @@ void dsp_DELAY_DP(int paramAddr){
 
 // genertae one word code combining the default uS value in LSB and with the max value in MSB
 static int dspDelay_MicroSec(unsigned short maxus, unsigned short us){
-    if (us<0) us = -us;
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
     checkFinishedParamSection();
     signed long long maxSamples = (((signed long long)maxus * dspFindFrequencyIndex(dspMaxSamplingFreq) + 500000)) / 1000000;
     if (maxSamples > 16000) dspFatalError("delay too large.");  // arbitrary value in this code version TODO
+    //dspprintf("DELAY maxus = %d, maxsamples = %lld, value = %dus\n",maxus,maxSamples,us);
     return addOpcodeValue(maxSamples, us);   // temporary storage of the maxsamples and us in a single word
 }
 
@@ -1535,4 +1534,26 @@ void dsp_CLIP_Fixed(dspGainParam_t value){
         dspFatalError("value not in range -0.999..+0.999.");
     addGainCodeQNM(value);
 }
+#if 0
+int intMode = 0; // 1 = in PARAM, 2 = in CORE
 
+void interpreter(char * fileName,opcode_t * opcodeTable, int maxopcode, int dspformat, int minFreq, int maxFreq, int maxIO){
+    //load file here
+    dspEncoderInit(opcodeTable, maxopcode, dspformat, minFreq, maxFreq, maxIO);
+    while(1) {
+        intGetCommand();
+        if (strcmp(cmd,"PARAM") == 0) {
+            if (intMode) dspFatalError("PARAM not expected here");
+            dsp_PARAM();
+            intMode = 1;
+        }
+        if (strcmp(cmd,"CORE") == 0) {
+            intMode = 2;
+            dsp_CORE();
+        }
+        if (strcmp(cmd,"MUX") == 0) {
+            if (intMode == 1) ;
+        }
+    }
+}
+#endif

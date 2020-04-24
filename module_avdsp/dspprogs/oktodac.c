@@ -99,6 +99,117 @@ int dspNoProg(){
     return dsp_END_OF_CODE();
 }
 
+int dspDACStereoDsp4channels(int outs){
+    const int in1  = USBOUT(0);
+    const int in2  = USBOUT(1);
+    const int in3  = USBOUT(2);
+    const int in4  = USBOUT(3);
+    const int out1 = DACOUT(0);
+    const int out2 = DACOUT(1);
+    const int out3 = DACOUT(2);
+    const int out4 = DACOUT(3);
+
+    dsp_PARAM();
+    int mux1 = dspLoadMux_Inputs(2);
+        dspLoadMux_Data(in1, 0.5);  // possibility to mix any of 2 inputs
+        dspLoadMux_Data(in1, 0.5);  // and to adapt gain between -1.0 .. +1.0 for each
+    int mux2 = dspLoadMux_Inputs(2);
+        dspLoadMux_Data(in2, 0.5);
+        dspLoadMux_Data(in2, 0.5);
+    int mux3 = dspLoadMux_Inputs(2);
+        dspLoadMux_Data(in3, 0.5);
+        dspLoadMux_Data(in3, 0.5);
+    int mux4 = dspLoadMux_Inputs(2);
+        dspLoadMux_Data(in4, 0.5);
+        dspLoadMux_Data(in4, 0.5);
+
+    int delay1 = dspDelay_MicroSec_Max_Default(5000,0);    // max 5ms = 170cm
+    int delay2 = dspDelay_MicroSec_Max_Default(5000,0);
+    int delay3 = dspDelay_MicroSec_Max_Default(5000,0);
+    int delay4 = dspDelay_MicroSec_Max_Default(5000,0);    // 15ms = 5m
+
+    int fbank1 = dspBiquad_Sections(12);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+
+    int fbank2 = dspBiquad_Sections(4);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+
+    int fbank3 = dspBiquad_Sections(12);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+
+    int fbank4 = dspBiquad_Sections(4);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+
+    dsp_CORE();
+    dsp_LOAD_MUX(mux1);
+    dsp_BIQUADS(fbank1);
+    dsp_SAT0DB();
+    dsp_DELAY(delay1);
+    dsp_STORE(out1);
+    dsp_STORE(USBIN(0));
+
+    dsp_CORE();
+    dsp_LOAD_MUX(mux2);
+    dsp_BIQUADS(fbank2);
+    dsp_SAT0DB();
+    dsp_DELAY(delay2);
+    dsp_STORE(out2);
+    dsp_STORE(USBIN(1));
+
+    dsp_CORE();
+    dsp_LOAD_MUX(mux3);
+    dsp_BIQUADS(fbank3);
+    dsp_SAT0DB();
+    dsp_DELAY(delay3);
+    dsp_STORE(out3);
+    dsp_STORE(USBIN(2));
+#if 1
+    dsp_LOAD_MUX(mux3);
+    dsp_BIQUADS(fbank3);
+    dsp_SAT0DB();
+    dsp_DELAY(delay3);
+    dsp_STORE(out3);
+    dsp_STORE(USBIN(2));
+#endif
+    dsp_CORE();
+    dsp_LOAD_MUX(mux4);
+    dsp_BIQUADS(fbank4);
+    dsp_SAT0DB();
+    dsp_DELAY(delay4);
+    dsp_STORE(out4);
+    dsp_STORE(USBIN(3));
+
+    return dsp_END_OF_CODE();
+}
+
 int dspProgUsbLoopBack(int outs, int dither){
     if (dither>=0) {
 		dsp_TPDF(dither);	// calculate tpdf value for dithering
@@ -483,6 +594,14 @@ int dspProg(int argc,char **argv){
                     outs = 8;
                     continue; }
 
+
+                 if (strcmp(argv[i],"-dacstereodsp4") == 0) {
+                    dspprintf("program for dac stereo with 4 dsp_CORE basic filtering+delay\n");
+                    prog = 6;
+                    outs = 4;
+                    continue; }
+
+
                  if (strcmp(argv[i],"-dither") == 0) {
                      dither = 0;
                       if (argc>=i) {
@@ -537,6 +656,7 @@ int dspProg(int argc,char **argv){
 	case 3:  return dspProgUsbLoopBack(outs, dither);
     case 4:  return dspProgTest();
     case 5:  return dspProgDACFABRICEO(fx, gd, dither, gaincomp, microslow);
+    case 6:  return dspDACStereoDsp4channels(outs);
 	default: return dspNoProg();
 	}
 }
