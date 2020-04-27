@@ -6,7 +6,7 @@
 #define DACOUT(x) (x)
 #define DACIN(x)  (8+(x))
 
-static int encodeOneChannel(char *filename, int nc) {
+static int encodeOneChannel(char *filename, int nc, float gain) {
   FILE *fd;
   char *line;
   size_t sz;
@@ -16,6 +16,7 @@ static int encodeOneChannel(char *filename, int nc) {
 	fprintf(stderr,"Could not open %s\n",filename);
 	return 1;
   }
+
   // test first line for format
   line=NULL;sz=0;
   getline(&line,&sz,fd);
@@ -38,9 +39,9 @@ static int encodeOneChannel(char *filename, int nc) {
   }
 
   dsp_CORE(); 
-  dsp_TPDF(24); 
+  dsp_TPDF(0);
 
-  dsp_LOAD_GAIN_Fixed(DACIN(nc),1.0);
+  dsp_LOAD_GAIN_Fixed(DACIN(nc),gain);
 
   dsp_PARAM();
   int filter = dspBiquad_Sections_Flexible();
@@ -167,16 +168,35 @@ static int encodeOneChannel(char *filename, int nc) {
 
 }
 
+static void usage(void) {
+	fprintf(stderr,"REWgenericEQ [-g gaindb ] eqfile1 [ eqfile2 ... ]\n");
+}
+
 int dspProg(int argc,char **argv){
   int nc;
+  float gain[8];
 
-  if(argc==0) {
-	fprintf(stderr,"Need REW filters file names\n");
-	return 1;
+  for(nc=0;nc<8;nc++)
+	gain[nc]=1.0;
+
+  do {
+  	if(argc==0) { usage(); return 1; }
+
+  	if(strcmp(argv[0],"-g") == 0 ) {
+		if(argc<2)  { usage();  return 1; }
+		for(nc=0;nc<8;nc++)
+			gain[nc]=powf(10.0,atof(argv[1])/20.0);
+		argc-=2;argv+=2;		
+		continue;
+	}
+
+	break;
+  } while(1);
+
+  for(nc=0;nc<argc;nc++)  {
+	encodeOneChannel(argv[nc],nc,gain[nc]);
   }
-
-  for(nc=0;nc<argc;nc++) 
-	encodeOneChannel(argv[nc],nc);
   
   return dsp_END_OF_CODE();
 }
+
