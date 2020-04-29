@@ -565,8 +565,8 @@ void getDacStatus(){
     printf("maximum dsp tasks   = %d\n",    (data[19]) );
     for (int i=0; i<= data[19]; i++)
         if (i != data[19])
-             printf("dsp %d: instructions = %d\n", i+1, (data[20+i+i]+(data[20+i+i]<<8)) );
-        else printf("maxi   instructions = %d\n", (data[20+i+i]+(data[20+i+i]<<8)) );
+             printf("dsp %d: instructions = %d\n", i+1, (data[20+i+i]+(data[20+i+i+1]<<8)) );
+        else printf("maxi   instructions = %d\n", (data[20+i+i]+(data[20+i+i+1]<<8)) );
 }
 
 #define F28(x) ((double)(x)/(double)(1<<28))

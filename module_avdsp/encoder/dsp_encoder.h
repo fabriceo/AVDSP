@@ -52,6 +52,8 @@ int  opcodeIndexMisAligned8();
  void dsp_NEGY();
 
  // generate a random number to be used by DITHER or SAT0DB_TPDF
+ void dsp_TPDF_CALC(int bits);
+ // generate a random number to be used by DITHER or SAT0DB_TPDF
  void dsp_TPDF(int bits);
  // load the ALU with the random number
  void dsp_WHITE();

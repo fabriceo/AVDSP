@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
                 i++;
                 if (argc>i) {
                     int f = strtol(argv[i], &perr,10);
-                    int res = dspFindFrequencyIndex(f);
+                    int res = dspConvertFrequencyToIndex(f);
                     if (res >= FMAXpos) {
                         fprintf(stderr,"Could not find this sampling rate %d\n",f);
                         exit(-1); }
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
                 i++;
                 if (argc>i) {
                     int f = strtol(argv[i], &perr,10);
-                    int res = dspFindFrequencyIndex(f);
+                    int res = dspConvertFrequencyToIndex(f);
                     if (res >= FMAXpos) {
                         fprintf(stderr,"Could not find this sampling rate %d\n",f);
                         exit(-1); }

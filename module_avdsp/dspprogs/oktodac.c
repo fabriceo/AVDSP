@@ -235,18 +235,26 @@ int dspProgTest(){
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);   //44k
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);
-        dspFir_ImpulseFile("../dspprogs/fir3.txt",3);   //96k
+        dspFir_ImpulseFile("../dspprogs/fir3.txt",3);   //96
+
+        int testBQ = dspBiquad_Sections_Flexible();
+        dsp_LP_BUT4(1000);
+        //dsp_filter(FHS1,  500,  0.5, dB2gain(-5.0));
+        dsp_filter(FPEAK, 400,  1.0, dB2gain(6.0));
+        dsp_filter(FPEAK, 100,  1.0, dB2gain(-6.0));
+
 
 dsp_CORE();
-        dsp_TPDF(24);   // calculate tpdf value for dithering
+        dsp_TPDF(22);   // calculate tpdf value for dithering
 
         dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
-        dsp_FIR(testFir);
+        //dsp_FIR(testFir);
+        dsp_BIQUADS(testBQ);
         dsp_SAT0DB_TPDF();
         dsp_STORE( USBIN(0) );
 
         dsp_LOAD_STORE();
-        dspLoadStore_Data( USBOUT(1), USBIN(1) );   // loopback REW
+        dspLoadStore_Data( USBOUT(1), USBIN(7) );   // loopback REW
 
     return dsp_END_OF_CODE();
 }

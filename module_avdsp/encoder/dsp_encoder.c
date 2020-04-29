@@ -757,11 +757,16 @@ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
 }
 
 
+void dsp_TPDF_CALC(int dither){
+    addOpcodeLengthPrint(DSP_TPDF_CALC);
+    checkInRange(dither,0,32);
+    addCode(dither);
+}
+
+
 void dsp_TPDF(int dither){
-    if (firstTPDF == 0)
-        firstTPDF = addOpcodeLengthPrint(DSP_TPDF_CALC);
-    else addOpcodeLengthPrint(DSP_TPDF);
-    checkInRange(dither,2,32);
+    addOpcodeLengthPrint(DSP_TPDF);
+    checkInRange(dither,0,32);
     addCode(dither);
 }
 
@@ -1134,7 +1139,7 @@ void dsp_DELAY_DP(int paramAddr){
 static int dspDelay_MicroSec(unsigned short maxus, unsigned short us){
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
     checkFinishedParamSection();
-    signed long long maxSamples = (((signed long long)maxus * dspFindFrequencyIndex(dspMaxSamplingFreq) + 500000)) / 1000000;
+    signed long long maxSamples = (((signed long long)maxus * dspConvertFrequencyFromIndex(dspMaxSamplingFreq) + 500000)) / 1000000;
     if (maxSamples > 16000) dspFatalError("delay too large.");  // arbitrary value in this code version TODO
     //dspprintf("DELAY maxus = %d, maxsamples = %lld, value = %dus\n",maxus,maxSamples,us);
     return addOpcodeValue(maxSamples, us);   // temporary storage of the maxsamples and us in a single word
@@ -1290,7 +1295,7 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
         addCode(dspQNM(b0,DSP_MANTBQ));
         addCode(dspQNM(b1,DSP_MANTBQ));
         addCode(dspQNM(b2,DSP_MANTBQ));
-        addCode(dspQNM(a1 - 1.00,DSP_MANTBQ)); // concept of mantissa reintegration :)
+        addCode(dspQNM(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration :)
         addCode(dspQNM(a2,DSP_MANTBQ));
     } else {
         addFloat(b0);
@@ -1415,7 +1420,7 @@ void dsp_RMS_(int timetot, int delay, int delayInSteps, int pwr){
 
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of optimized divisor and counter depending on delayline
-        int fs = dspFindFrequencyIndex(f);
+        int fs = dspConvertFrequencyFromIndex(f);
         double fsf = fs;
         double maxCounterf;
         if (delay) maxCounterf= fsf * timesecf / stepsf;
@@ -1471,7 +1476,7 @@ void dsp_DCBLOCK(int lowfreq){
 
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of pole according to fs
-        int fs = dspFindFrequencyIndex(f);
+        int fs = dspConvertFrequencyFromIndex(f);
         double fsf = fs;
         float pole = 2.0*M_PI*lowf/fsf; //-0.00125 -> 10hz@48k, 20hz@96k
         //dspprintf("F = %f, pole = %f\n",fsf,pole);
@@ -1506,12 +1511,12 @@ void dsp_DISTRIB(int IO, int size){
 }
 
 void dsp_DIRAC_(int freq, dspGainParam_t gain){
-    int fmin = dspFindFrequencyIndex(dspMinSamplingFreq);
+    int fmin = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
     checkInRange(freq, 0,fmin/2);
     addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
     addGainCodeQNM(gain);
     for (int f=dspMinSamplingFreq; f<dspMaxSamplingFreq; f++){
-        int fs = dspFindFrequencyIndex(f);
+        int fs = dspConvertFrequencyFromIndex(f);
         int count = fs / freq;
         addCode(count);
     }

@@ -30,17 +30,17 @@
 #endif
 
 // this define the precision for the fixed point maths when opcodes are encoded with DSP_FORMAT_INxx
-// suggested format is 4.28 for parameters, gain and filters coeficients.
+// suggested format is 8.24 for parameters, gain and filters coeficients.
 // for INT32, DSP_MANT is maximum 15 by design
 // minimum is 8 by design
 #ifndef DSP_MANT
-#define DSP_MANT 24
+#define DSP_MANT 28
 #endif
 
 // this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
 // remark for XS2 architecture, this value must be modified also in the biquad assembly file
 #ifndef DSP_MANTBQ
-#define DSP_MANTBQ 24
+#define DSP_MANTBQ 28
 #endif
 
 // special macro for s.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
@@ -159,7 +159,26 @@ enum dspFreqs {
 
 //search a literal frequency in the list of possible supported frequencies
 // complier will replace this by a const table which was not possible to do inside a .h file :)
-static inline int dspFindFrequencyIndex(enum dspFreqs freqIndex){
+static inline int dspConvertFrequencyToIndex(int freq){
+    switch (freq) {
+    case  8000  : return F8000; break;
+    case 16000  : return F16000; break;
+    case 24000  : return F24000; break;
+    case 32000  : return F32000; break;
+    case 44100  : return F44100; break;
+    case 48000  : return F48000; break;
+    case 88200  : return F88200; break;
+    case 96000  : return F96000; break;
+    case 176400 : return F176400; break;
+    case 192000 : return F192000; break;
+    case 352800 : return F352800; break;
+    case 384000 : return F384000; break;
+    case 705600 : return F705600; break;
+    case 768000 : return F768000; break;
+    default :     return FMAXpos; break;
+    }
+}
+static inline int dspConvertFrequencyFromIndex(enum dspFreqs freqIndex){
     switch (freqIndex) {
     case  F8000  : return 8000; break;
     case F16000  : return 16000; break;
@@ -175,7 +194,7 @@ static inline int dspFindFrequencyIndex(enum dspFreqs freqIndex){
     case F384000 : return 384000; break;
     case F705600 : return 705600; break;
     case F768000 : return 768000; break;
-    case FMAXpos : return 768000; break;
+    default :      return 768000; break;
     }
 }
 
@@ -212,7 +231,7 @@ typedef struct dspHeader_s {    // 11 words
 /* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program
 /* 4 */     int   numCores;     // number of cores/tasks declared in the dsp program
 /* 5 */     int   version;      // version of the encoder used MAJOR, MINOR,BUGFIX
-/* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 1 for float or 2 for double
+/* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 0 for float encoding
 /*   */     unsigned short   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
 /* 7 */     int   freqMin;      // minimum frequency possible for this program, in raw format eg 44100
 /* 8 */     int   freqMax;      // maximum frequency possible for this program, in raw format eg 192000

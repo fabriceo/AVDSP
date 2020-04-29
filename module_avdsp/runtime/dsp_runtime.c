@@ -14,8 +14,8 @@
 #include "dsp_ieee754.h"        // some optimized function for IEEE float/double number as static inline
 #include "dsp_fpmath.h"         // some fixed point maths as static inline
 #include "dsp_tpdf.h"           // functions related to randomizer, tpdf, truncation as static inline
-#include "dsp_biquadSTD.h"      // biquad functions prototypes
-#include "dsp_firSTD.h"         // fir functions prototypes (wip)
+#include "dsp_biquadSTD.h"      // biquad related functions
+#include "dsp_firSTD.h"         // fir functions prototypes
 #include <math.h>               // used for importing float sqrt()
 
 //prototypes
@@ -117,7 +117,7 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat);
 int dspRuntimeReset(const int fs,
                     int random,                     // for tpdf / dithering
                     int defaultDither) {            // dither value used for dsp_TPDF(0)
-        int freqIndex = dspFindFrequencyIndex(fs);
+        int freqIndex = dspConvertFrequencyToIndex(fs);
         if (freqIndex>=FMAXpos) {
             dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
         int min = dspHeaderPtr->freqMin;
@@ -199,23 +199,18 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
         dspprintf("ERROR : no dsp header in this program.\n"); return -1; }
 }
 
-static void dspChangeThisInt(int * p, int old, int new){
-    float *fp = (float*)p;
-    if ((old!=0)&&(new==0)) *fp = *p;        // old is integer, new is float
-    if ((old==0)&&(new!=0)) *p = *fp;        // old is float, new is integer
-}
-static void dspChangeThisData(int * p, int old, int new){
-    float *fp = (float*)p;
+
+static void dspChangeThisData(dspALU32_t * p, int old, int new){
     if (old)    // old is interger
         if (new) {// new is integer
             int delta = new-old;
-            if (delta>0) *p <<= delta;
-            if (delta<0) *p >>= -delta;
+            if (delta>0) p->i <<= delta;
+            if (delta<0) p->i >>= -delta;
         } else // new is float
-            *fp = (float)(*p) / (float)(1 << old);
+            p->f = (float)(p->i) / (float)(1 << old);
     else // old is float
         if (new) // new is integer
-            *p = dspQNM(*fp, new);
+            p->i = dspQNM(p->f, new);
 }
 
 // to be launched just after runtime, to potentially convert the encoded format.
@@ -228,7 +223,7 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
         int code = ptr->op.opcode;
         unsigned int skip = ptr->op.skip;
         if (skip == 0) break;       // end of program encountered
-        int * cptr = (int*)(ptr+1); // point on the first parameter
+        dspALU32_t * cptr = (dspALU32_t*)(ptr+1); // point on the first parameter
         switch(code){
 
         case DSP_DIRAC:             // dataptr then imediate value
@@ -246,13 +241,14 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
         case DSP_GAIN:              // gainptr (indirect value)
         case DSP_SAT0DB_GAIN:
         case DSP_SAT0DB_TPDF_GAIN:{
-            cptr = (int*)(ptr+*cptr);   // compute gainptr
+            cptr = (dspALU32_t*)(ptr+cptr->i);   // compute gainptr
             dspChangeThisData(cptr, oldFormat, newFormat);
             break;}
 
         case DSP_LOAD_MUX:{ // tableptr
-            cptr = (int*)(ptr+*cptr);   //point on table
-            short num = *cptr++;        // load size of table (lsb)
+            cptr = (dspALU32_t*)(ptr+cptr->i);   //point on table
+            short num = cptr->i;
+            cptr++;        // load size of table (lsb)
             for (int i=0;i<num;i++) {
                 cptr++;
                 dspChangeThisData(cptr++, oldFormat, newFormat); }
@@ -260,8 +256,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
 
         case DSP_BIQUADS: {// dataspace then tableptr
             cptr++; // skip data space
-            cptr = (int*)(ptr+*cptr);   //point on coef table
-            short numSection = *cptr;   // number of section (lsb)
+            cptr = (dspALU32_t*)(ptr+cptr->i);   //point on coef table
+            short numSection = cptr->i;   // number of section (lsb)
             cptr+=3;    // point on 1st section
             for (int i=0; i< numSection; i++) {
                 cptr+=2;    // skip Q and Gain
@@ -278,7 +274,7 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
 
         case DSP_DITHER_NS2: {// data space then table ptr
             cptr++; // skip data space
-            cptr = (int*)(ptr+*cptr); //point on coef table
+            cptr = (dspALU32_t*)(ptr+cptr->i); //point on coef table
             for (int i=0; i< dspNumSamplingFreq; i++) {
                 dspChangeThisData(cptr++, oldFormat, newFormat);
                 dspChangeThisData(cptr++, oldFormat, newFormat);
@@ -546,8 +542,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
         case DSP_TPDF: {
             dspprintf2("TPDF");
             asm("#dsptpdf:");
-            if (! dspTpdfPrepare(tpdfPtr, &tpdfLocal,*cptr))
-                tpdfPtr = &tpdfLocal;   // move tpdf pointer to local otherwise keep asis (maybe global or local already)
+            if (! dspTpdfPrepare(tpdfPtr, &tpdfLocal,*cptr)) tpdfPtr = &tpdfLocal;   // move tpdf pointer to local otherwise keep asis (maybe global or local already)
             #if DSP_ALU_INT
                 ALU = dspTpdfValue;
             #elif DSP_ALU_FLOAT
@@ -836,7 +831,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             if (*numPtr) {  // verify if biquad is in bypass mode or no
             #if DSP_ALU_INT
                 // ALU is expected to contain the sample in double precision (typically after DSP_LOAD_GAIN)
-                #ifdef DSP_XS2A
+                #if 0//def DSP_XS2A
                     ALU = dsp_biquads_xs2( sample , coefPtr, dataPtr, num); //DSP_MANTBQ and dspBiquadFreqSkip are defined in assembly file
                 #else
                     ALU = dsp_calc_biquads_int( sample, coefPtr, dataPtr, num, DSP_MANTBQ, dspBiquadFreqSkip);

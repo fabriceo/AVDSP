@@ -3,7 +3,7 @@
 #if defined(__XS2A__)
 
 #define SKIP dspBiquadFreqSkip	/* global parameter from dsp_runtime.c to add a constatnt to coefptr*/
-#define DSP_MANTBQ  24
+#define DSP_MANTBQ  28
 #define NSTACKWORDS 8
 //.syntax default
 //.syntax architectural
@@ -52,10 +52,10 @@ dsp_biquads_xs2_entry:
 	maccs h, l, s2, c1 				// x[n-2] * b2
 	ldd s2, s1, state_data[1]	 	// s1=y[n-1] and s2=y[n-2]
 	maccs h, l, s1, c0				// y[n-1] * a1	this coef is reduced by 1.0 due to remainder integration
-	{ldw c1, filter_coeffs[4]; ldc c0,DSP_MANTBQ } 	// c1=a2
+	{ldw c1, filter_coeffs[4]; ldc c0,(DSP_MANTBQ) } 	// c1=a2
 	maccs h, l, s2, c1				// y[n-2] * a2
+	lsats h, l, c0					// saturate
 	std h,l,state_data[2]			// save accumulator for reminder re-integration at next cycle
-//	lsats h, l, c0					// saturate, a bit useless
 	lextract s0, h, l, c0, 32		// remove BQ coefs precision and get back to sample precision 4.28
 	std s1, s0, state_data[1]		// store into y[n-1] and y[n-2]
 
@@ -81,10 +81,10 @@ dsp_biquads_xs2_loop:
 	maccs h, l, s2, c1 				// x[n-2] * b2
 	ldd s2, s1, state_data[1]	 	// s1=y[n-1] and s2=y[n-2]
 	maccs h, l, s1, c0				// y[n-1] * a1	this coef is reduced by 1.0 due to remainder integration
-	{ldw c1, filter_coeffs[4]; ldc c0,DSP_MANTBQ  } 	// c1=a2
+	{ldw c1, filter_coeffs[4]; ldc c0,(DSP_MANTBQ)  } 	// c1=a2
 	maccs h, l, s2, c1				// y[n-2] * a2
+	lsats h, l, c0					// saturate
 	std h,l,state_data[2]			// save accumulator for reminder re-integration at next cycle
-//	lsats h, l, c0					//saturate
 	lextract s0, h, l, c0, 32		// remove BQ coefs precision and get back to sample precision 4.28
 	std s1, s0, state_data[1]		// store into y[n-1] and y[n-2]
 
