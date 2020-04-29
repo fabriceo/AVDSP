@@ -39,7 +39,7 @@ static int encodeOneChannel(char *filename, int nc, float gain) {
   }
 
   dsp_CORE(); 
-  dsp_TPDF(0);
+  if(nc == 0) dsp_TPDF_CALC(0);
 
   dsp_LOAD_GAIN_Fixed(DACIN(nc),gain);
 
