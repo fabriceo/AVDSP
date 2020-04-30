@@ -85,6 +85,9 @@ static int encodeOneChannel(char *filename, int nc, float gain) {
 
 	if(Fc == 0.0) continue;
 
+	if(strncmp(&(line[15]),"None",4)==0) {
+		continue;
+	}
 	if(strncmp(&(line[15]),"PK",2)==0) {
 		dsp_Filter2ndOrder(FPEAK,Fc,Q,G);
 		continue;
@@ -169,7 +172,7 @@ static int encodeOneChannel(char *filename, int nc, float gain) {
 }
 
 static void usage(void) {
-	fprintf(stderr,"REWgenericEQ [-g gaindb ] eqfile1 [ eqfile2 ... ]\n");
+	fprintf(stderr,"REWgenericEQ [-g gaindb ] eqfile1 [ [-g gaindb ] eqfile2 ... ]\n");
 }
 
 int dspProg(int argc,char **argv){
@@ -179,24 +182,23 @@ int dspProg(int argc,char **argv){
   for(nc=0;nc<8;nc++)
 	gain[nc]=1.0;
 
-  do {
-  	if(argc==0) { usage(); return 1; }
+  nc=0;
+  while(argc) {
 
   	if(strcmp(argv[0],"-g") == 0 ) {
-		if(argc<2)  { usage();  return 1; }
-		for(nc=0;nc<8;nc++)
-			gain[nc]=powf(10.0,atof(argv[1])/20.0);
+		if(argc<3)  { usage();  return 1; }
+		gain[nc]=powf(10.0,atof(argv[1])/20.0);
 		argc-=2;argv+=2;		
-		continue;
 	}
 
-	break;
-  } while(1);
-
-  for(nc=0;nc<argc;nc++)  {
-	encodeOneChannel(argv[nc],nc,gain[nc]);
+  	if(argc==0) { usage(); return 1; }
+	encodeOneChannel(argv[0],nc,gain[nc]);
+	nc++;
+	argc--;argv++;		
   }
-  
+
+  if(nc==0) { usage(); return 1; }
+ 
   return dsp_END_OF_CODE();
 }
 
