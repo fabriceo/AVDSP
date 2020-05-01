@@ -17,8 +17,8 @@ int dspProg_crossoverLV6(int fcross, int delay){
     int lowpass = dspBiquad_Sections(3);
         dsp_LP_BES6(fcross);
 
-    if (delay == 0) delay = 752000/freq;  // group delay of the bessel6
-    //if (delay == 0) delay = 986000/freq;  // group delay of the bessel8
+    if (delay == 0) delay = 752000/fcross;  // group delay of the bessel6
+    //if (delay == 0) delay = 986000/fcross;  // group delay of the bessel8
 
     dsp_CORE();  // first core
     dsp_TPDF_CALC(24);

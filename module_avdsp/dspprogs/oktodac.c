@@ -252,10 +252,12 @@ int dspProgTest(){
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);   //96
 
         int testBQ = dspBiquad_Sections_Flexible();
+        dsp_filter(FAP2,1000, 1.0, 1.0);
+/*
         dsp_LP_BUT4(1000);
         dsp_filter(FPEAK, 400,  1.0, dB2gain(6.0));
         dsp_filter(FPEAK, 100,  1.0, dB2gain(-6.0));
-
+*/
 
 dsp_CORE();
         dsp_TPDF_CALC(22);   // calculate tpdf value for dithering
