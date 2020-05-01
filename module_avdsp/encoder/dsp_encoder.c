@@ -1295,13 +1295,13 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
         addCode(dspQNM(b0,DSP_MANTBQ));
         addCode(dspQNM(b1,DSP_MANTBQ));
         addCode(dspQNM(b2,DSP_MANTBQ));
-        addCode(dspQNM(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration :)
+        addCode(dspQNM(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration/noise shapping
         addCode(dspQNM(a2,DSP_MANTBQ));
     } else {
         addFloat(b0);
         addFloat(b1);
         addFloat(b2);
-        addFloat(a1 - 1.0); // now even float model is using mantissa reintegration
+        addFloat(a1 - 1.0); // to make things easier, even float model is using mantissa reintegration
         addFloat(a2);
     }
     return tmp;

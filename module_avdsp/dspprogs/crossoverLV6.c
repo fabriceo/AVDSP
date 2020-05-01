@@ -17,12 +17,15 @@ int dspProg_crossoverLV6(int fcross, int delay){
     int lowpass = dspBiquad_Sections(3);
         dsp_LP_BES6(fcross);
 
-    dsp_CORE();  // first core (could be removed - implicit)
-    dsp_TPDF(24); 
+    if (delay == 0) delay = 752000/freq;  // group delay of the bessel6
+    //if (delay == 0) delay = 986000/freq;  // group delay of the bessel8
+
+    dsp_CORE();  // first core
+    dsp_TPDF_CALC(24);
     dsp_LOAD(USBOUT(1));    // loop back with minimum delay time for reference
     dsp_STORE(USBIN(1));
 
-    //dsp_CORE();  // second core for test
+    //dsp_CORE();  // second core just for test
     dsp_LOAD(USBOUT(0)); 
     dsp_COPYXY();
     dsp_DELAY_FixedMicroSec(delay);
@@ -44,7 +47,7 @@ int dspProg_crossoverLV6(int fcross, int delay){
 
 int dspProg(int argc,char **argv){
    int fcross = 1000;  
-   int delay = 750; // should be same delay as the chosen filter
+   int delay = 0;
 
    for(int i=0 ; i<argc;i++) {
         // parse USER'S command line parameters

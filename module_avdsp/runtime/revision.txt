@@ -1,2 +1,0 @@
-20200408:
-20200404: release candidate, integer64 and float fully tested on XMOS platform

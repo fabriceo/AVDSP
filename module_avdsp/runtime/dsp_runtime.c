@@ -1,9 +1,8 @@
 /*
- * dsp_coder.c
+ * dsp_runtime.c
  *
- *  Created on: 1 janv. 2020
+ *  Version: May 1st 2020
  *      Author: fabriceo
- *      this program will create a list of opcodes to be executed lated by the dsp engine
  */
 
 //#define DSP_MANT_FLEXIBLE 1 // this force the runtime to accept programs encoded with any value for DSP_MANT (slower execution)
@@ -16,7 +15,7 @@
 #include "dsp_tpdf.h"           // functions related to randomizer, tpdf, truncation as static inline
 #include "dsp_biquadSTD.h"      // biquad related functions
 #include "dsp_firSTD.h"         // fir functions prototypes
-#include <math.h>               // used for importing float sqrt()
+//#include <math.h>               // used for importing float sqrt()
 
 //prototypes
 opcode_t * dspFindCore(opcode_t * ptr, const int numCore);  // search for a core and return begining of core code
@@ -37,7 +36,7 @@ dspHeader_t * dspHeaderPtr;             // points on opcode header see dsp_heade
 int dspSamplingFreq;
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
-int dspBiquadFreqSkip;                  // not static because it is used in biquad assembly routine as external
+int dspBiquadFreqSkip;                  // note : used in biquad xs2 assembly routine as external
 int dspMantissa;                        // reflects DSP_MANT or dspHeaderPtr->format
 
 
@@ -141,7 +140,6 @@ int dspRuntimeReset(const int fs,
         int * intPtr = (int*)dspHeaderPtr;
         intPtr += length;  // point on data space
         for (int i = 0; i < size; i++) *(intPtr+i) = 0;
-        printf("DSP runtime init Reset Inside lenght=%d, size=%d\n",length, size);
 
         dspTpdfInit(random,defaultDither);
 	return 0;
@@ -192,8 +190,6 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
 		res=dspRuntimeReset(fs,random,defaultDither);
 		if(res) return res;
 	}
-    printf("DSP runtime init reset done\n");
-
         return length;  // ok
     } else {
         dspprintf("ERROR : no dsp header in this program.\n"); return -1; }
@@ -247,10 +243,10 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
 
         case DSP_LOAD_MUX:{ // tableptr
             cptr = (dspALU32_t*)(ptr+cptr->i);   //point on table
-            short num = cptr->i;
-            cptr++;        // load size of table (lsb)
+            short num = cptr->i;                // number of records
+            cptr++;   // point on couples
             for (int i=0;i<num;i++) {
-                cptr++;
+                cptr++; // skip index
                 dspChangeThisData(cptr++, oldFormat, newFormat); }
             break;}
 
@@ -533,7 +529,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
         case DSP_TPDF_CALC: {
             dspprintf2("TPDF_CALC");
-            asm("#dsptpdf:");
             if (dspTpdfPrepare(&dspTpdfGlobal,&dspTpdfGlobal,*cptr)) {
                 ALU = dspTpdfCalc();
             } else ALU = 0;
@@ -541,7 +536,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
         case DSP_TPDF: {
             dspprintf2("TPDF");
-            asm("#dsptpdf:");
             if (! dspTpdfPrepare(tpdfPtr, &tpdfLocal,*cptr)) tpdfPtr = &tpdfLocal;   // move tpdf pointer to local otherwise keep asis (maybe global or local already)
             #if DSP_ALU_INT
                 ALU = dspTpdfValue;
@@ -577,7 +571,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 
         case DSP_LOAD_GAIN: {
-            asm("#dsploadgain:");
             ALU2 = ALU;     // save ALU in Y in case someone want to use it later
             int index = *cptr++;
             dspSample_t * samplePtr = sampPtr+index;
@@ -831,7 +824,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             if (*numPtr) {  // verify if biquad is in bypass mode or no
             #if DSP_ALU_INT
                 // ALU is expected to contain the sample in double precision (typically after DSP_LOAD_GAIN)
-                #if 0//def DSP_XS2A
+                #ifdef DSP_XS2A
                     ALU = dsp_biquads_xs2( sample , coefPtr, dataPtr, num); //DSP_MANTBQ and dspBiquadFreqSkip are defined in assembly file
                 #else
                     ALU = dsp_calc_biquads_int( sample, coefPtr, dataPtr, num, DSP_MANTBQ, dspBiquadFreqSkip);
@@ -927,7 +920,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 tablePtr = (int*)ptr+offset;    // now points on the impulse associated to current frequency
                 //dspprintf3("fir ImpulsePtr = 0x%X\n",(int)tablePtr);
                 int length = *(tablePtr++);     // length of the impulse
-                offset = *cptr;        // offset where are the data for states filter
+                offset = *cptr;                 // offset where are the data for states filter
                 dspALU_SP_t * dataPtr = (dspALU_SP_t*)(rundataPtr+offset);
                 //dspprintf3("state data @0x%X, length %d\n",(int)dataPtr,length);
                 int delay = length >> 16;
@@ -1084,7 +1077,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             #endif
         break; }
 
-        /* MPD code for dithering
+        /* inspired form MPD dithering code
         inline T PcmDither::Dither(T sample) noexcept
         {       constexpr T round = 1 << (scale_bits - 1);
                 constexpr T mask = (1 << scale_bits) - 1;

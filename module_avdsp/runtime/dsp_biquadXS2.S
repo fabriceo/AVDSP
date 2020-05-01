@@ -1,4 +1,7 @@
 // Copyright (c) 2017-2019, XMOS Ltd, All rights reserved
+// Version: May 1st 2020
+// revisited by Fabriceo
+
 
 #if defined(__XS2A__)
 
@@ -56,7 +59,7 @@ dsp_biquads_xs2_entry:
 	maccs h, l, s2, c1				// y[n-2] * a2
 	lsats h, l, c0					// saturate
 	std h,l,state_data[2]			// save accumulator for reminder re-integration at next cycle
-	lextract s0, h, l, c0, 32		// remove BQ coefs precision and get back to sample precision 4.28
+	lextract s0, h, l, c0, 32		// remove BQ coefs precision and get back to sample precision (4.28)
 	std s1, s0, state_data[1]		// store into y[n-1] and y[n-2]
 
 	{bf num_sections, dsp_biquads_xs2_end; sub num_sections,num_sections,1  }	// leave if finished

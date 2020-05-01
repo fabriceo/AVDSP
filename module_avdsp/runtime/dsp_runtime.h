@@ -141,7 +141,7 @@ typedef union dspALU64_u { long long i; double f; dsplh_t lh; } dspALU64_t;
 #define DSP_ARCH DSP_XS1
 #elif 0
 // other architecture defines here
-#define DSP_MYARCH 2
+#define DSP_MYARCH 3
 #define DSP_ARCH DSP_MYARCH
 #endif
 
@@ -151,12 +151,6 @@ typedef union dspALU64_u { long long i; double f; dsplh_t lh; } dspALU64_t;
 #define XCunsafe unsafe
 #else
 #define XCunsafe
-#endif
-
-#if defined( DSP_XS2A )     // specific for xmos xs2 architecture
-// fast biquad assembly routine inspired from https://github.com/xmos/lib_dsp/blob/master/lib_dsp/src/dsp_biquad.S
-// value for DSP_MANTBQ is defined INSIDE the assembly file and must be updated according to DSP_MANT in dsp_header.h
-extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspALU_SP_t * dataPtr, int num);
 #endif
 
 

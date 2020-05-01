@@ -48,7 +48,7 @@ static void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, floa
     dsp_LOAD_GAIN_Fixed(in,1.0);    //load sample in s.31 and simply convert it to dual precision
     dsp_COPYXY();                   // keep a copy for the input of the high pass filter
     dsp_BIQUADS(lowpass);
-    dsp_SAT0DB_TPDF( 16 );          // convert to s.31 and add 16bits dithering (for the purpose of the demo!)
+    dsp_SAT0DB_TPDF();              // convert to s.31 and add  dithering (for the purpose of the demo!)
     if (dist>0) dsp_DELAY(delayline);
     dsp_STORE(outlow);
 
@@ -92,7 +92,7 @@ static int StereoCrossOverLFE(int left, int right, int outs, int fx, int dist, i
     dsp_dumpParameterNum(mem2,2,"MEM",2);
 
     dsp_CORE();
-    dsp_TPDF(24);
+    dsp_TPDF_CALC(24);
     prefilterLowpass(left,  mem1, flfe);
     prefilterLowpass(right, mem2, flfe);
     crossOver2ways(left, outs+0,outs+1, fx, dist, 0.8);

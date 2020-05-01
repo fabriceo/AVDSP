@@ -1,7 +1,7 @@
 /*
  * dsp_fpmath.h
  *
- *  Created on: 11 janv. 2020
+ *  Version: May 1st 2020
  *      Author: Fabriceo
  */
 
@@ -23,11 +23,14 @@ static inline unsigned int dspmulu32_32_32(unsigned int a, unsigned int b){
 // used in DSP_RMS and DSP_DISTRIB to scale the sample with a 31 bit factor
 static inline int dspmuls32_32_32(int a, int b){
 #ifdef DSP_XS1  // specific for xmos architecture
-    int ah;
-    unsigned al;
-    asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
-    asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
-    return ah;
+    #ifdef DSP_XS2A
+        int ah; unsigned al; // dual issue mode only available for XS2
+        asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
+    #else
+        int ah=0; unsigned al=0;
+    #endif
+        asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
+        return ah;
 #else
     long long res = (long long)a * b;
     return res >> 32;
@@ -64,7 +67,11 @@ static inline void dspmacs64_32_32_0(long long *alu, int a, int b){
 #ifdef DSP_XS1  // specific for xmos architecture
     int ah;// = (*alu)>>32;
     unsigned al;// = *alu;
+#ifdef DSP_XS2A
     asm("{ldc %0,0; ldc %1,0 }":"=r"(ah),"=r"(al) );
+#else
+    ah=0;al=0;
+#endif
     asm("maccs %0,%1,%2,%3":"+r"(ah),"+r"(al):"r"(a),"r"(b));
     *alu = ((long long)ah << 32) | al;
 #else

@@ -3,7 +3,7 @@
 #include <stdio.h>
 
 #define numberChannels       (16+1)   // max possible number of input and output channels
-#define filterBankSize      (16+1)   // max possible filters per channels
+#define filterBankSize       (16+1)   // max possible filters per channels
 
 typedef struct dspChannel_s {
     int   muted;

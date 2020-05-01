@@ -1,9 +1,3 @@
-/*
- * dsp_qformat.h
- *
- *  Created on: 20 déc. 2019
- *      Author: Fabrice
- */
 
 
 // N O T - U S E D - A N Y M O R E

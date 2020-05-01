@@ -1,7 +1,7 @@
 /*
- * dsp_coder.h
+ * dsp_header.h
  *
- *  Created on: 2 janv. 2020
+ *  Version: May 1st 2020
  *      Author: fabriceo
  */
 
@@ -30,15 +30,16 @@
 #endif
 
 // this define the precision for the fixed point maths when opcodes are encoded with DSP_FORMAT_INxx
-// suggested format is 8.24 for parameters, gain and filters coeficients.
+// suggested format is 4.28 for parameters, gain and filters coeficients.
 // for INT32, DSP_MANT is maximum 15 by design
 // minimum is 8 by design
 #ifndef DSP_MANT
 #define DSP_MANT 28
 #endif
 
-// this defines the precision and format for the biquad coefficient only. suggested same as DSP_MANT but not mandatory
-// remark for XS2 architecture, this value must be modified also in the biquad assembly file
+// this defines the precision and format for the biquad coefficient only.
+// suggested same as DSP_MANT but not mandatory
+// remark for XS2 architecture, this value MUST be modified also in the biquad assembly file
 #ifndef DSP_MANTBQ
 #define DSP_MANTBQ 28
 #endif
@@ -85,30 +86,28 @@ enum dspOpcodesEnum {
     DSP_SHIFT,          // perform shift left or right if param is negative
     DSP_VALUE,          // load an imediate value qnm or float
     DSP_VALUE_INT,      // load an imediate int32 value without conversion
-    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter qnm/float
+    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (qnm or float)
     DSP_MUL_VALUE_INT,  // perform X = X * V where V is provided as a pure int32 value
-    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter qnm/float
+    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (qnm or float)
     DSP_DIV_VALUE_INT,  // perform X = X / V where V is provided as a pure int32 value
-    DSP_AND_VALUE_INT,  // perform X = X & V (bitwise and)where V is provided as a pure int32 value
+    DSP_AND_VALUE_INT,  // perform X = X & V (bitwise and) where V is provided as a pure int32 value
 
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
                         // eg physical ADC input number = position in the sample array
-    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is s4.59
+    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is double precision
 
-    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is s4.59
+    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is double precision
 
-    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. s.31 expected in ALU
+    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
 
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
-                        // source in the sample array
-                        // dest in the sample array
 
     DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU X saved in ALU Y
     DSP_STORE_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
 
 /* gains */
-    DSP_GAIN,           // apply a fixed gain (eg 4.28) on the ALU , if a ALU was a sample s.31 then it becomes s5.59
+    DSP_GAIN,           // apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
 
     DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (s.31 in lsb only)
     DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
@@ -118,30 +117,28 @@ enum dspOpcodesEnum {
 /* delays */
     DSP_DELAY_1,        // equivalent to a delay of 1 sample (Z-1)
 
-    DSP_DELAY,          // execute a delay line (32 bits only). to be used just before a DSP_STORE for example.
+    DSP_DELAY,          // execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
 
-    DSP_DELAY_DP,       // same as DSP_DELAY but 64bits (twice data required)
+    DSP_DELAY_DP,       // same as DSP_DELAY but 64bits (twice data space required ofcourse)
 
 /* table of data */
-    DSP_DATA_TABLE,      // extract one sample of a data block
+    DSP_DATA_TABLE,      // extract one sample of a data block. typically used for sinewave generation
 
 /* filters */
-    DSP_BIQUADS,        // execute N biquad. ALU is expected s4.59 and will be return as s4.59
+    DSP_BIQUADS,        // execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
 
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
 
-
-/* workin progress only */
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
-    DSP_DCBLOCK,
-    DSP_DITHER,         // add dithering on bit x
-    DSP_DITHER_NS2,
-    DSP_DISTRIB,        // for fun, use a dsp_WHITE before it
-    DSP_DIRAC,          // generate a single sample pulse at a given frequency. pulse depends on provided float number
-    DSP_SQUAREWAVE,
-    DSP_CLIP,           // check wether a new sample is reaching the thresold given. ALU Y is FS square wave, ALU X is 1 sample pulse
+    DSP_DCBLOCK,        // remove any DC offset
+    DSP_DITHER,         // add dithering on bit x and noise shapping
+    DSP_DITHER_NS2,     // same with custom noise shapping factors
+    DSP_DISTRIB,        // for fun, use a dsp_WHITE before it and geenrate a sample according to distribution of the input
+    DSP_DIRAC,          // generate a single sample pulse at a given frequency. pulse amplitude depends on provided float number
+    DSP_SQUAREWAVE,     // generate a square waved (zero symetrical) at a given frequency
+    DSP_CLIP,           // check wether the sample is reaching the thresold given.
 
-    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared in the runtime init
+    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };
 
 
@@ -158,7 +155,6 @@ enum dspFreqs {
 
 
 //search a literal frequency in the list of possible supported frequencies
-// complier will replace this by a const table which was not possible to do inside a .h file :)
 static inline int dspConvertFrequencyToIndex(int freq){
     switch (freq) {
     case  8000  : return F8000; break;
@@ -175,9 +171,10 @@ static inline int dspConvertFrequencyToIndex(int freq){
     case 384000 : return F384000; break;
     case 705600 : return F705600; break;
     case 768000 : return F768000; break;
-    default :     return FMAXpos; break;
-    }
+    default :     break; }
+    return FMAXpos;
 }
+
 static inline int dspConvertFrequencyFromIndex(enum dspFreqs freqIndex){
     switch (freqIndex) {
     case  F8000  : return 8000; break;
@@ -193,14 +190,13 @@ static inline int dspConvertFrequencyFromIndex(enum dspFreqs freqIndex){
     case F352800 : return 352800; break;
     case F384000 : return 384000; break;
     case F705600 : return 705600; break;
-    case F768000 : return 768000; break;
-    default :      return 768000; break;
-    }
+    case F768000 : break;
+    default :      break; }
+    return 768000;
 }
 
 #define DSP_DEFAULT_MIN_FREQ (F44100)
 #define DSP_DEFAULT_MAX_FREQ (F192000)
-
 
 typedef float  dspGainParam_t;          // all gain type of variable considered as float
 typedef double dspFilterParam_t;        // can be changed for float but then biqad coef will loose some precision when encoded in 4.28
@@ -239,8 +235,7 @@ typedef struct dspHeader_s {    // 11 words
 /* 10 */    unsigned usedOutputs;  //bit mapping of all used outputs
         } dspHeader_t;
 
-//prototypes
-#include <stdio.h>
+
 static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore, unsigned int maxcode){
     *sum = 0;
     *numCore = 0;
@@ -255,7 +250,7 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
         if (code == DSP_CORE) (*numCore)++;
         *sum += ptr->u32;
         p += skip;
-        if (p > maxcode) { printf("BUGG : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // issue
+        if (p > maxcode) { dspprintf("BUGG in memory : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // fatal issue
         ptr += skip;
     } // while(1)
 }

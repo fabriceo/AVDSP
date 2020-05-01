@@ -1,3 +1,9 @@
+/*
+ * dsp_ieee754.h
+ *
+ *  Version: May 1st 2020
+ *      Author: fabriceo
+ */
 
 // some optimized function dealing with float and double encoded IEEE754
 

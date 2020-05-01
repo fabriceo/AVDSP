@@ -2,12 +2,14 @@
 #include <string.h>
 #include "dsp_encoder.h"
 
+// this file describe some DSP programs to be used on the OKTO DAC (8PRO or STEREO)
 
 #define DACOUT(x) (x)               // DAC outputs are stored at the begining of the samples table
 #define ADCIN(x)  (8  + x )         // SPDIF receiver stored with an offset of 8
 #define USBOUT(x) (16 + x)          // the samples sent by USB Host are offseted by 16
 #define USBIN(x)  (16 + 8 + x)      // the samples going to the USB Host are offseted by 24
 
+// basic program providing a passtrough between USB and DAC/ADC
 int dspProgDAC8PRO(int dither){
 
     dsp_CORE();  // first and unique core
@@ -17,7 +19,7 @@ int dspProgDAC8PRO(int dither){
 	    dspLoadStore_Data( USBOUT(i), DACOUT(i) );
 
     if (dither>=0) {
-    	dsp_TPDF(dither);	// calculate tpdf value for dithering
+    	dsp_TPDF_CALC(dither);	// calculate tpdf value for dithering
    
 	    for (int i=0; i<8; i++) {
 	    	dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
@@ -33,12 +35,13 @@ int dspProgDAC8PRO(int dither){
     return dsp_END_OF_CODE();
 }
 
+// passtrough program between USB and DAC, considering 2/4/6/8 channels, and between SPDIF-AES and USB
 int dspProgDACSTEREO(int outs, int dither){
 
     dsp_CORE();  // first and unique core
 
     if (dither>=0) {
-		dsp_TPDF(dither);	// calculate tpdf value for dithering
+		dsp_TPDF_CALC(dither);	// calculate tpdf value for dithering
 
 	    for (int i=0; i<2; i++) {
 	    	dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
@@ -54,7 +57,7 @@ int dspProgDACSTEREO(int outs, int dither){
 	switch (outs) {
 		case 2: {
 	    dsp_LOAD_STORE();
-	        dspLoadStore_Data( USBOUT(0), DACOUT(0) );
+	        dspLoadStore_Data( USBOUT(0), DACOUT(0) );  // the stereo signal goes to 4 pairs of DACs in paralell
 	        dspLoadStore_Data( USBOUT(1), DACOUT(1) );
 	        dspLoadStore_Data( USBOUT(0), DACOUT(2) );
 	        dspLoadStore_Data( USBOUT(1), DACOUT(3) );
@@ -65,7 +68,7 @@ int dspProgDACSTEREO(int outs, int dither){
 		break;}
 		case 4: {
 	    dsp_LOAD_STORE();
-	        dspLoadStore_Data( USBOUT(0), DACOUT(0) );
+	        dspLoadStore_Data( USBOUT(0), DACOUT(0) );  // considered as a quad dac with 4567 in // of 0123
 	        dspLoadStore_Data( USBOUT(1), DACOUT(1) );
 	        dspLoadStore_Data( USBOUT(2), DACOUT(2) );
 	        dspLoadStore_Data( USBOUT(3), DACOUT(3) );
@@ -76,7 +79,7 @@ int dspProgDACSTEREO(int outs, int dither){
 		break;}
 		case 6: {
 	    dsp_LOAD_STORE();
-	        dspLoadStore_Data( USBOUT(0), DACOUT(0) );
+	        dspLoadStore_Data( USBOUT(0), DACOUT(0) );  // considered as a 6 channel dac
 	        dspLoadStore_Data( USBOUT(1), DACOUT(1) );
 	        dspLoadStore_Data( USBOUT(2), DACOUT(2) );
 	        dspLoadStore_Data( USBOUT(3), DACOUT(3) );
@@ -99,6 +102,7 @@ int dspNoProg(){
     return dsp_END_OF_CODE();
 }
 
+// basic and generic DSP program for the DAC stereo, able to generate 4 outputs out of a stereo signal
 int dspDACStereoDsp4channels(int outs){
     const int in1  = USBOUT(0);
     const int in2  = USBOUT(1);
@@ -126,9 +130,9 @@ int dspDACStereoDsp4channels(int outs){
     int delay1 = dspDelay_MicroSec_Max_Default(5000,0);    // max 5ms = 170cm
     int delay2 = dspDelay_MicroSec_Max_Default(5000,0);
     int delay3 = dspDelay_MicroSec_Max_Default(5000,0);
-    int delay4 = dspDelay_MicroSec_Max_Default(5000,0);    // 15ms = 5m
+    int delay4 = dspDelay_MicroSec_Max_Default(5000,0);
 
-    int fbank1 = dspBiquad_Sections(12);
+    int fbank1 = dspBiquad_Sections(12);    // max 12 biquad cell, can be combinaison of any filters
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
@@ -142,7 +146,15 @@ int dspDACStereoDsp4channels(int outs){
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
 
-    int fbank2 = dspBiquad_Sections(4);
+    int fbank2 = dspBiquad_Sections(12);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
@@ -162,7 +174,15 @@ int dspDACStereoDsp4channels(int outs){
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
 
-    int fbank4 = dspBiquad_Sections(4);
+    int fbank4 = dspBiquad_Sections(12);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
+    dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
@@ -191,14 +211,7 @@ int dspDACStereoDsp4channels(int outs){
     dsp_DELAY(delay3);
     dsp_STORE(out3);
     dsp_STORE(USBIN(2));
-#if 1
-    dsp_LOAD_MUX(mux3);
-    dsp_BIQUADS(fbank3);
-    dsp_SAT0DB();
-    dsp_DELAY(delay3);
-    dsp_STORE(out3);
-    dsp_STORE(USBIN(2));
-#endif
+
     dsp_CORE();
     dsp_LOAD_MUX(mux4);
     dsp_BIQUADS(fbank4);
@@ -210,9 +223,10 @@ int dspDACStereoDsp4channels(int outs){
     return dsp_END_OF_CODE();
 }
 
+// this basic program create a loop between usb out<->in (useless!)
 int dspProgUsbLoopBack(int outs, int dither){
     if (dither>=0) {
-		dsp_TPDF(dither);	// calculate tpdf value for dithering
+		dsp_TPDF_CALC(dither);	// calculate tpdf value for dithering
 
 	    for (int i=0; i<outs; i++) {
 	    	dsp_LOAD_GAIN_Fixed( USBOUT(i) , 1.0 );
@@ -227,7 +241,7 @@ int dspProgUsbLoopBack(int outs, int dither){
     return dsp_END_OF_CODE();
 }
 
-
+// used by the author to test each dsp_function with a little program...
 int dspProgTest(){
 
         dsp_PARAM();
@@ -239,13 +253,12 @@ int dspProgTest(){
 
         int testBQ = dspBiquad_Sections_Flexible();
         dsp_LP_BUT4(1000);
-        //dsp_filter(FHS1,  500,  0.5, dB2gain(-5.0));
         dsp_filter(FPEAK, 400,  1.0, dB2gain(6.0));
         dsp_filter(FPEAK, 100,  1.0, dB2gain(-6.0));
 
 
 dsp_CORE();
-        dsp_TPDF(22);   // calculate tpdf value for dithering
+        dsp_TPDF_CALC(22);   // calculate tpdf value for dithering
 
         dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
         //dsp_FIR(testFir);
@@ -254,12 +267,13 @@ dsp_CORE();
         dsp_STORE( USBIN(0) );
 
         dsp_LOAD_STORE();
-        dspLoadStore_Data( USBOUT(1), USBIN(7) );   // loopback REW
+        dspLoadStore_Data( USBOUT(1), USBIN(7) );   // loopback for REW
 
     return dsp_END_OF_CODE();
 }
 
 #if 1
+// LR type of crossover for the 2 way system of the Author
 void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float gaincomp, int microslow, int in, int outlow, int outhigh){
 
     dsp_PARAM();
@@ -283,9 +297,9 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
     else dsp_SAT0DB_GAIN_Fixed( defaultGain);
     dsp_STORE( USBIN(outlow) );
-    if (microslow>0) {
+    if (microslow > 0) {
         dsp_DELAY_FixedMicroSec(microslow);
-        printf("woof delayed by %d us\n",microslow);
+        printf("woofer delayed by %d us\n",microslow);
     }
     dsp_STORE( DACOUT(outlow) ); // low driver
 
@@ -295,15 +309,17 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
          dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
     else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
     dsp_STORE( USBIN(outhigh) );
-    if (microslow<0) {
+    if (microslow < 0) {
         dsp_DELAY_FixedMicroSec(-microslow);
-        printf("comp delayed by %d us\n",-microslow);
+        printf("compression driver delayed by %d us\n",-microslow); // not relevant !-)
     }
-    //dsp_NEGX();
+    //dsp_NEGX();   // change polarity to check driver allignements
     dsp_STORE( DACOUT(outhigh) );
 }
 #endif
 
+// special crossover for test, substractive and using Notch filters. Not really finished/working
+// inspired from https://www.diyaudio.com/forums/multi-way/6655-active-crossover-3.html#post1088722
 void crossoverNTM(int freq, int gd, int dither, int defaultGain, float gaincomp, int microslow, int in, int outlow, int outhigh){
 const float J = 1.0;
 const float K = 0.6;
@@ -363,7 +379,7 @@ const float Q = 2.0;
     dsp_ADDXY();
     // high ready
 
-    //dsp_BIQUADS(compEQ);
+    dsp_BIQUADS(compEQ);
     //dsp_NEGX(); // invert phase due to cable mismatch ?
     if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
@@ -377,7 +393,7 @@ const float Q = 2.0;
 
 
 
-
+// lipsitch vanderkoy crossover, using delay and substraction
 void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, int microslow, int in, int outlow, int outhigh){
 
     dsp_PARAM();
@@ -387,31 +403,19 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     if (gd == 0) gd = 752000/freq;  // group delay of the bessel6
     //if (gd == 0) gd = 986000/freq;  // group delay of the bessel8
 
+    // equalization for 18s 2" comp 2080 on Horn XR2064
     int compEQ = dspBiquad_Sections_Flexible();
 		dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq        	dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
         dsp_filter(FPEAK,1700,3,dB2gain(-3.0));
         dsp_filter(FHS2, 9000,0.6,dB2gain(5.0));
 
 
-
-#if 0   // alternative solution with delay in single precision 32bits
-    dsp_LOAD(in);
-    dsp_COPYXY();
-    dsp_DELAY_FixedMicroSec(gd);
-    dsp_GAIN_Fixed( 1.0 );
-    dsp_SWAPXY();
-    dsp_GAIN_Fixed( 1.0 );
-    dsp_BIQUADS(lowpass);    //compute lowpass filter
-    dsp_SUBYX();                // compute high pass
-
-#else   // quickest solution with 64bits delay line
     dsp_LOAD_MEM(in);
     dsp_COPYXY();
     dsp_DELAY_DP_FixedMicroSec(gd);
     dsp_SWAPXY();
     dsp_BIQUADS(lowpass);       //compute lowpass filter in X
     dsp_SUBYX();                // compute high pass in Y
-#endif
 
     if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
@@ -430,10 +434,8 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
     else dsp_SAT0DB_GAIN_Fixed( defaultGain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
-    if (microslow<0) {
-        dsp_DELAY_FixedMicroSec(-microslow);
-        printf("compression (behind woofer) will be additionally delayed by %d us\n",-microslow); }
-    //dsp_NEGX(); // invert phase due to cable mismatch ?
+
+    //dsp_NEGX(); // invert phase during tests to test allignement
     dsp_STORE( DACOUT(outhigh) );
 }
 
@@ -442,29 +444,28 @@ int mono = 0;
 const int leftin  = USBOUT(0);
 const int rightin = USBOUT(1);
 
-
+// main program for the crossover of a 2 way stystem based on 12LW1400 and 2" comp
 int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow){
     dspprintf("program for the dac belonging to the author\n");
 
     dsp_PARAM();
 
-
     int leftmem  = dspMem_Location();
     int rightmem = dspMem_Location();
     int avgLRmem = dspMem_Location();
 
+    // woofer equalization
     int rightEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK,  150, 1.0, dB2gain(-3.0));
-    dsp_filter(FPEAK, 580,  2.0, dB2gain(-4.0));
-    dsp_filter(FHP2,  10, 0.7, 1.0);
-    dsp_filter(FPEAK,  73,  0.9, dB2gain(+2.0));
+    dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
+    dsp_filter(FPEAK, 580, 2.0, dB2gain(-4.0));
+    dsp_filter(FHP2,   10, 0.7, 1.0);               // high pass to protect xmax
+    dsp_filter(FPEAK,  73, 0.9, dB2gain(+2.0));     // to compensate box tuning and over sized
 
     int leftEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK,  150, 1.0, dB2gain(-3.0));
-    dsp_filter(FPEAK,  580, 2.0, dB2gain(-4.0));
-    dsp_filter(FHP2,  10, 0.7, 1.0);
-    //dsp_filter(FLS2,   150, 0.5, dB2gain(-1.0));
-    dsp_filter(FPEAK,   73, 0.9, dB2gain(+1.0));
+    dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
+    dsp_filter(FPEAK, 580, 2.0, dB2gain(-4.0));
+    dsp_filter(FHP2,   10, 0.7, 1.0);
+    dsp_filter(FPEAK,  73, 0.9, dB2gain(+1.0)); // 1db less than Right due to loudspeaker in a corder
 
 
     const float attRight = dB2gain(-3.0); // to compensate above potential gains and avoid any saturation in first biquads.
@@ -479,14 +480,13 @@ dsp_CORE();  // first core
 
     if (dither>=0) {
         printf("ditehring enable for %d usefull bits\n",dither);
-        dsp_TPDF(dither);
-    }
+        dsp_TPDF_CALC(dither); }
 
     dsp_LOAD_STORE();
         dspLoadStore_Data( leftin,    DACOUT(0) );      // headphones
         dspLoadStore_Data( rightin,   DACOUT(1) );
-        dspLoadStore_Data( rightin,   USBIN(7) );       // loopback rew
-        dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // spdif in
+        dspLoadStore_Data( rightin,   USBIN(7) );       // loopback for REW
+        dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // spdif in passtrough
         dspLoadStore_Data( ADCIN(1),  USBIN(1) );
 
     if (mono) {
@@ -499,6 +499,7 @@ dsp_CORE();  // first core
 
         dsp_LOAD_MEM(avgLRmem);
     } else {
+
         dsp_LOAD_GAIN_Fixed(leftin, attLeft);
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(leftEQ);

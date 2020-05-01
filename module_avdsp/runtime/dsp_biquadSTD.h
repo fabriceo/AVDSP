@@ -1,7 +1,7 @@
 /*
  * dsp_biquadSTD.h
  *
- *  Created on: 11 janv. 2020
+ *  Version: May 1st 2020
  *      Author: Fabriceo
  */
 
@@ -15,14 +15,22 @@ dspALU_t dsp_calc_biquads_short( dspALU_t ALU, dspParam_t * coefPtr, dspALU_SP_t
 
 #if (DSP_FORMAT == DSP_FORMAT_INT64)
 
+#if defined( DSP_XS2A )     // specific for xmos xs2 architecture
+// fast biquad assembly routine inspired from https://github.com/xmos/lib_dsp/blob/master/lib_dsp/src/dsp_biquad.S
+// value for DSP_MANTBQ is duplicated INSIDE the assembly file and must be updated according to DSP_MANTBQ in dsp_header.h
+extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspALU_SP_t * dataPtr, int num);
+
+#else
+
 static inline void checkbiquadsat(dspALU64_t * alu){
-    const  int satpos = 1<< (DSP_MANTBQ-1);
+    const  int satpos = 1 << (DSP_MANTBQ-1);
     const  int satneg = 1-satpos;
+    // only checking 32bit MSB to speedup a little bit
     if (alu->lh.hi >= satpos) alu->i = ((long long)(satpos) << 32) -1;
     else
     if (alu->lh.hi <= satneg) alu->i = - ((long long)(satpos) << 32);
 }
-
+// inspired from https://dsp.stackexchange.com/questions/21792/best-implementation-of-a-real-time-fixed-point-iir-filter-with-constant-coeffic
 dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspALU_SP_t * dataPtr, short num, const int mantbq, int skip) {
     //xn >>= mantbq;  done in the caller
     dspALU64_t ALU;
@@ -66,6 +74,8 @@ dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspALU_SP_t * 
     //return xn;    prefer returning scaled value
     return ALU.i;                     // the result is then scaled with the biquad precision (28) that was removed before the call
 }
+#endif //defined( DSP_XS2A )
+
 #endif
 
 #if DSP_ALU_FLOAT
@@ -96,6 +106,7 @@ dspALU_t dsp_calc_biquads_float(dspALU_SP_t xn, dspParam_t * coefPtr, dspALU_SP_
         dspMaccFloatFloat( &ALU , yn1, a1);     //yn-1*a1 (this coef is reduced by 1.0 by encoder)
         dspALU_SP_t yn2 = (*dataPtr);           // load yn-2
         dspMaccFloatFloat( &ALU , yn2, a2);     //yn-2*a2
+
         *p = ALU;               // store last biquad computed in "prev" for mantissa reintegration at next cycle
         (*dataPtr--) = yn1;     // store yn-1 => yn-2 and point on yn-1
         dspALU_SP_t yn = ALU;

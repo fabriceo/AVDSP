@@ -51,19 +51,17 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
         dsp_LP_BES4(1000);
 
     dsp_CORE();
-    dsp_TPDF(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
+    dsp_TPDF_CALC(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
 
     dsp_LOAD( USBOUT(0) );       // loopback rew, no treatments
-    dsp_DISTRIB(USBIN(0), 512);           // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
+    dsp_DISTRIB(USBIN(0), 512);  // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
     //dsp_STORE( USBIN(0) );      // show perfect triangular noise distribution with REW Scope function
 
     dsp_LOAD( USBOUT(1) );       // loopback rew, no treatments
     dsp_STORE( USBIN(1) );
 
     dsp_GAIN_Fixed( 1.0 );      // apply a gain on the previous LOAD above to bring it to dual precision
-    // try 2 combinations below, either clip(0.5) or clip(0.0)
     dsp_CLIP_Fixed( 0.5 );      // clip the signal below -0.5 and above +0.5
-    //dsp_CLIP_Fixed(0.0);        // special case to generate a synchronized Square wave
     dsp_BIQUADS(lowpass1);      // show filtered response of a clipped signal, or squared
     dsp_SAT0DB();
     dsp_STORE( USBIN(3) );
@@ -99,7 +97,7 @@ int dspProg_testFloat(int dither){
 
 
     dsp_CORE();
-    dsp_TPDF(dither);
+    dsp_TPDF_CALC(dither);
     //dsp_DIRAC_Fixed(100, 1.0);
     //dsp_LOAD( USBOUT(0) );
     dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );

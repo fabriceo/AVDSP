@@ -1,10 +1,16 @@
-// dither generation functions
+
+/*
+ * dsp_tpdf.h
+ * dither generation functions
+ *  Version: May 1st 2020
+ *      Author: fabriceo
+ */
 
 
 // global variables related to TPDF
 int dspTpdfValue;               // global value of the tpdf update by dspTpdfCalc()
 int dspTpdfRandom;              // global white
-int dspTpdfDefaultDither;
+int dspTpdfDefaultDither;       // default dither value (bits) defined by runtimeInit
 
 typedef struct tpdf_s {
     int dither;         // position of the expeted dithering between 8..32 max
@@ -27,7 +33,6 @@ static inline uint32_t rotl(const uint32_t x, unsigned int k) {
 unsigned int dspTpdfs32[4];     // xoshiro128p prng internal state
 
 static inline uint32_t xoshiro128p(uint32_t *s32) {
-    //uint32_t *s32=dspTpdf.s32;
     const uint32_t result = s32[0] + s32[3];
 
     const uint32_t t = s32[1] << 9;
