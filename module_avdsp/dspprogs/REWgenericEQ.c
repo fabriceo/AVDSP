@@ -6,10 +6,12 @@
 #define DACOUT(x) (x)
 #define DACIN(x)  (8+(x))
 
-static int encodeOneChannel(char *filename, int nc, float gain) {
+static int encodeOneChannel(char *filename, int nc, int nv, float gain) {
   FILE *fd;
   char *line;
   size_t sz;
+
+  fprintf(stderr,"core %d gain:%f in:%d out:%d\n", nc , gain, nc/nv,nc);
 
   fd=fopen(filename,"r");
   if(fd==NULL) {
@@ -37,11 +39,6 @@ static int encodeOneChannel(char *filename, int nc, float gain) {
 	free(line);
 	return 1;
   }
-
-  dsp_CORE(); 
-  if(nc == 0) dsp_TPDF_CALC(0);
-
-  dsp_LOAD_GAIN_Fixed(DACIN(nc),gain);
 
   dsp_PARAM();
   int filter = dspBiquad_Sections_Flexible();
@@ -160,6 +157,12 @@ static int encodeOneChannel(char *filename, int nc, float gain) {
 	fprintf(stderr,"Filter %d : Unknown filter type %s\n",nf,&(line[15]));
   }
 
+
+  dsp_CORE(); 
+  if(nc == 0) dsp_TPDF_CALC(0);
+
+  dsp_LOAD_GAIN_Fixed(DACIN(nc/nv),gain);
+
    dsp_BIQUADS(filter); 
 
    dsp_SAT0DB_TPDF(); 
@@ -172,18 +175,27 @@ static int encodeOneChannel(char *filename, int nc, float gain) {
 }
 
 static void usage(void) {
-	fprintf(stderr,"REWgenericEQ [-g gaindb ] eqfile1 [ [-g gaindb ] eqfile2 ... ]\n");
+	fprintf(stderr,"REWgenericEQ -w n [-g gaindb ] eqfile1 [ [-g gaindb ] eqfile2 ... ]\n");
 }
 
 int dspProg(int argc,char **argv){
   int nc;
+  int nv=1;
   float gain[8];
+
+  if(argc==0) { usage(); return 1; }
+
+  if(strcmp(argv[0],"-w") == 0 ) {
+	if(argc<3)  { usage();  return 1; }
+	nv=atoi(argv[1]);
+	argc-=2;argv+=2;		
+  }
 
   for(nc=0;nc<8;nc++)
 	gain[nc]=1.0;
 
   nc=0;
-  while(argc) {
+  while(argc && nc<8) {
 
   	if(strcmp(argv[0],"-g") == 0 ) {
 		if(argc<3)  { usage();  return 1; }
@@ -192,7 +204,8 @@ int dspProg(int argc,char **argv){
 	}
 
   	if(argc==0) { usage(); return 1; }
-	encodeOneChannel(argv[0],nc,gain[nc]);
+
+	encodeOneChannel(argv[0],nc,nv,gain[nc]);
 	nc++;
 	argc--;argv++;		
   }
