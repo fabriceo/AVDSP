@@ -8,11 +8,11 @@ add_compile_options(-Ofast -march=native )
 
 include_directories(encoder runtime)
 
-add_executable(dsprun runtime/dsp_biquadSTD.c  runtime/dsp_firSTD.c  runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/dsprun.c )
+add_executable(dsprun runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/dsprun.c )
 target_link_libraries(dsprun sndfile)
 target_link_libraries(dsprun m)
 
-add_library(asound_module_pcm_avdsp SHARED runtime/dsp_biquadSTD.c  runtime/dsp_firSTD.c  runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/avdsp_plugin.c)
+add_library(asound_module_pcm_avdsp SHARED runtime/dsp_runtime.c encoder/dsp_fileaccess.c linux/avdsp_plugin.c)
 target_compile_definitions(asound_module_pcm_avdsp PRIVATE -DPIC)
 target_link_libraries(asound_module_pcm_avdsp asound)
 
