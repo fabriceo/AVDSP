@@ -5,12 +5,13 @@
 Linux AVDSP runtime and encoder need libasound-devel, make, gcc, and CMake packages
 
 To compile it : 
-
+```
 cd AVDSP/module_avdsp
 mkdir build
 cd build
 cmake ..
 make 
+```
 
 This will create the `dspcreate` command and the  `libasound_module_pcm_avdsp.so` alsa external pluging in the build directory
 
