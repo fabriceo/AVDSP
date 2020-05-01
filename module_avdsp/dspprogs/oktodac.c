@@ -146,7 +146,7 @@ int dspDACStereoDsp4channels(int outs){
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
 
-    int fbank2 = dspBiquad_Sections(12);
+    int fbank2 = dspBiquad_Sections(12);    // 12 biquad cells at 192K is OK
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
     dsp_filter(FPEAK, 1000, 0.7, 1.0);
@@ -252,7 +252,7 @@ int dspProgTest(){
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);   //96
 
         int testBQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FAP2,1000, 1.0, 1.0);
+        dsp_filter(FAP2,1000, 0.58, 1.0);
 /*
         dsp_LP_BUT4(1000);
         dsp_filter(FPEAK, 400,  1.0, dB2gain(6.0));
@@ -260,12 +260,12 @@ int dspProgTest(){
 */
 
 dsp_CORE();
-        dsp_TPDF_CALC(22);   // calculate tpdf value for dithering
+        //dsp_TPDF_CALC(22);   // calculate tpdf value for dithering
 
         dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
         //dsp_FIR(testFir);
         dsp_BIQUADS(testBQ);
-        dsp_SAT0DB_TPDF();
+        dsp_SAT0DB();
         dsp_STORE( USBIN(0) );
 
         dsp_LOAD_STORE();

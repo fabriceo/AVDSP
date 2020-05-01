@@ -46,6 +46,7 @@ dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspALU_SP_t * 
         dspALU64_t* p = (dspALU64_t*)dataPtr;
 
         ALU.i = p->i; dataPtr += 2;      // load latest value of the biquad
+
         // each macc will add a maximum of 7FFFFFFF x 7FFFFFFF = 0x3FFFFFFF00000001 to previous alu.
         ALU.i += (xn * b0);
 
@@ -64,7 +65,7 @@ dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspALU_SP_t * 
         (*dataPtr--) = xn;              // store yn-1 => yn-2 and point on yn-1
         ALU.i += (prev * a2);           // yn-2*a2
         checkbiquadsat(&ALU);
-        // check and avoid too much saturation
+        // check and avoid saturation
 
         p->i = ALU.i;                   // store last biquad compute in "prev" for mantissa reintegration
         xn = ALU.i >> (mantbq);         // convert double precision to original format by removing mantissa from biquad coeficcients
