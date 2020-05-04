@@ -7,6 +7,7 @@
 #include <stdio.h>      // import printf functions
 #include <string.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sndfile.h>
 #include <math.h>
 
@@ -88,7 +89,7 @@ int main(int argc, char **argv) {
     }
 
     // verify frequency compatibility with header, and at least 1 core is defined, and checksum ok
-    result = dspRuntimeInit(opcodes, size, fs, 0, 23);
+    result = dspRuntimeInit(opcodes, size, fs, 0, 31);
     if (result < 0) {
         dspprintf("FATAL ERROR: problem with opcode header or compatibility\n");
         exit(-1);
@@ -131,7 +132,7 @@ int main(int argc, char **argv) {
     }
 
 
-         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_24;
+         infsnd.format = SF_FORMAT_WAV | SF_FORMAT_PCM_32;
          infsnd.samplerate = fs;
          infsnd.channels = maxnbchout;
 
@@ -145,16 +146,16 @@ int main(int argc, char **argv) {
 
 	for(nc=0;nc<nbcores;nc++)  {
 
-	   for(n=0;n<fs*5;n++) {
+	   for(n=0;n<10;n++) {
 
         	for(ch=0;ch<coreio[nc].nbchin;ch++) {
     			inputOutput[coreio[nc].inputMap[ch]] = 0;
 			switch(inmode) {
 			case 1 :
-				if(n==0) inputOutput[coreio[nc].inputMap[ch]] = INT32_MAX/2;
+				if(n==0) inputOutput[coreio[nc].inputMap[ch]] = INT32_MAX;
 				break;
 			case 2 :
-    				inputOutput[coreio[nc].inputMap[ch]] = round((double)INT32_MAX/2.0*sin(2.0*M_PI*1000.0*(double)n/(double)fs));
+    				inputOutput[coreio[nc].inputMap[ch]] = round((double)INT32_MAX*sin(2.0*M_PI*40.0*(double)n/(double)fs));
 				break;
 			case 3 :
     				inputOutput[coreio[nc].inputMap[ch]] = RAND_MAX/16-(int)(rand()/8);

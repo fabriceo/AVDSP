@@ -2,7 +2,7 @@
 
 ## Compile
 
-Linux AVDSP runtime and encoder need libasound-devel, make, gcc, and CMake packages
+Linux AVDSP runtime and encoder need libasound-devel, libsndfile-devel, make, gcc, and CMake packages
 
 To compile it : 
 ```
