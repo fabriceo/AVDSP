@@ -10,11 +10,11 @@ endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
-   CFLAGS = -DLINUX
+   CFLAGS = -DLINUX -std=gnu99
 endif
 
 INCLUDES = -I../encoder -I../runtime
-CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
+CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 
 ifeq ($(uname_S), Darwin)
 LIBS = -L../encoder -lavdspencoder

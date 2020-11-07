@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "dsp_encoder.h"
-
+ 
 // this file describe some DSP programs to be used on the OKTO DAC (8PRO or STEREO)
 
 #define DACOUT(x) (x)               // DAC outputs are stored at the begining of the samples table

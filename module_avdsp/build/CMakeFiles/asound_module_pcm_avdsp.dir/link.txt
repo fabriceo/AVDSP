@@ -1,0 +1,1 @@
+/usr/bin/cc  -fPIC   -shared -Wl,-soname,libasound_module_pcm_avdsp.so -o libasound_module_pcm_avdsp.so CMakeFiles/asound_module_pcm_avdsp.dir/runtime/dsp_runtime.c.o CMakeFiles/asound_module_pcm_avdsp.dir/encoder/dsp_fileaccess.c.o CMakeFiles/asound_module_pcm_avdsp.dir/linux/avdsp_plugin.c.o -lasound 
