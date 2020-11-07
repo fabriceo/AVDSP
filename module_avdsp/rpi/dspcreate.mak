@@ -15,7 +15,9 @@ libdspprogs:
 
 libcopy:
 	@cp -f ../encoder/*.so ../rpi
+	@rm -f ../encoder/*.so
 	@cp -f ../dspprogs/*.so ../rpi
+	@rm -f ../dspprogs/*.so
 
 dspcreate:	 $(OBJS1)
 	$(CC) $(CFLAGS) $^ -o $@ $(LIBS2)
