@@ -31,8 +31,10 @@ clean:
 	
 else 
 ifeq ($(uname_S), Windows)
+
 #windows compilation here
-    
+#nothing done here, see windows folder
+
 else
 #linux compilation here
 all:

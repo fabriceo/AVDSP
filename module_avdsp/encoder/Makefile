@@ -23,14 +23,17 @@ CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 ifeq ($(uname_S), Darwin)
 all:
 	$(CC) $(CFLAGS) -dynamiclib  -o libavdspencoder.dylib dsp_*.c
-	@rm -f -r *.dSYM
+	@rm -rf *.dSYM
 	
 clean:
-	@rm -f *.dylib 
+	@rm -rf *.dylib 
 
 else 
 ifeq ($(uname_S), Windows)
-#windows compile here    
+
+#windows compile here with MinGW
+#nothing done here, see windows folder
+	
 else
 all:
 	$(CC) $(CFLAGS) -shared -o libavdspencoder.so dsp_*.c 
