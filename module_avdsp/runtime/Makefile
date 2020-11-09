@@ -10,7 +10,7 @@ endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
-	CFLAGS = -DLINUX 
+	CFLAGS = -DLINUX -std=gnu99 
 endif
 #this libraries are not really needed. just to check compilation errors for each DSP_FORMAT
 
@@ -31,8 +31,10 @@ clean:
 	
 else 
 ifeq ($(uname_S), Windows)
+
 #windows compilation here
-    
+#nothing done here, see windows folder
+
 else
 #linux compilation here
 all:

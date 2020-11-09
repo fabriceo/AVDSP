@@ -604,7 +604,7 @@ int dspProg(int argc,char **argv){
                     prog = 4;
                     outs = 8;
                     continue; }
-
+ 
 
                  if (strcmp(argv[i],"-dacstereodsp4") == 0) {
                     dspprintf("program for dac stereo with 4 dsp_CORE basic filtering+delay\n");

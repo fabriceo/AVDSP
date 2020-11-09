@@ -1,7 +1,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+      
 #define numberChannels       (16+1)   // max possible number of input and output channels
 #define filterBankSize       (16+1)   // max possible filters per channels
 
