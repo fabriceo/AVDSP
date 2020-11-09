@@ -189,21 +189,23 @@ static int addCodeOffset(int index, int base){
 
 
 // add a word in the opcode table reresenting a quantity of data required and allocated in the data space
-static void addDataSpace(int size) {
+static int addDataSpace(int size) {
+    int tmp = dspDataCounter;
     addCode(dspDataCounter);              // store the current data index value pointing on the next spare data space
     dspDataCounter += size;               // simulate consumption the expected data space
+    return tmp;
 }
 
 // same as above but push the data index by one if needed
 // so that the data adress is alligned on 8 bytes boundaries
-static void addDataSpaceAligned8(int size) {
+static int addDataSpaceAligned8(int size) {
     if(dspDataCounter & 1) dspDataCounter++;
-    addDataSpace(size);                 // store the current data index
+    return addDataSpace(size);                 // store the current data index
 }
 
-static void addDataSpaceMisAligned8(int size) {
+static int addDataSpaceMisAligned8(int size) {
     if((dspDataCounter & 1) == 0) dspDataCounter++;
-    addDataSpace(size);                 // store the current data index
+    return addDataSpace(size);                 // store the current data index
 }
 
 static void printFromCurrentIndex(){
@@ -757,17 +759,21 @@ void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
 }
 
 
-void dsp_TPDF_CALC(int dither){
+int dsp_TPDF_CALC(int dither){
     addOpcodeLengthPrint(DSP_TPDF_CALC);
     checkInRange(dither,0,32);
     addCode(dither);
+    // from release 1.0 this returns the adress where the TPDF value is stored
+    return addDataSpaceAligned8(2);    // 2 words for storing calculated value
 }
 
 
-void dsp_TPDF(int dither){
+int dsp_TPDF(int dither){
     addOpcodeLengthPrint(DSP_TPDF);
     checkInRange(dither,0,32);
     addCode(dither);
+    // from release 1.0 this returns the adress where the TPDF value is stored
+    return addDataSpaceAligned8(2);    // 2 words for storing calculated value
 }
 
 
@@ -815,11 +821,14 @@ void dsp_LOAD_GAIN_Fixed(int IO, dspGainParam_t gain) {
 
 
 // load many inputs and apply a gain to them
-void dsp_LOAD_MUX(int paramAddr){
+int dsp_LOAD_MUX(int paramAddr){
     ALUformat = 1;
     int tmp = addOpcodeLengthPrint( DSP_LOAD_MUX);
     checkInParamSpaceOpcode(paramAddr, 2, DSP_LOAD_MUX);  // IO-gain matrix only stored in param section
     addCodeOffset(paramAddr, tmp);
+    // from release 1.0 this returns the adress where the MUXed value is stored
+    return addDataSpaceAligned8(2);    // 2 words for storing calculated value
+
 }
 
 // must be used to start and list a group of IO-gain
@@ -1237,14 +1246,17 @@ int dspGenerator_Sine(int samples){
 // user function to define the start of a biquad section containg coefficient.
 // e.g.     int myBQ = dspBiquadSection(2);
 //
-void dsp_BIQUADS(int paramAddr){
+int dsp_BIQUADS(int paramAddr){
     ALUformat = 1;
     int base = addOpcodeLengthPrint(DSP_BIQUADS);
     checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
-    addDataSpaceAligned8(num*6);           // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
+    int addrValue = addDataSpaceAligned8(num*6);           // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
     addCodeOffset(paramAddr, base);        // store pointer on the table of coefficients
+    // from release 1.0 this returns the adress where the Biquaed calculated value is stored
+    return addrValue+((num-1)*6);           // to be tested
+
 }
 
 int dspBiquad_Sections(int number){

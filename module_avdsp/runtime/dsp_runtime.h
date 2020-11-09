@@ -21,7 +21,9 @@ typedef union dspALU32_u { int i; float f; } dspALU32_t;
 typedef struct dsplh_s   { unsigned lo; int hi; } dsplh_t;
 typedef union dspALU64_u { long long i; double f; dsplh_t lh; } dspALU64_t;
 
-
+#ifndef DSP_FORMAT
+#define DSP_FORMAT 2
+#endif
 #if (DSP_FORMAT == 1)     // 32bits integer model
 #error "INT runtime not yet compatible"
 

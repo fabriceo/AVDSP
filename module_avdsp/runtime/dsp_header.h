@@ -138,6 +138,9 @@ enum dspOpcodesEnum {
     DSP_SQUAREWAVE,     // generate a square waved (zero symetrical) at a given frequency
     DSP_CLIP,           // check wether the sample is reaching the thresold given.
 
+    // new code after release 1.0
+    DSP_LOAD_MEM_DATA,  // load the double precision value store in data space at an absolute adress
+
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };
 

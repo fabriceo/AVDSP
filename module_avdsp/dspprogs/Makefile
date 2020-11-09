@@ -6,22 +6,20 @@ endif
 
 ifeq ($(uname_S), Windows)
     CFLAGS = -DWIN32
-else
+endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
 else
-   CFLAGS = -DLINUX -std=gnu99
+   CFLAGS = -DLINUX
 endif
-endif
-
-LIBS = -L../encoder -lavdspencoder
 
 INCLUDES = -I../encoder -I../runtime
-CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
+CFLAGS = -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 
 ifeq ($(uname_S), Darwin)
+LIBS = -L../encoder -lavdspencoder
 
-PROGS = oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib testfunction.dylib
+PROGS = oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib testfunction.dylib oktodac_fabriceo.dylib oktodac_diy.dylib
 
 %.dylib:	%.c
 	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(LIBS)
@@ -34,12 +32,12 @@ clean:
 
 else
 ifeq ($(uname_S), Windows)
+all:
 
-#nothing done her, see windows folder
+clean:
 
-else	
-#linux
-PROGS = oktodac.so crossover2x2lfe.so crossoverLV6.so REWgenericEQ.so testfunction.so
+else	#linux
+PROGS = oktodac.so crossover2x2lfe.so crossoverLV6.so REWgenericEQ.so testfunction.so oktodac_fabriceo.so oktodac_diy.so
 
 all:	$(PROGS)
 

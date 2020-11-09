@@ -15,10 +15,11 @@
 #include "dsp_tpdf.h"           // functions related to randomizer, tpdf, truncation as static inline
 #include "dsp_biquadSTD.h"      // biquad related functions
 #include "dsp_firSTD.h"         // fir functions prototypes
-//#include <math.h>               // used for importing float sqrt()
 
 //prototypes
-opcode_t * dspFindCore(opcode_t * ptr, const int numCore);  // search for a core and return begining of core code
+// search for a core number and return pointer on begining of core code
+opcode_t * dspFindCore(opcode_t * ptr, const int numCore);
+// point further in the dsp core code, after PARAM sections
 opcode_t * dspFindCoreBegin(opcode_t * ptr);
 
 int dspRuntimeInit( opcode_t * codePtr,     // pointer on the dspprogram
@@ -33,9 +34,6 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
 
 //all variable below are globals for every dsp core and initialized by the call to dspRuntimeInit
 dspHeader_t * dspHeaderPtr;             // points on opcode header see dsp_header.h for structure.
-int dspSamplingFreq;
-int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
-int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
 int dspBiquadFreqSkip;                  // note : used in biquad xs2 assembly routine as external
 int dspMantissa;                        // reflects DSP_MANT or dspHeaderPtr->format
 
@@ -49,7 +47,6 @@ opcode_t * dspFindCore(opcode_t * codePtr, const int numCore){  // search core a
     while (1) {
         int code = ptr->op.opcode;
         unsigned int skip = ptr->op.skip;
-        //printf("1ptr @0x%X = %d-%d\n",(int)ptr,code, skip);
         if (skip == 0) {// = END_OF_CORE
             if (num == 0) return codePtr;   // if no dsp_CORE, then return begining of code
             else return 0;}
@@ -83,26 +80,29 @@ if ((ptr != 0) && (ptr->op.opcode == DSP_CORE))
 // table of magic number to be multiplied by a number of microseconds to get a number of sample (x2^32)
 #define dspDelayFactor 4294.967296  // 2^32/10^6
 static const unsigned int dspTableDelayFactor[FMAXpos] = {
-        dspDelayFactor*8000,  dspDelayFactor*16000,
-        dspDelayFactor*24000, dspDelayFactor*32000,
-        dspDelayFactor*44100, dspDelayFactor*48000,
-        dspDelayFactor*88200, dspDelayFactor*96000,
-        dspDelayFactor*176400,dspDelayFactor*192000,
-        dspDelayFactor*352800,dspDelayFactor*384000,
-        dspDelayFactor*705600,dspDelayFactor*768000
+        dspDelayFactor*8000.0,  dspDelayFactor*16000.0,
+        dspDelayFactor*24000.0, dspDelayFactor*32000.0,
+        dspDelayFactor*44100.0, dspDelayFactor*48000.0,
+        dspDelayFactor*88200.0, dspDelayFactor*96000.0,
+        dspDelayFactor*176400.0,dspDelayFactor*192000.0,
+        dspDelayFactor*352800.0,dspDelayFactor*384000.0,
+        dspDelayFactor*705600.0,dspDelayFactor*768000.0
 };
 
 #define dspRmsFactor 1000.0
 static const unsigned int dspTableRmsFactor[FMAXpos] = {
-        dspRmsFactor/8000.0, dspRmsFactor/16000.0,
-        dspRmsFactor/24000.0, dspRmsFactor/32000.0,
-        dspRmsFactor/44100.0, dspRmsFactor/48000.0,
-        dspRmsFactor/88200.0, dspRmsFactor/96000.0,
-        dspRmsFactor/176400.0,dspRmsFactor/192000.0,
-        dspRmsFactor/352800.0,dspRmsFactor/384000.0,
+        dspRmsFactor/8000.0,   dspRmsFactor/16000.0,
+        dspRmsFactor/24000.0,  dspRmsFactor/32000.0,
+        dspRmsFactor/44100.0,  dspRmsFactor/48000.0,
+        dspRmsFactor/88200.0,  dspRmsFactor/96000.0,
+        dspRmsFactor/176400.0, dspRmsFactor/192000.0,
+        dspRmsFactor/352800.0, dspRmsFactor/384000.0,
         dspRmsFactor/705600.0, dspRmsFactor/768000.0
 };
 
+static int dspSamplingFreq;
+static int dspMinSamplingFreq;
+static int dspMaxSamplingFreq;
 static int dspNumSamplingFreq;
 static int dspSamplingFreqIndex;
 static int dspDelayLineFactor;
@@ -123,7 +123,6 @@ int dspRuntimeReset(const int fs,
         int max = dspHeaderPtr->freqMax;
         if ((freqIndex < min) || (freqIndex > max)) {
              dspprintf("ERROR : sampling freq not compatible with encoded dsp program.\n"); return -2; }
-        //printf("INIT ** frequencies : min %d, max %d, num %d, index %d\n",min, max, max-min+1,freqIndex - min);
 
         dspSamplingFreq     = freqIndex;
         dspMinSamplingFreq  = min;
@@ -167,7 +166,7 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the dspprogram
     if ((size+length) > maxSize){
         dspprintf("ERROR : total size (program+data = %d) is over the allowed size (%d).\n",length+size, maxSize); return -6; }
 
-        dspCalcSumCore(codePtr, &sum, &numCores,length);
+        dspCalcSumCore(codePtr, &sum, &numCores, length);
         if (numCores < 1) {
             dspprintf("ERROR : no cores defined in the program.\n"); return -3; }
         if (sum != dspHeaderPtr->checkSum) {
@@ -250,8 +249,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
                 dspChangeThisData(cptr++, oldFormat, newFormat); }
             break;}
 
-        case DSP_BIQUADS: {// dataspace then tableptr
-            cptr++; // skip data space
+        case DSP_BIQUADS: {// dataspace pointer then tableptr
+            cptr++; // skip pointer on data space
             cptr = (dspALU32_t*)(ptr+cptr->i);   //point on coef table
             short numSection = cptr->i;   // number of section (lsb)
             cptr+=3;    // point on 1st section
@@ -268,8 +267,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
         case DSP_FIR: {// TODO
         } break;
 
-        case DSP_DITHER_NS2: {// data space then table ptr
-            cptr++; // skip data space
+        case DSP_DITHER_NS2: {// data space pointer then table ptr
+            cptr++; // skip pointer on data space
             cptr = (dspALU32_t*)(ptr+cptr->i); //point on coef table
             for (int i=0; i< dspNumSamplingFreq; i++) {
                 dspChangeThisData(cptr++, oldFormat, newFormat);
@@ -278,8 +277,8 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
             }
         } break;
 
-        case DSP_DCBLOCK: { // dataspace then imediate table
-            cptr++; // skip data space
+        case DSP_DCBLOCK: { // dataspace pointer then imediate table of pole
+            cptr++; // skip pointer on data space
             for (int i=0; i< dspNumSamplingFreq; i++)
                 dspChangeThisData(cptr++, oldFormat, newFormat);
         } break;
@@ -335,13 +334,13 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             break;}
 
         case DSP_COPYXY: {
-            dspprintf2("COPYY");
+            dspprintf2("COPYXY");
             ALU2 = ALU;
             break;}
 
         case DSP_COPYYX: {
-            dspprintf2("COPYY");
-            ALU2 = ALU;
+            dspprintf2("COPYYX");
+            ALU = ALU2;
             break;}
 
         case DSP_CLRXY: { // tested
@@ -531,6 +530,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             dspprintf2("TPDF_CALC");
             if (dspTpdfPrepare(&dspTpdfGlobal,&dspTpdfGlobal,*cptr)) {
                 ALU = dspTpdfCalc();
+                int offset = *(cptr+1);
+                dspALU_t * dataPtr = (dspALU_t *)(rundataPtr+offset);
+                *dataPtr = ALU;
             } else ALU = 0;
             break;}
 
@@ -546,6 +548,9 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                     ALU = dspIntToFloatScaled(dspTpdfValue,31);
                 #endif
             #endif
+                int offset = *(cptr+1);
+                dspALU_t * dataPtr = (dspALU_t *)(rundataPtr+offset);
+                *dataPtr = ALU;
             break;}
 
 
@@ -877,6 +882,10 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 #endif
                 max--;
             }
+            // from release >1.0 the calculated value is also stored in data space for potential reuse
+            offset = *(cptr+1);
+            dspALU_t * dataPtr = (dspALU_t *)(rundataPtr+offset);
+            *dataPtr = ALU;
             break; }
 
 
@@ -1254,6 +1263,13 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             else
             if (ALU < (-thresold))  ALU = -thresold;
         break; }
+
+        // after release 1.0
+        case DSP_LOAD_MEM_DATA:{
+            int offset = *cptr;
+            dspALU_t * dataPtr = (dspALU_t *)(rundataPtr+offset);   // where we have a data space for us
+            ALU = *dataPtr;
+        break;}
 
         } // switch (opcode)
 

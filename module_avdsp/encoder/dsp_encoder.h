@@ -52,9 +52,9 @@ int  opcodeIndexMisAligned8();
  void dsp_NEGY();
 
  // generate a random number to be used by DITHER or SAT0DB_TPDF
- void dsp_TPDF_CALC(int bits);
+ int dsp_TPDF_CALC(int bits);
  // generate a random number to be used by DITHER or SAT0DB_TPDF
- void dsp_TPDF(int bits);
+ int dsp_TPDF(int bits);
  // load the ALU with the random number
  void dsp_WHITE();
  //saturate the ALU to keep value between -1..+1 and transform to s.31 format (for int64 ALU)
@@ -80,7 +80,7 @@ int  opcodeIndexMisAligned8();
  void dsp_LOAD_GAIN_Fixed(int IO, dspGainParam_t gain);
 
  //load many sample from many inputs and apply a gain (4.28) for each
- void dsp_LOAD_MUX(int paramAddr);
+ int dsp_LOAD_MUX(int paramAddr);
  // define the section where the couples IO-gain are listed. number can be 0 or negative to maximize the list
  int  dspLoadMux_Inputs(int number);
  // describe each couple IO - gain
@@ -162,7 +162,7 @@ int  opcodeIndexMisAligned8();
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);
 
 // calculate cascaded biquads
- void dsp_BIQUADS(int paramAddr);
+ int dsp_BIQUADS(int paramAddr);
  //define the list of biquad within a PARAM structure
  //each filters to be declared below. Number is the number of biquad cell (1storder = 2ndOrder = 1cell)
  // negative number is used

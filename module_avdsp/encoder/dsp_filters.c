@@ -549,7 +549,7 @@ int dsp_filter(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam
     case FPEAK : tmp = dsp_Filter2ndOrder(FPEAK,freq,Q,gain); break;
     case FNOTCH: tmp = dsp_Filter2ndOrder(FNOTCH,freq,Q,gain); break;
     case FBP0DB: tmp = dsp_Filter2ndOrder(FBP0DB,freq,Q,gain); break;
-    case FBPQ:   tmp = dsp_Filter2ndOrder(FBP0DB,freq,Q,gain); break;
+    case FBPQ:   tmp = dsp_Filter2ndOrder(FBPQ,freq,Q,gain); break;
 //first order
     case FLP1: tmp = dsp_Filter1stOrder(FLP1,freq, gain); break;
     case FHP1: tmp = dsp_Filter1stOrder(FHP1,freq, gain); break;
