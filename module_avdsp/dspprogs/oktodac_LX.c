@@ -39,7 +39,7 @@ int dspProg_LXmini(){
         //setSerialHash(0x9ADD2096);  // serial number 0
         setSerialHash(0xCAC47719);  // serial number 16
 
-    const float attn  = dB2gain(-8.0); // to avoid any saturation in biquads (due to 50hz bass boost in fact).
+    const float attn  = dB2gain(0.0); // to avoid any saturation in biquads (due to 50hz bass boost in fact).
 
     dsp_PARAM();
 
@@ -48,8 +48,8 @@ int dspProg_LXmini(){
         //dsp_filter(FHP2,     10, 0.7, 1.0);    // optional high pass to protect xmax
         dsp_filter(FPEAK,  1800,  7.0, dB2gain(+3.5));
         dsp_filter(FPEAK,  2500,  2.0, dB2gain( -5.0));
-        dsp_filter(FPEAK, 10000,  4.0, dB2gain(  +2.0));
-        dsp_filter(FPEAK, 16200,  5.0, dB2gain( +7.0));
+        dsp_filter(FPEAK, 10000,  4.0, dB2gain( +2.0));
+        dsp_filter(FPEAK, 16200,  5.0, dB2gain( +0.5));
 
     int lowEQ = dspBiquad_Sections_Flexible();
         dsp_filter(FLP2,     fx, 0.5,  dB2gain(-11.2) ); // lowpass LR2

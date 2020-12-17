@@ -225,8 +225,8 @@ dsp_CORE();
 // generic entry point for dspcreate utility
 int dspProg(int argc,char **argv){
 
-    //setSerialHash(0x9ADD2096);  // serial number 0
-    setSerialHash(0xCAC47719);  // serial number 16
+    setSerialHash(0x9ADD2096);  // serial number 0
+    //setSerialHash(0xCAC47719);  // serial number 16
 
    int dither = -1; // no dithering by default
    int fx = 800;
