@@ -24,6 +24,7 @@ ifeq ($(uname_S), Darwin)
 all:
 	$(CC) $(CFLAGS) -dynamiclib  -o libavdspencoder.dylib dsp_*.c
 	@rm -rf *.dSYM
+	@rmdir -rf *.dSYM
 	
 clean:
 	@rm -rf *.dylib 

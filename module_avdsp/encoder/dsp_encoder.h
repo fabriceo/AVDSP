@@ -22,6 +22,7 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
 void dsp_dumpParameter(int addr, int size, char * name);
 void dsp_dumpParameterNum(int addr, int size, char * name, int num);
 
+void setSerialHash(unsigned hash);
 int  addCode(int code);
 int  addFloat(float value);
 int  opcodeIndex();
@@ -31,7 +32,7 @@ int  opcodeIndexMisAligned8();
  int  dsp_END_OF_CODE();
  void dsp_NOP();
  void dsp_CORE();
- void dsp_SERIAL(int N);
+ void dsp_SERIAL(unsigned hash);
 
  void dsp_SWAPXY();
  void dsp_COPYXY();

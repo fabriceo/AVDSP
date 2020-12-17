@@ -22,27 +22,29 @@ int dspProgDAC8PRODSP(int dither){
     dsp_LOAD_STORE();   // cpu optimized version for a multiple LOAD and STORE sequence
     for (int i=0; i<2; i++)
     	dspLoadStore_Data( ADCIN(i), USBIN(i) );
-    	
+
+    dsp_LOAD_STORE();
+    for (int i=2; i<8; i++)
+        dspLoadStore_Data( USBOUT(i & 1), USBIN(i) );   // simply loop back stereo to each pair
+
     if (dither>=0) dsp_TPDF_CALC(dither);
     
  // Left channels       
     dsp_CORE();  
 	for (int i=2; i<8; i+=2) {
-        dsp_LOAD_GAIN_Fixed( USBOUT(i & 1) , 0.1 );	// -20db
+        dsp_LOAD_GAIN_Fixed( USBOUT(0) , 0.0631 );  // -24db as a security
         if (dither>=0) dsp_SAT0DB_TPDF();
         else dsp_SAT0DB();
         dsp_STORE( DACOUT(i) );
-        dsp_STORE( USBIN(i) );
 	}
-        	
+        	 
  // right channels
     dsp_CORE();  
 	for (int i=3; i<8; i+=2) {
-        dsp_LOAD_GAIN_Fixed( USBOUT(i & 1) , 0.1 );	// -20db
+        dsp_LOAD_GAIN_Fixed( USBOUT(1) , 0.0631 );
         if (dither>=0) dsp_SAT0DB_TPDF();
         else dsp_SAT0DB();
         dsp_STORE( DACOUT(i) );
-        dsp_STORE( USBIN(i) );
 	}
 
     return dsp_END_OF_CODE();

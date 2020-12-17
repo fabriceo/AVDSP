@@ -232,10 +232,11 @@ typedef struct dspHeader_s {    // 11 words
 /* 5 */     int   version;      // version of the encoder used MAJOR, MINOR,BUGFIX
 /* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 0 for float encoding
 /*   */     unsigned short   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
-/* 7 */     int   freqMin;      // minimum frequency possible for this program, in raw format eg 44100
-/* 8 */     int   freqMax;      // maximum frequency possible for this program, in raw format eg 192000
-/* 9 */     unsigned usedInputs;   //bit mapping of all used inputs
-/* 10 */    unsigned usedOutputs;  //bit mapping of all used outputs
+/* 7 */     int   freqMin;          // minimum frequency possible for this program, in raw format eg 44100
+/* 8 */     int   freqMax;          // maximum frequency possible for this program, in raw format eg 192000
+/* 9 */     unsigned usedInputs;    //bit mapping of all used inputs
+/* 10 */    unsigned usedOutputs;   //bit mapping of all used outputs
+/* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output
         } dspHeader_t;
 
 

@@ -362,6 +362,11 @@ static void calcLength(){
 
 }
 
+void setSerialHash(unsigned hash) {
+    dspHeaderPtr->serialHash  = hash;
+}
+
+
 void dspEncoderFormat(int format){
     if (format > DSP_FORMAT_DOUBLE_FLOAT) { // this is the mantissa for an INT64 format (simplified parameter)
         dspFormat       = DSP_FORMAT_INT64;
@@ -432,7 +437,10 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
     dspHeaderPtr->freqMax   = maxFreq;
     dspHeaderPtr->usedInputs  = 0;
     dspHeaderPtr->usedOutputs = 0;
+    setSerialHash(0);
 }
+
+
 
 
 // search one PARAM or PARAM_NUM area covering the address provided as a parameter
@@ -997,10 +1005,9 @@ void dsp_DELAY_1(){
 }
 
 // DSP_SERIAL
-void dsp_SERIAL(int N) {
+void dsp_SERIAL(unsigned hash) {
     addOpcodeLengthPrint(DSP_SERIAL);
-    addCode(N);
-    addCode(~N);
+    addCode(hash);
 }
 
 // can be used only in a param space for declaring a list of datas (for example to be used by DATA_TABLE)

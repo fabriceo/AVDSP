@@ -170,7 +170,7 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
 dsp_CORE();  // first core
 
     if (dither>=0) {
-        printf("ditehring enable for %d usefull bits\n",dither);
+        printf("ditehring enabled for %d usefull bits\n",dither);
         dsp_TPDF_CALC(dither); }
 
     dsp_LOAD_STORE();
@@ -225,8 +225,10 @@ dsp_CORE();
 // generic entry point for dspcreate utility
 int dspProg(int argc,char **argv){
 
+    //setSerialHash(0x9ADD2096);  // serial number 0
+    setSerialHash(0xCAC47719);  // serial number 16
+
    int dither = -1; // no dithering by default
-   int outs = 8;
    int fx = 800;
    int gd = 0;
    float gaincomp = 0.35;
