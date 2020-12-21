@@ -20,6 +20,7 @@ const int leftmid   = 5;
 const int rightsub  = 6;
 const int leftsub   = 7;
 
+int prog = 0;
 int dither = 0;
 
 // these gains are applied in the very last stage of the dsp, before storing result to dac
@@ -28,55 +29,141 @@ int gainsubright = 1.0;
 int gainlow = 1.0;
 int gainmid = 1.0;
 
+int ftype = LPLR2;	// default crossover LR2
 int fx = 700;
-int delaymid = 60;  // midrange delyed by 60us by default
+int gd = 0;
+int delaymid = 55;  // midrange delyed by 60us by default rounded to 3 samples at 44k1
 int sub = 0;
 int delaysubleft  = 0;
 int delaysubright = 0;
+
+
+// lipsitch vanderkoy crossover, using delay and substraction
+void crossoverLV(int lowpass, int loweq, int mideq, int in, int outlow, int outhigh){
+
+    dsp_LOAD_MEM(in);
+    dsp_COPYXY();
+    dsp_DELAY_DP_FixedMicroSec(gd);
+    dsp_SWAPXY();
+    dsp_BIQUADS(lowpass);        //compute lowpass filter in X
+    dsp_SUBYX();                // compute high pass in Y
+    dsp_BIQUADS(loweq);
+    if (dither>=0)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( dB2gain(-11.2));
+    else dsp_SAT0DB_GAIN_Fixed( dB2gain(-11.2));
+    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+    dsp_STORE( DACOUT(outlow) );
+
+    dsp_SWAPXY();               // get highpass
+    dsp_BIQUADS(mideq);
+    if (dither>=0)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( dB2gain(-10.0) );
+    else dsp_SAT0DB_GAIN_Fixed( dB2gain(-10.0) );
+    if (delaymid>0) dsp_DELAY_FixedMicroSec(delaymid);
+    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+
+    //dsp_NEGX(); // invert phase during tests to test allignement
+    dsp_STORE( DACOUT(outhigh) );
+}
+
+void crossoverLR2(int lowpass, int loweq, int highpass, int mideq, int in, int outlow, int outmid){
+
+    dsp_LOAD_MEM(in);
+    dsp_BIQUADS(lowpass);   //compute lowpass filter
+    dsp_BIQUADS(loweq);
+    if (dither>=0)
+        dsp_SAT0DB_TPDF_GAIN_Fixed( dB2gain(-11.2));
+        else dsp_SAT0DB_GAIN_Fixed( dB2gain(-11.2));
+    dsp_STORE( USBIN(outlow) );
+    dsp_STORE( DACOUT(outlow));
+
+    dsp_LOAD_MEM(in);
+    dsp_BIQUADS(highpass);
+    dsp_BIQUADS(mideq);
+    if (dither>=0)
+        dsp_SAT0DB_TPDF_GAIN_Fixed( gainmid);
+        else dsp_SAT0DB_GAIN_Fixed( gainmid);
+    if (delaymid) dsp_DELAY_FixedMicroSec(delaymid);
+    dsp_STORE( USBIN(outmid) );
+    dsp_STORE( DACOUT(outmid));
+
+}
 
 int dspProg_LXmini(){
 
         //setSerialHash(0x9ADD2096);  // serial number 0
         setSerialHash(0xCAC47719);  // serial number 16
 
-    const float attn  = dB2gain(0.0); // to avoid any saturation in biquads (due to 50hz bass boost in fact).
+const float attn  = 1.0;//dB2gain(-8.0); // to avoid any saturation in biquads (due to 50hz bass boost on loweq).
+ 
+int lowpass;
+int highpass;
+int lowEQ;
+int rightmidEQ;
+int leftmidEQ;
+int leftsubEQ;
+int rightsubEQ;
 
     dsp_PARAM();
 
     // upfront equalization on the stereo channels.
-    int frontEQ = dspBiquad_Sections_Flexible();
-        //dsp_filter(FHP2,     10, 0.7, 1.0);    // optional high pass to protect xmax
-        dsp_filter(FPEAK,  1800,  7.0, dB2gain(+3.5));
+int frontEQ = dspBiquad_Sections_Flexible();
+        dsp_filter(FHP2,     10, 0.7, 1.0);    // optional high pass to protect xmax
+        dsp_filter(FHS2,   400,  1.0, dB2gain( -2.0));
+
+
+if (ftype == LPLR2) {
+
+	 lowpass = dspBiquad_Sections_Flexible();
+        dsp_filter(FLP2,     fx, 0.5,    1.0);//dB2gain(-11.2) ); // lowpass LR2
+
+	 highpass = dspBiquad_Sections_Flexible();
+        dsp_filter(FHP2,   fx,    0.5,-dB2gain(-10.0) ); // highpass LR2 inverted and reduced by 10db
+        
+} else if ((ftype == LPBE4)||(ftype == LPBE6)||(ftype == LPBE8)) {
+
+	int freq;
+    lowpass = dspBiquad_Sections_Flexible();
+	switch (ftype) {
+		case LPBE4 : freq = fx * 1.111;  gd =  526140/freq; dsp_LP_BES4(freq); break;
+		case LPBE6 : freq = fx * 1.2563; gd =  759230/freq; dsp_LP_BES6(freq); break;
+		case LPBE8 : freq = fx * 1.391;  gd = 1020994/freq; dsp_LP_BES8(freq); break;
+	}	
+}
+
+     lowEQ = dspBiquad_Sections_Flexible();
+        dsp_filter(FPEAK,   50,  0.7,    dB2gain( sub ? 0.0 : +7.0));    // bass boost only if no sub
+        dsp_filter(FPEAK,   68,  6.0,    dB2gain( +2.0));   // breakup and raisonance ?
+        dsp_filter(FPEAK,   150, 1.0,    dB2gain( -2.0));   // breakup and raisonance ?
+        dsp_filter(FPEAK,   230, 4.0,    dB2gain( -4.0));   // breakup and raisonance ?
+        dsp_filter(FPEAK,  5000, 5.0,    dB2gain(-13.0));   // breakup and raisonance ?
+
+     rightmidEQ = dspBiquad_Sections_Flexible();
+        dsp_filter(FLS2,   1000,  0.5, dB2gain(+16.0));
+        dsp_filter(FPEAK,  1900,  6.0, dB2gain( +2.0));;
         dsp_filter(FPEAK,  2500,  2.0, dB2gain( -5.0));
-        dsp_filter(FPEAK, 10000,  4.0, dB2gain( +2.0));
-        dsp_filter(FPEAK, 16200,  5.0, dB2gain( +0.5));
+        dsp_filter(FHS2,   8000,  0.7, dB2gain( +5.0));
+        dsp_filter(FPEAK, 15500,  1.0, dB2gain( +5.0));
 
-    int lowEQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FLP2,     fx, 0.5,  dB2gain(-11.2) ); // lowpass LR2
-        dsp_filter(FPEAK,    50, 0.7,  dB2gain( sub ? 0.0 : +7.0));    // bass boost only if no sub
-        dsp_filter(FPEAK,  5100, 6.0,  dB2gain(-14.0));   // breakup and raisonance ?
-
-    int rightmidEQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FHP2,   fx,    0.5, -dB2gain(-9.8) ); // highpass LR2 inverted and reduced by 10db
+     leftmidEQ = dspBiquad_Sections_Flexible();
         dsp_filter(FLS2,   1000,  0.5, dB2gain(+16.0));
-        dsp_filter(FHS2,   8000,  0.7, dB2gain( +8.0));
-
-    int leftmidEQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FHP2,   fx,    0.5, -dB2gain(-9.8) ); // highpass LR2 inverted and reduced by 10db
-        dsp_filter(FLS2,   1000,  0.5, dB2gain(+16.0));
-        dsp_filter(FHS2,   8000,  0.7, dB2gain( +8.0));
-        dsp_filter(FPEAK,  6000,  0.3, dB2gain(1.8));   // breakup and raisonance ?
-
+        dsp_filter(FPEAK,  1900,  6.0, dB2gain( +2.0));;
+        dsp_filter(FPEAK,  2500,  2.0, dB2gain( -5.0));
+        dsp_filter(FPEAK,  6000,  0.3, dB2gain( +1.8));   // driver defect ...
+        dsp_filter(FHS2,   8000,  0.7, dB2gain( +5.0));
+        dsp_filter(FPEAK, 15500,  1.0, dB2gain( +5.0));
+        
+if (sub) {
     // subwoofer for left or mono
-    int leftsubEQ = dspBiquad_Sections_Flexible();
+     leftsubEQ = dspBiquad_Sections_Flexible();
         dsp_filter(FLP2,   60, 0.5, -1.0);    // LR2 @ 60hz, inverted
         dsp_filter(FPEAK,  50, 1.0, dB2gain(0.0));
 
     // subwoofer for right only
-    int rightsubEQ = dspBiquad_Sections_Flexible();
+     rightsubEQ = dspBiquad_Sections_Flexible();
         dsp_filter(FLP2,   60, 0.5, -1.0);    // LR2 @ 60hz, inverted
         dsp_filter(FPEAK,  50, 2.0, dB2gain(0.0));
-
+}
 
     int leftmem  = dspMem_Location();
     int rightmem = dspMem_Location();
@@ -85,6 +172,8 @@ int dspProg_LXmini(){
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(leftin,  0.5); // gain can be adjusted lower
         dspLoadMux_Data(rightin, 0.5);
+
+// end of dsp_PARAM
 
 dsp_CORE();  // first core, stereo conditioning
 
@@ -106,46 +195,27 @@ dsp_CORE();  // first core, stereo conditioning
     dsp_BIQUADS(frontEQ);
     dsp_STORE_MEM(rightmem);                        // store in temporary location for third core
 
-dsp_CORE();  // second core crossover low channel
+if (ftype == LPLR2) {
+
+dsp_CORE();  // second core left channel
+	crossoverLR2(lowpass, lowEQ, highpass, leftmidEQ,  leftmem,  4, 5);
+
+dsp_CORE();  // third core right channel
+
+    // right channel
+    crossoverLR2(lowpass, lowEQ, highpass, rightmidEQ, rightmem, 2, 3);
     
-    //low channel
-    dsp_LOAD_MEM(leftmem);
-    dsp_BIQUADS(lowEQ);   //compute lowpass filter
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainlow);
-        else dsp_SAT0DB_GAIN_Fixed( gainlow);
-    dsp_STORE( USBIN(leftlow) );
-    dsp_STORE( DACOUT(leftlow));
+} else if ((ftype == LPBE4)||(ftype == LPBE6)||(ftype == LPBE8)) {
 
-    dsp_LOAD_MEM(rightmem);
-    dsp_BIQUADS(lowEQ);   //compute lowpass filter
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainlow);
-        else dsp_SAT0DB_GAIN_Fixed( gainlow);
-    dsp_STORE( USBIN(rightlow) );
-    dsp_STORE( DACOUT(rightlow));
+//gainmid = dB2gain(-10.0);
 
-dsp_CORE();  // third core midrange channel
+dsp_CORE();
+    crossoverLV(lowpass, lowEQ, leftmidEQ,  leftmem,  4, 5);
 
-    // mid channel
-    dsp_LOAD_MEM(leftmem);
-    dsp_BIQUADS(leftmidEQ);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainmid);
-        else dsp_SAT0DB_GAIN_Fixed( gainmid);
-    dsp_DELAY_FixedMicroSec(delaymid);
-    //dsp_STORE( USBIN(leftmid) );
-    dsp_STORE( DACOUT(leftmid));
+dsp_CORE();
+    crossoverLV(lowpass, lowEQ, rightmidEQ, rightmem, 2, 3);
 
-    dsp_LOAD_MEM(rightmem);
-    dsp_BIQUADS(rightmidEQ);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainmid);
-        else dsp_SAT0DB_GAIN_Fixed( gainmid);
-    dsp_DELAY_FixedMicroSec(delaymid);
-    //dsp_STORE( USBIN(rightmid) );
-    dsp_STORE( DACOUT(rightmid));
-
+}
 if ( sub ) {
 
     dsp_CORE();  // 4th core for subwoofers
@@ -155,8 +225,8 @@ if ( sub ) {
     else dsp_LOAD_MUX(avgLR);        // load and mix left+right
     dsp_BIQUADS(rightsubEQ);
     if (sub == 1) dsp_COPYXY();     // temporary store EQed
-    if (delaysubright) dsp_DELAY_FixedMicroSec(delaysubright);
     dsp_SAT0DB_GAIN_Fixed( gainsubright );
+    if (delaysubright) dsp_DELAY_FixedMicroSec(delaysubright);
     dsp_STORE( USBIN(rightsub) );
     dsp_STORE( DACOUT(rightsub));
 
@@ -164,8 +234,8 @@ if ( sub ) {
         dsp_LOAD_MEM(leftmem);
         dsp_BIQUADS(leftsubEQ);
     } else dsp_COPYYX();            // retreive stored value
-    if (delaysubleft) dsp_DELAY_FixedMicroSec(delaysubleft);
     dsp_SAT0DB_GAIN_Fixed( gainsubleft );
+    if (delaysubleft) dsp_DELAY_FixedMicroSec(delaysubleft);
     dsp_STORE( USBIN( leftsub ));
     dsp_STORE( DACOUT( leftsub ));
 }
@@ -174,25 +244,34 @@ if ( sub ) {
 }
 
 int dspProg(int argc,char **argv){
-   int prog = 0;
     for(int i=0 ; i<argc;i++) {
         // parse USER'S command line parameters
 
          if (strcmp(argv[i],"-lxmini") == 0) {
-            dspprintf("generating dsp code for LXmini with 50hz bass boost, no subwoofer\n");
-            prog = 1; sub = 0;
+            dspprintf("generating dsp code for LXmini with 50hz bass boost\n");
+            prog = 1; 
             continue; }
 
-         if (strcmp(argv[i],"-lxminisub") == 0) {
-            dspprintf("generating dsp code for LXmini for 2 subwoofers LR2@60hz\n");
-            prog = 1; sub = 1;
+         if (strcmp(argv[i],"-lv4") == 0) {
+            ftype = LPBE4;
             continue; }
 
-         if (strcmp(argv[i],"-lxminisubmono") == 0) {
-            dspprintf("generating dsp code for LXmini with only 1 subwoofer LR2@60hz\n");
-            prog = 1; sub = 2;
+         if (strcmp(argv[i],"-lv6") == 0) {
+            ftype = LPBE6;
             continue; }
 
+         if (strcmp(argv[i],"-lv8") == 0) {
+            ftype = LPBE8;
+            continue; }
+
+         if (strcmp(argv[i],"-sub") == 0) {
+             sub = 0;
+              if (argc>=i) {
+                  i++;
+                  sub = strtol(argv[i], NULL,10); }
+             dspprintf("including %d subwoofer\n",sub);
+             continue; }
+             
          if (strcmp(argv[i],"-dither") == 0) {
              dither = 0;
               if (argc>=i) {
@@ -221,7 +300,7 @@ int dspProg(int argc,char **argv){
 
     switch (prog) {
     case 1:  return dspProg_LXmini();
-    case 2:
+    case 2: 
     case 3:
     case 4:
     case 5:
