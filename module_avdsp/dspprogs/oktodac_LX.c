@@ -24,10 +24,13 @@ int prog = 0;
 int dither = 0;
 
 // these gains are applied in the very last stage of the dsp, before storing result to dac
-int gainsubleft  = 1.0;
-int gainsubright = 1.0;
-int gainlow = 1.0;
-int gainmid = 1.0;
+float gainsubleft  = 1.0;
+float gainsubright = 1.0;
+float gainlow = 1.0;
+float gainmid = 1.0;
+float attn;
+float lowattn;
+
 
 int ftype = LPLR2;	// default crossover LR2
 int fx = 700;
@@ -36,6 +39,7 @@ int delaymid = 55;  // midrange delyed by 60us by default rounded to 3 samples a
 int sub = 0;
 int delaysubleft  = 0;
 int delaysubright = 0;
+
 
 
 // lipsitch vanderkoy crossover, using delay and substraction
@@ -49,8 +53,8 @@ void crossoverLV(int lowpass, int loweq, int mideq, int in, int outlow, int outh
     dsp_SUBYX();                   // compute high pass in Y
     dsp_BIQUADS(loweq);
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( dB2gain(-1.2));
-    else dsp_SAT0DB_GAIN_Fixed( dB2gain(-1.2));
+         dsp_SAT0DB_TPDF_GAIN_Fixed( lowattn);
+    else dsp_SAT0DB_GAIN_Fixed( lowattn);
     dsp_STORE( USBIN(outlow) );   // feedback to computer for measurements
     dsp_STORE( DACOUT(outlow) );
 
@@ -72,8 +76,8 @@ void crossoverLR2(int lowpass, int loweq, int highpass, int mideq, int in, int o
     dsp_BIQUADS(lowpass);   //compute lowpass filter
     dsp_BIQUADS(loweq);
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( dB2gain(-1.2));
-    else dsp_SAT0DB_GAIN_Fixed( dB2gain(-1.2));
+         dsp_SAT0DB_TPDF_GAIN_Fixed( lowattn );
+    else dsp_SAT0DB_GAIN_Fixed( lowattn );			
     dsp_STORE( USBIN(outlow) );
     dsp_STORE( DACOUT(outlow));
 
@@ -94,7 +98,9 @@ int dspProg_LXmini(){
         //setSerialHash(0x9ADD2096);  // serial number 0
         setSerialHash(0xCAC47719);  // serial number 16
 
-const float attn  = dB2gain(-10.0); // to avoid any saturation in biquads
+attn     = dB2gain(-8.0); // to avoid any saturation in biquads
+lowattn  = dB2gain( -1.2); // to compendate hypex buffer excess gain compared to mid channel
+
  
 int lowpass;
 int highpass;
@@ -117,7 +123,7 @@ if (ftype == LPLR2) {
         dsp_filter(FLP2,   fx, 0.5,  1.0);
 
 	 highpass = dspBiquad_Sections_Flexible();
-        dsp_filter(FHP2,   fx, 0.5, -1.0 ); // highpass LR2 inverted and reduced by 10db
+        dsp_filter(FHP2,   fx, 0.5, -1.0 ); // highpass LR2 inverted 
         
 } else if ((ftype == LPBE4)||(ftype == LPBE6)||(ftype == LPBE8)) {
 
@@ -132,10 +138,10 @@ if (ftype == LPLR2) {
 
      lowEQ = dspBiquad_Sections_Flexible();
         dsp_filter(FPEAK,   50,  0.7,    dB2gain( sub ? 0.0 : +7.0));    // bass boost only if no sub
-        dsp_filter(FPEAK,   68,  6.0,    dB2gain( +2.0));   // breakup and raisonance ?
-        dsp_filter(FPEAK,   150, 1.0,    dB2gain( -2.0));   // breakup and raisonance ?
-        dsp_filter(FPEAK,   230, 4.0,    dB2gain( -4.0));   // breakup and raisonance ?
-        dsp_filter(FPEAK,  5000, 5.0,    dB2gain(-13.0));   // breakup and raisonance ?
+        //dsp_filter(FPEAK,   68,  6.0,    dB2gain( +2.0));
+        dsp_filter(FPEAK,   150, 1.0,    dB2gain( -2.0));
+        dsp_filter(FPEAK,   230, 4.0,    dB2gain( -4.0));
+        dsp_filter(FPEAK,  5000, 5.0,    dB2gain(-13.0));
 
      rightmidEQ = dspBiquad_Sections_Flexible();
         dsp_filter(FLS2,   1000,  0.5, dB2gain(+16.0));
@@ -186,7 +192,7 @@ dsp_CORE();  // first core, stereo conditioning
 
     if (dither>=0) dsp_TPDF_CALC(dither);        // this calculate a tpdf white noise value at each cycle/sample
 
-    dsp_LOAD_GAIN_Fixed(leftin, attn);           // load input and apply a gain on the left channel
+    dsp_LOAD_GAIN_Fixed(leftin, attn);           // load input and apply a gain 
     dsp_BIQUADS(frontEQ);                        // compute EQs
     dsp_STORE_MEM(leftmem);                      // store in temporary location for second core
 
@@ -200,13 +206,10 @@ dsp_CORE();  // second core left channel
 	crossoverLR2(lowpass, lowEQ, highpass, leftmidEQ,  leftmem,  4, 5);
 
 dsp_CORE();  // third core right channel
-
     // right channel
     crossoverLR2(lowpass, lowEQ, highpass, rightmidEQ, rightmem, 2, 3);
     
 } else if ((ftype == LPBE4)||(ftype == LPBE6)||(ftype == LPBE8)) {
-
-//gainmid = dB2gain(-10.0);
 
 dsp_CORE();
     crossoverLV(lowpass, lowEQ, leftmidEQ,  leftmem,  4, 5);
