@@ -146,6 +146,7 @@ int dspCreateAssemblyFile(char * name, int * buff, int size){
 
 int dspReadBuffer(char * name, int * buff, int size){
     dspFileName = name;
+    printf("opening dsppcodes (binary) %s\n",name);
     if (0 != dspfopenRead("rb")) return -1;
     printf("file %s opened in read binary , taille = %ld\n",name, dspFileSize);
     if (dspFileSize > (size*sizeof(int))) return -1;
