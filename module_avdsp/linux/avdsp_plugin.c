@@ -236,9 +236,10 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
             dsp->codestart[dsp->nbcores] = corePtr;
             if (corePtr == 0) break;
     }
+    SNDERR("AVDSP info : nbcores %d, nbchanin %d, nbchanout %d",dsp->nbcores, dsp->nbchin,dsp->nbchout);
 
-	snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
-	snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
+    snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
+    snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
         snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
         snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
