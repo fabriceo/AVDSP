@@ -1,0 +1,5 @@
+a audio virtual dsp framework including
+- encoder
+- runtime
+- linux alsa
+- osx 

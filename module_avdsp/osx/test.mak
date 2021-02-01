@@ -5,7 +5,7 @@ CFLAGS   = -DOSX -DDSP_PRINTF=1 -Ofast -fPIC -Wall $(INCLUDES)
 
 #define your binary dsp code here, and for each, add a section below as per example
 
-DSPPROGS = dac8prodsp.h dacfabriceo.bin LXmini.bin LXminisub.bin LXminisubmono.bin mydspcode.bin
+DSPPROGS = dac8prodsp.h dacfabriceo.bin LXmini.bin LXminisub.bin LXminisubmono.bin LXminilv6.bin mydspcode.bin
 
 all:	$(DSPPROGS)
 
@@ -42,10 +42,13 @@ LXmini.bin: oktodac_LX.dylib dspcreate
 	./dspcreate -dspprog oktodac_LX.dylib -binfile LXmini.bin -dspformat 2  -lxmini -dither 23
 	
 LXminisub.bin: oktodac_LX.dylib dspcreate
-	./dspcreate -dspprog oktodac_LX.dylib -binfile LXminisub.bin -dspformat 2  -lxminisub -dither 23
+	./dspcreate -dspprog oktodac_LX.dylib -binfile LXminisub.bin -dspformat 2  -lxmini -sub 2 -dither 23
 	
 LXminisubmono.bin: oktodac_LX.dylib dspcreate
-	./dspcreate -dspprog oktodac_LX.dylib -binfile LXminisubmono.bin -dspformat 2  -lxminisubmono -dither 23
+	./dspcreate -dspprog oktodac_LX.dylib -binfile LXminisubmono.bin -dspformat 2  -lxmini -sub 1 -dither 23
+	
+LXminilv6.bin: oktodac_LX.dylib dspcreate
+	./dspcreate -dspprog oktodac_LX.dylib -binfile LXminilv6.bin -dspformat 2  -lxmini -lv6 -dither 23
 	
 
 
