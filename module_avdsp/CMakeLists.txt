@@ -4,7 +4,7 @@ cmake_minimum_required(VERSION 3.5)
 project(AVDSP C)
 
 add_definitions(-DDSP_FORMAT=2)
-add_compile_options(-Ofast -march=native )
+add_compile_options(-Ofast -std=gnu99)
 
 include_directories(encoder runtime)
 
