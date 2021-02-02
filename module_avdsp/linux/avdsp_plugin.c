@@ -74,7 +74,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 
 	if (dsp->status == 2) {
 	    dsp->status = 3;
-	    printf("AVDSP first data transfer start.\n");
+	    //printf("AVDSP first data transfer received.\n");
 	}
 	// for each core
 	for(nc = 0; nc < dsp->nbcores; nc++)  {
@@ -100,11 +100,6 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	    } // for each samples
      } // for each channels
 
-    if (dsp->status == 3) {
-        dsp->status = 4;
-        printf("AVDSP first data transfer done.\n");
-    }
-
 	return size;
 }
 
@@ -113,11 +108,11 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 	snd_pcm_avdsp_t *dsp = ext->private_data;
 	int dither;
 	int fs = ext->rate;
+	printf("AVDSP dspRuntimeReset(%ld)\n",fs);
 	if(dspRuntimeReset(fs, 0, dsp->dither)) {
 		SNDERR("avdsp filter not supported  sample freq : %d\n",fs);
 		return -EINVAL;
 	}
-	printf("AVDSP dspcode initialized for fs = %ldhz.\n",fs );
 	dsp->status = 2;
 	return 0;
 }
@@ -148,7 +143,8 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	dsp->ext.callback = &avdsp_callback;
 	dsp->ext.private_data = dsp;
 	dsp->dither=31;
-	dsp->status=0;
+	dsp->status = 0;
+	printf("AVDSP opening adsp plugin...\n");
 
 	snd_config_for_each(i, next, conf) {
 		snd_config_t *n = snd_config_iterator_entry(i);
@@ -196,8 +192,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 		return -EINVAL;
 	}
 
-	err = snd_pcm_extplug_create(&dsp->ext, name, root, sconf,
-				     stream, mode);
+	err = snd_pcm_extplug_create(&dsp->ext, name, root, sconf, stream, mode);
 	if (err < 0) {
 		free(dsp);
 		return err;
@@ -255,16 +250,13 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 
     printf("AVDSP nbcores %d, nbchanin %d, nbchanout %d\n",dsp->nbcores, dsp->nbchin,dsp->nbchout);
 
-    printf("AVDSP snd_pcm_extplug_set_param\n");
     snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
-    printf("AVDSP snd_pcm_extplug_set_slave_param\n");
     snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
-    printf("AVDSP snd_pcm_extplug_set_param_list\n");
     snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
-    printf("AVDSP snd_pcm_extplug_set_slave_param\n");
     snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
-    printf("AVDSP detup done\n");
+
+    printf("AVDSP setup done\n");
 
     dsp->status = 1;
 

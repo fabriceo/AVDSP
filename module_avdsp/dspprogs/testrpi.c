@@ -10,7 +10,11 @@ void dspcodes() {
 
     dsp_PARAM();
     int filter = dspBiquad_Sections_Flexible();
-        dsp_Filter2ndOrder(FLP2,1000,1,1.0);
+        dsp_LP_LR4(1000);
+        dsp_filter(FPEAK,  100,  1.0,  1.0 );
+        dsp_filter(FPEAK,  500,  1.0,  1.0 );
+        dsp_filter(FPEAK,  1000, 1.0,  1.0 );
+        dsp_filter(FPEAK,  2000, 1.0,  1.0 );
 
     dsp_CORE();
     dsp_TPDF_CALC(23);
@@ -18,11 +22,14 @@ void dspcodes() {
     dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
     dsp_BIQUADS(filter);
     dsp_SAT0DB_TPDF();
+    dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(0));
 
+    dsp_CORE();
     dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
     dsp_BIQUADS(filter);
     dsp_SAT0DB_TPDF();
+    dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(1));
 
 }
