@@ -253,13 +253,19 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
             if (corePtr == 0) break;
     }
 
+    printf("AVDSP nbcores %d, nbchanin %d, nbchanout %d\n",dsp->nbcores, dsp->nbchin,dsp->nbchout);
+
+    printf("AVDSP snd_pcm_extplug_set_param\n");
     snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
+    printf("AVDSP snd_pcm_extplug_set_slave_param\n");
     snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
+    printf("AVDSP snd_pcm_extplug_set_param_list\n");
     snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
+    printf("AVDSP snd_pcm_extplug_set_slave_param\n");
     snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
+    printf("AVDSP detup done\n");
 
-    printf("AVDSP nbcores %d, nbchanin %d, nbchanout %d",dsp->nbcores, dsp->nbchin,dsp->nbchout);
     dsp->status = 1;
 
 	*pcmp = dsp->ext.pcm;
