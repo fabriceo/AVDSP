@@ -48,6 +48,7 @@ typedef struct {
     opcode_t opcodes[opcodesMax];
     opcode_t *codestart[nbCoreMax];
     int *dataPtr;
+    int status; // 0 not loaded, 1, loaded, 2, init, 3 transfer, 4 closed
 } snd_pcm_avdsp_t;
 
 
@@ -68,29 +69,41 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 {
 	snd_pcm_avdsp_t *dsp = ext->private_data;
 	void *src = area_addr(src_areas, src_offset);
-	int *dst = area_addr(dst_areas, dst_offset);
+	int *dst  = area_addr(dst_areas, dst_offset);
 	int nc,n,ch;
 
-	for(nc=0;nc<dsp->nbcores;nc++)  {
-	  for (n=0;n < size ; n++) {
+	if (dsp->status == 2) {
+	    dsp->status = 3;
+	    printf("AVDSP first data transfer start.\n");
+	}
+	// for each core
+	for(nc = 0; nc < dsp->nbcores; nc++)  {
 
-             dspSample_t inputOutput[inputOutputMax];
+	  // for each samples provided
+	    for (n=0;n < size ; n++) {
 
-	     if(ext->format == SND_PCM_FORMAT_S32 ) {
-	      for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) 
-    		inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
-	     } else {
-	      for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) 
-    		inputOutput[dsp->coreio[nc].inputMap[ch]] = (int)(((short*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)])<<16;
-	     }
+	        dspSample_t inputOutput[inputOutputMax];   // temporary buffer for treating 1 sample only
+
+	        if(ext->format == SND_PCM_FORMAT_S32 ) {
+	            for( ch=0; ch<dsp->coreio[nc].nbchin; ch++)
+	                inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
+	        } else {
+	            for(ch=0;ch<dsp->coreio[nc].nbchin;ch++)
+	                inputOutput[dsp->coreio[nc].inputMap[ch]] = (int)(((short*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)])<<16;
+	        }
 	
-              DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput); 
+	        DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput);
 
-              for(ch=0;ch<dsp->coreio[nc].nbchout;ch++) 
-    		dst[n*dsp->nbchout+(dsp->coreio[nc].outputMap[ch]-OUTOFFSET)]=inputOutput[dsp->coreio[nc].outputMap[ch]] ;
+	        for(ch=0;ch<dsp->coreio[nc].nbchout;ch++)
+	            dst[n*dsp->nbchout+(dsp->coreio[nc].outputMap[ch]-OUTOFFSET)] = inputOutput[dsp->coreio[nc].outputMap[ch]] ;
 
-	  }
-         }
+	    } // for each samples
+     } // for each channels
+
+    if (dsp->status == 3) {
+        dsp->status = 4;
+        printf("AVDSP first data transfer done.\n");
+    }
 
 	return size;
 }
@@ -99,12 +112,13 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 {
 	snd_pcm_avdsp_t *dsp = ext->private_data;
 	int dither;
-
-	if(dspRuntimeReset(ext->rate,0,dsp->dither)) {
-		SNDERR("avdsp filter not supported  sample freq : %d\n",ext->rate);
+	int fs = ext->rate;
+	if(dspRuntimeReset(fs, 0, dsp->dither)) {
+		SNDERR("avdsp filter not supported  sample freq : %d\n",fs);
 		return -EINVAL;
 	}
-
+	printf("AVDSP dspcode initialized for fs = %ldhz.\n",fs );
+	dsp->status = 2;
 	return 0;
 }
 
@@ -134,6 +148,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	dsp->ext.callback = &avdsp_callback;
 	dsp->ext.private_data = dsp;
 	dsp->dither=31;
+	dsp->status=0;
 
 	snd_config_for_each(i, next, conf) {
 		snd_config_t *n = snd_config_iterator_entry(i);
@@ -156,10 +171,12 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 		if (strcmp(id, "dither") == 0) {
 			long val;
 			if(snd_config_get_integer(n,&val)==0) {
-				dsp->dither=val;
-				continue;
+			    if ((val == 0) || ((val >=7) && (val <=31))) {
+			        dsp->dither=val;
+			        continue;
+			    }
 			}
-			SNDERR("Invalid dspprog name");
+			SNDERR("Invalid dither value");
 		}
 
 		SNDERR("Unknown field %s", id);
@@ -170,12 +187,12 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	}
 
 	if (!sconf) {
-		SNDERR("No slave configuration for avdsp pcm");
+		SNDERR("No slave configuration defined for avdsp pcm");
 		return -EINVAL;
 	}
 
 	if (!dspprogname) {
-		SNDERR("No dspprog file for  avdsp pcm");
+		SNDERR("No dspprog file defined for avdsp pcm");
 		return -EINVAL;
 	}
 
@@ -204,45 +221,46 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
     dsp->dataPtr = (int*)(dsp->opcodes) + result;
 
     // find cores and compute iomaps
-    dsp->nbchin=0,dsp->nbchout=0;
-    for(dsp->nbcores=0;dsp->nbcores<nbCoreMax; dsp->nbcores++) {
+    dsp->nbchin=0, dsp->nbchout=0;
+    for(dsp->nbcores=0; dsp->nbcores<nbCoreMax; dsp->nbcores++) {
 
     	   opcode_t *corePtr = dspFindCore(dsp->opcodes, dsp->nbcores+1);  // find the DSP_CORE instruction
            if (corePtr) {
-	       unsigned int usedInputs,usedOutputs;
-               int * IOPtr = (int *)corePtr+1;             // point on DSP_CORE parameters
+               unsigned int usedInputs,usedOutputs;
+                   int * IOPtr = (int *)corePtr+1;             // point on DSP_CORE parameters
 
-               usedInputs  = *IOPtr++;
-               usedOutputs = *IOPtr;
+                   usedInputs  = *IOPtr++;
+                   usedOutputs = *IOPtr;
 
-               corePtr = dspFindCoreBegin(corePtr);    // skip any useless opcode to reach the real core begin
-
-    		// compute nbchin / nbchout and input/output map by core
-		dsp->coreio[dsp->nbcores].nbchin=dsp->coreio[dsp->nbcores].nbchout=0;
-    		for(ch=0;ch<inputOutputMax;ch++) {
-			if(usedInputs & (1<<ch)) {
-				dsp->coreio[dsp->nbcores].inputMap[dsp->coreio[dsp->nbcores].nbchin]=ch;
-				dsp->coreio[dsp->nbcores].nbchin++;
-				if((ch-INOFFSET+1)>dsp->nbchin) dsp->nbchin=ch-INOFFSET+1;
-			}
-			if(usedOutputs & (1<<ch)) {
-				dsp->coreio[dsp->nbcores].outputMap[dsp->coreio[dsp->nbcores].nbchout]=ch;
-				dsp->coreio[dsp->nbcores].nbchout++;
-				if((ch-OUTOFFSET+1)>dsp->nbchout) dsp->nbchout=ch-OUTOFFSET+1;
-			}
-    		}
+                   corePtr = dspFindCoreBegin(corePtr);    // skip any useless opcode to reach the real core begin
     
+                // compute nbchin / nbchout and input/output map by core
+            dsp->coreio[dsp->nbcores].nbchin=dsp->coreio[dsp->nbcores].nbchout=0;
+                for(ch=0;ch<inputOutputMax;ch++) {
+                    if(usedInputs & (1<<ch)) {
+                        dsp->coreio[dsp->nbcores].inputMap[dsp->coreio[dsp->nbcores].nbchin]=ch;
+                        dsp->coreio[dsp->nbcores].nbchin++;
+                        if((ch-INOFFSET+1)>dsp->nbchin) dsp->nbchin=ch-INOFFSET+1;
+                    }
+                    if(usedOutputs & (1<<ch)) {
+                        dsp->coreio[dsp->nbcores].outputMap[dsp->coreio[dsp->nbcores].nbchout]=ch;
+                        dsp->coreio[dsp->nbcores].nbchout++;
+                        if((ch-OUTOFFSET+1)>dsp->nbchout) dsp->nbchout=ch-OUTOFFSET+1;
+                    }
+                }
             }
             dsp->codestart[dsp->nbcores] = corePtr;
             if (corePtr == 0) break;
     }
-    SNDERR("AVDSP info : nbcores %d, nbchanin %d, nbchanout %d",dsp->nbcores, dsp->nbchin,dsp->nbchout);
 
     snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
     snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
-        snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
-        snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
+    snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
+    snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
+
+    printf("AVDSP nbcores %d, nbchanin %d, nbchanout %d",dsp->nbcores, dsp->nbchin,dsp->nbchout);
+    dsp->status = 1;
 
 	*pcmp = dsp->ext.pcm;
 	return 0;
