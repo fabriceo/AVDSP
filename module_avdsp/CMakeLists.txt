@@ -23,3 +23,6 @@ set_target_properties(dspcreate PROPERTIES ENABLE_EXPORTS TRUE)
 
 add_custom_target(dspprogs ALL COMMAND make WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/dspprogs)
 
+add_executable(hw_params linux/hw_params.c)
+target_link_libraries(hw_params asound)
+
