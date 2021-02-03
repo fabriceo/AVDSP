@@ -57,8 +57,7 @@ typedef struct {
 } snd_pcm_avdsp_t;
 
 
-static inline void *area_addr(const snd_pcm_channel_area_t *area,
-			      snd_pcm_uframes_t offset)
+static inline void *area_addr(const snd_pcm_channel_area_t *area, snd_pcm_uframes_t offset)
 {
 	unsigned int bitofs = area->first + area->step * offset;
 	return (char *) area->addr + bitofs / 8;
@@ -82,8 +81,8 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	double timespent;
 
 	if (dsp->status == 2) {
-	    dsp->status = 3;
 	    //printf("AVDSP first data transfer received.\n");
+        dsp->status = 3;
 	}
     start = clock();
 
@@ -107,11 +106,11 @@ dsp_transfer(snd_pcm_extplug_t *ext,
                         sample = ((int*)src)[ samplepos ];
                         break;
                     case SND_PCM_FORMAT_S16 :
-                        sample = (int)(((short*)src)[ samplepos ]);
+                        sample = (int)(((short*)src)[ samplepos ]) << 16;
                         break;
                     case SND_PCM_FORMAT_S24_3LE : {
                         unsigned char * ptr = (unsigned char *)src;
-                        samplepos *= 4;
+                        samplepos *= 3;
                         sample = (ptr[samplepos] <<8) | (ptr[samplepos+1] <<16 ) | (ptr[samplepos+2] << 24 );
                         break; }
                 }
@@ -130,27 +129,25 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	    } // for each samples
      } // for each channels
 
-    if (dsp->status == 3) {
+    // printing time spent in dspruntime, averaged. period depends on "timestat" parameter.
+    if (dsp->samplesmax != 0.0) {
+        stop = clock();
+        timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
+        timespent *= 1000000.0;     // now in micro sec
+        dsp->timespenttotal += timespent;
+        dsp->samplestotal += size;
 
-        // printing time spent in dspruntime, averaged. period depends on "timestat" parameter.
-        if (dsp->samplesmax != 0.0) {
-            stop = clock();
-            timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
-            timespent *= 1000000.0;     // now in micro sec
-            dsp->timespenttotal += timespent;
-            dsp->samplestotal += size;
-
-            if (dsp->samplestotal > dsp->samplesmax) {
-                timespent = dsp->timespenttotal / dsp->samplestotal;  // averaged time spent by samples
-                double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
-                double percent = 100.0 * timespent / timesample;
-                printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
-                dsp->timespenttotal = 0; dsp->samplestotal = 0; // reset avg
-                if (dsp->timestat < 0) dsp->samplesmax = 0.0;   // check for unic printing
-                //dsp->status = 4;
-
-            }
+        if (dsp->samplestotal > dsp->samplesmax) {
+            timespent = dsp->timespenttotal / dsp->samplestotal;  // averaged time spent by samples
+            double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
+            double percent = 100.0 * timespent / timesample;
+            printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
+            dsp->timespenttotal = 0; dsp->samplestotal = 0; // reset avg
+            if (dsp->timestat < 0) dsp->samplesmax = 0.0;   // check for unic printing
         }
+    }
+    if (dsp->status == 3) {
+        //dsp->status = 4;
     }
 
 	return size;
