@@ -96,10 +96,15 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	        if(ext->format == SND_PCM_FORMAT_S32 ) {
 	            for( ch=0; ch<dsp->coreio[nc].nbchin; ch++)
 	                inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
-	        } else {
+	        } else
+	        if (ext->format == SND_PCM_FORMAT_S16){
 	            for(ch=0;ch<dsp->coreio[nc].nbchin;ch++)
 	                inputOutput[dsp->coreio[nc].inputMap[ch]] = (int)(((short*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)])<<16;
-	        }
+	        } else
+            if (ext->format == SND_PCM_FORMAT_S24_3LE ) {
+                for(ch=0;ch<dsp->coreio[nc].nbchin;ch++)
+                    inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
+            }
 	
 	        DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput);
 
@@ -111,6 +116,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 
     if (dsp->status == 3) {
 
+        // printing time spent in dspruntime, averaged. period depends on "timestat" parameter.
         if (dsp->samplesmax != 0.0) {
             stop = clock();
             timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
@@ -164,7 +170,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	snd_config_t *sconf = NULL;
 	int err;
 	char *dspprogname = NULL;
-        const int format_list[] =  { SND_PCM_FORMAT_S16, SND_PCM_FORMAT_S32 };
+        const int format_list[] =  { SND_PCM_FORMAT_S16, SND_PCM_FORMAT_S32, SND_PCM_FORMAT_S24_3LE };
 
     	int size,result;
     	int n,ch;
@@ -300,7 +306,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
     snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
     snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
-    snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
+    snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,3,format_list);
     snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
 
     dsp->status = 1;
