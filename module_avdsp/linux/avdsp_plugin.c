@@ -105,8 +105,12 @@ dsp_transfer(snd_pcm_extplug_t *ext,
      } // for each channels
     if (dsp->status == 3) {
         stop = clock();
-        timespent = ((double)(stop - start)) ;
-        printf("AVDSP time spent for %ld samples = %f / %f = %f sec\n", size,timespent,CLOCKS_PER_SEC, timespent / CLOCKS_PER_SEC);
+        timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
+        timespent *= 1000000.0;     // now in micro sec
+        timespent /= (double)size;  // time spent by samples
+        double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
+        double percent = 100.0 * timespent / timesample;
+        printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
         dsp->status = 4;
     }
 
