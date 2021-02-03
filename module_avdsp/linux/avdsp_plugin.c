@@ -110,7 +110,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
                         break;
                     case SND_PCM_FORMAT_S24_3LE : {
                         unsigned char * ptr = (unsigned char *)src;
-                        samplepos *= 3;
+                        samplepos *= 3; // 3 bytes per sample. not 32bits alligned...
                         sample = (ptr[samplepos] <<8) | (ptr[samplepos+1] <<16 ) | (ptr[samplepos+2] << 24 );
                         break; }
                 }
@@ -143,7 +143,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
             double percent = 100.0 * timespent / timesample;
             printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
             dsp->timespenttotal = 0; dsp->samplestotal = 0; // reset avg
-            if (dsp->timestat < 0) dsp->samplesmax = 0.0;   // check for unic printing
+            if (dsp->timestat == 1) dsp->samplesmax = 0.0;   // check for unic printing
         }
     }
     if (dsp->status == 3) {
@@ -233,7 +233,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
         if (strcmp(id, "timestat") == 0) {
             long val;
             if(snd_config_get_integer(n,&val)==0) {
-                if ((val > -1000 ) && (val <=1000)) {
+                if ((val >= 0) && (val <= 60)) {
                     dsp->timestat = val;
                     continue;
                 }
