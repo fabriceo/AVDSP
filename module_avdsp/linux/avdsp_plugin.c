@@ -50,6 +50,8 @@ typedef struct {
     opcode_t *codestart[nbCoreMax];
     int *dataPtr;
     int status; // 0 not loaded, 1, loaded, 2, init, 3 transfer, 4 closed
+    double timespenttotal;
+    double samplestotal;
 } snd_pcm_avdsp_t;
 
 
@@ -76,10 +78,11 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	double timespent;
 
 	if (dsp->status == 2) {
-	    start = clock();
 	    dsp->status = 3;
 	    //printf("AVDSP first data transfer received.\n");
 	}
+
+    start = clock();
 	// for each core
 	for(nc = 0; nc < dsp->nbcores; nc++)  {
 
@@ -103,14 +106,19 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 
 	    } // for each samples
      } // for each channels
+
+    stop = clock();
+    timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
+    timespent *= 1000000.0;     // now in micro sec
+    dsp->timespenttotal += timespent;
+    dsp->samplestotal += size;
+
+    timespent = dsp->timespenttotal / dsp->samplestotal;  // averaged time spent by samples
+    double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
+    double percent = 100.0 * timespent / timesample;
+    printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
+
     if (dsp->status == 3) {
-        stop = clock();
-        timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
-        timespent *= 1000000.0;     // now in micro sec
-        timespent /= (double)size;  // time spent by samples
-        double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
-        double percent = 100.0 * timespent / timesample;
-        printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
         dsp->status = 4;
     }
 
@@ -128,6 +136,8 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 		return -EINVAL;
 	}
 	dsp->status = 2;
+	dsp->timespenttotal = 0.0;
+	dsp->samplestotal = 0.0;
 	return 0;
 }
 
