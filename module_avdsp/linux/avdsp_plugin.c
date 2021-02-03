@@ -107,7 +107,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
                     unsigned char * ptr = (unsigned char *)src;
                     int index = n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET);
                     index *= 3;
-                    sample = ptr[index] | (ptr[index+1] <<8 ) | (ptr[index+2] << 16 )
+                    sample = ptr[index] | (ptr[index+1] <<8 ) | (ptr[index+2] << 16 );
                     inputOutput[dsp->coreio[nc].inputMap[ch]] = sample;
                 }
             }
