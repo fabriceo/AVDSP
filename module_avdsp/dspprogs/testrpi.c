@@ -25,12 +25,20 @@ void dspcodes() {
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(0));
 
-    dsp_CORE();
     dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
     dsp_BIQUADS(filter);
     dsp_SAT0DB_TPDF();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(1));
+
+    dsp_CORE();
+    dsp_CLRXY();
+    dsp_STORE(DACOUT(2));
+    dsp_STORE(DACOUT(3));
+    dsp_STORE(DACOUT(4));
+    dsp_STORE(DACOUT(5));
+    dsp_STORE(DACOUT(6));
+    dsp_STORE(DACOUT(7));
 
 }
 
