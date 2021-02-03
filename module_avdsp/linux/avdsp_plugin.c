@@ -102,8 +102,14 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	                inputOutput[dsp->coreio[nc].inputMap[ch]] = (int)(((short*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)])<<16;
 	        } else
             if (ext->format == SND_PCM_FORMAT_S24_3LE ) {
-                for(ch=0;ch<dsp->coreio[nc].nbchin;ch++)
-                    inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
+                for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) {
+                    dspSample_t sample;
+                    unsigned char * ptr = (unsigned char *)src;
+                    int index = n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET);
+                    index *= 3;
+                    sample = ptr[index] | (ptr[index+1] <<8 ) | (ptr[index+2] << 16 )
+                    inputOutput[dsp->coreio[nc].inputMap[ch]] = sample;
+                }
             }
 	
 	        DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput);
