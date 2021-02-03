@@ -73,8 +73,10 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	     snd_pcm_uframes_t size)
 {
 	snd_pcm_avdsp_t *dsp = ext->private_data;
+
 	void *src = area_addr(src_areas, src_offset);
-	int *dst  = area_addr(dst_areas, dst_offset);
+	int  *dst = area_addr(dst_areas, dst_offset);
+
 	int nc,n,ch;
 	clock_t start,stop;
 	double timespent;
@@ -83,8 +85,8 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	    dsp->status = 3;
 	    //printf("AVDSP first data transfer received.\n");
 	}
-
     start = clock();
+
 	// for each core
 	for(nc = 0; nc < dsp->nbcores; nc++)  {
 
@@ -92,13 +94,13 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	    for (n=0;n < size ; n++) {
 
 	        dspSample_t inputOutput[inputOutputMax];   // temporary buffer for treating 1 sample only
-	        dspSample_t sample;
 
 	        // for each channel used by the dspcore
 	        for( ch = 0; ch < dsp->coreio[nc].nbchin; ch++) {
 
                 int in = dsp->coreio[nc].inputMap[ch];
                 int samplepos = n * dsp->nbchin + (in - INOFFSET);
+                dspSample_t sample;
 
                 switch (ext->format) {
                     case SND_PCM_FORMAT_S32 :
@@ -109,8 +111,8 @@ dsp_transfer(snd_pcm_extplug_t *ext,
                         break;
                     case SND_PCM_FORMAT_S24_3LE : {
                         unsigned char * ptr = (unsigned char *)src;
-                        samplepos *= 3;
-                        sample = ptr[samplepos] | (ptr[samplepos+1] <<8 ) | (ptr[samplepos+2] << 16 );
+                        samplepos *= 4;
+                        sample = (ptr[samplepos] <<8) | (ptr[samplepos+1] <<16 ) | (ptr[samplepos+2] << 24 );
                         break; }
                 }
                 inputOutput[ in ] = sample;
