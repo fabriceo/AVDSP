@@ -92,30 +92,38 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	    for (n=0;n < size ; n++) {
 
 	        dspSample_t inputOutput[inputOutputMax];   // temporary buffer for treating 1 sample only
+	        dspSample_t sample;
 
-	        if(ext->format == SND_PCM_FORMAT_S32 ) {
-	            for( ch=0; ch<dsp->coreio[nc].nbchin; ch++)
-	                inputOutput[dsp->coreio[nc].inputMap[ch]] = ((int*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)];
-	        } else
-	        if (ext->format == SND_PCM_FORMAT_S16){
-	            for(ch=0;ch<dsp->coreio[nc].nbchin;ch++)
-	                inputOutput[dsp->coreio[nc].inputMap[ch]] = (int)(((short*)src)[n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET)])<<16;
-	        } else
-            if (ext->format == SND_PCM_FORMAT_S24_3LE ) {
-                for(ch=0;ch<dsp->coreio[nc].nbchin;ch++) {
-                    dspSample_t sample;
-                    unsigned char * ptr = (unsigned char *)src;
-                    int index = n*dsp->nbchin+(dsp->coreio[nc].inputMap[ch]-INOFFSET);
-                    index *= 3;
-                    sample = ptr[index] | (ptr[index+1] <<8 ) | (ptr[index+2] << 16 );
-                    inputOutput[dsp->coreio[nc].inputMap[ch]] = sample;
+	        // for each channel used by the dspcore
+	        for( ch = 0; ch < dsp->coreio[nc].nbchin; ch++) {
+
+                int in = dsp->coreio[nc].inputMap[ch];
+                int samplepos = n * dsp->nbchin + (in - INOFFSET);
+
+                switch (ext->format) {
+                    case SND_PCM_FORMAT_S32 :
+                        sample = ((int*)src)[ samplepos ];
+                        break;
+                    case SND_PCM_FORMAT_S16 :
+                        sample = (int)(((short*)src)[ samplepos ];
+                        break;
+                    case SND_PCM_FORMAT_S24_3LE :
+                        unsigned char * ptr = (unsigned char *)src;
+                        samplepos *= 3;
+                        sample = ptr[samplepos] | (ptr[samplepos+1] <<8 ) | (ptr[samplepos+2] << 16 );
+                        break;
                 }
-            }
+                inputOutput[ in ] = sample;
+	        }
 	
+	        // execute one dsp core
 	        DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput);
 
-	        for(ch=0;ch<dsp->coreio[nc].nbchout;ch++)
-	            dst[n*dsp->nbchout+(dsp->coreio[nc].outputMap[ch]-OUTOFFSET)] = inputOutput[dsp->coreio[nc].outputMap[ch]] ;
+	        // extract results of the job done by the dspruntime and put it out as S32_LE stream
+	        for(ch = 0; ch < dsp->coreio[nc].nbchout; ch++) {
+	            int out = dsp->coreio[nc].outputMap[ch];
+                dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = inputOutput[ out ];
+	        }
 
 	    } // for each samples
      } // for each channels
