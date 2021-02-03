@@ -105,7 +105,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
                         sample = ((int*)src)[ samplepos ];
                         break;
                     case SND_PCM_FORMAT_S16 :
-                        sample = (int)(((short*)src)[ samplepos ];
+                        sample = (int)(((short*)src)[ samplepos ]);
                         break;
                     case SND_PCM_FORMAT_S24_3LE :
                         unsigned char * ptr = (unsigned char *)src;
