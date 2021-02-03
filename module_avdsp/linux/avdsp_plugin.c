@@ -21,6 +21,7 @@
 #include <alsa/pcm_external.h>
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
 #include "dsp_runtime.h"
+#include <time.h>
 
 #define opcodesMax 1000
 #define nbCoreMax 8
@@ -71,8 +72,11 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	void *src = area_addr(src_areas, src_offset);
 	int *dst  = area_addr(dst_areas, dst_offset);
 	int nc,n,ch;
+	clock_t start,stop;
+	double timespent;
 
 	if (dsp->status == 2) {
+	    start = clock();
 	    dsp->status = 3;
 	    //printf("AVDSP first data transfer received.\n");
 	}
@@ -99,7 +103,12 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 
 	    } // for each samples
      } // for each channels
-
+    if (dsp->status == 3) {
+        stop = clock();
+        dsp->status = 4;
+    }
+    timespent = ((double)(stop - start)) / CLOCKS_PER_SEC;
+    printf("AVDSP time spent for %ld samples = %f sec\n");
 	return size;
 }
 
