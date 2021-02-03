@@ -50,6 +50,7 @@ typedef struct {
     opcode_t *codestart[nbCoreMax];
     int *dataPtr;
     int status; // 0 not loaded, 1, loaded, 2, init, 3 transfer, 4 closed
+    int timestat;
     double timespenttotal;
     double samplestotal;
     double samplesmax;
@@ -110,20 +111,23 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 
     if (dsp->status == 3) {
 
-        stop = clock();
-        timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
-        timespent *= 1000000.0;     // now in micro sec
-        dsp->timespenttotal += timespent;
-        dsp->samplestotal += size;
+        if (dsp->samplesmax != 0.0) {
+            stop = clock();
+            timespent = ((double)(stop - start)) / CLOCKS_PER_SEC ; // result is in seconds
+            timespent *= 1000000.0;     // now in micro sec
+            dsp->timespenttotal += timespent;
+            dsp->samplestotal += size;
 
-        if (dsp->samplestotal > dsp->samplesmax) {
-            timespent = dsp->timespenttotal / dsp->samplestotal;  // averaged time spent by samples
-            double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
-            double percent = 100.0 * timespent / timesample;
-            printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
-            dsp->timespenttotal = 0; dsp->samplestotal = 0;
-            //dsp->status = 4;
+            if (dsp->samplestotal > dsp->samplesmax) {
+                timespent = dsp->timespenttotal / dsp->samplestotal;  // averaged time spent by samples
+                double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
+                double percent = 100.0 * timespent / timesample;
+                printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
+                dsp->timespenttotal = 0; dsp->samplestotal = 0; // reset avg
+                if (dsp->timestat < 0) dsp->samplesmax = 0.0;   // check for unic printing
+                //dsp->status = 4;
 
+            }
         }
     }
 
@@ -142,8 +146,9 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 	}
 	dsp->status = 2;
 	dsp->timespenttotal = 0.0;
-	dsp->samplestotal = 0.0;
-	dsp->samplesmax = fs * 10.0;    // stats will be printed after 10sec
+	dsp->samplestotal   = 0.0;
+	if (dsp->timestat) dsp->samplesmax = (double)fs * (double)(abs(dsp->timestat));    // stats will be printed every x sec
+	else dsp->samplesmax = 0.0;
 	return 0;
 }
 
@@ -174,7 +179,9 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	dsp->ext.private_data = dsp;
 	dsp->dither=31;
 	dsp->status = 0;
-	printf("AVDSP opening adsp plugin...\n");
+	dsp->timestat = 0;
+
+	printf("AVDSP opening plugin...\n");
 
 	snd_config_for_each(i, next, conf) {
 		snd_config_t *n = snd_config_iterator_entry(i);
@@ -204,6 +211,16 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 			}
 			SNDERR("Invalid dither value");
 		}
+        if (strcmp(id, "timestat") == 0) {
+            long val;
+            if(snd_config_get_integer(n,&val)==0) {
+                if ((val > -1000 ) && (val <=1000)) {
+                    dsp->timestat = val;
+                    continue;
+                }
+            }
+            SNDERR("Invalid timestat value");
+        }
 
 		SNDERR("Unknown field %s", id);
 		err = -EINVAL;
@@ -285,8 +302,6 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 
     snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,2,format_list);
     snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
-
-    printf("AVDSP setup done\n");
 
     dsp->status = 1;
 
