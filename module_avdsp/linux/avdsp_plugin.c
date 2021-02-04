@@ -128,16 +128,17 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	        for(ch = 0; ch < dsp->coreio[nc].nbchout; ch++) {
 	            int out = dsp->coreio[nc].outputMap[ch];
 	            int sample = inputOutput[ out ];
+	            unsigned tag;
 	            switch (dsp->tagoutput) {
                 case 24:
                     sample &= 0xFFFF0000;
-                    unsigned tag = sample;
+                    tag = sample;
                     tag >>= 16; // logical shift without sign
                     sample |= tag;
                     break;
 	            case 32:
                     sample &= 0xFFFFFF00;
-                    unsigned tag = sample;
+                    tag = sample;
                     tag >>= 24; // logical shift without sign
                     sample |= tag;
                     break;
