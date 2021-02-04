@@ -131,9 +131,9 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	            int sample = inputOutput[ out ];
 	            // add a tag that can be recognized easily to verify bitperfect, kind of dithering approach
 	            if ((ch == 0) && (dsp->tagoutput)) {
-	                int newsample = sample & dsp->tagmask;
-	                sample = newsample|(((unsigned)dsp->previoussample)>>dsp->tagoutput);
-	                dsp->previoussample = newsample;
+	                int newsample = sample & 0xFFFFF000;
+	                sample = newsample | (dsp->previoussample & 0x00000F00);
+	                dsp->previoussample = newsample >> 8 ;
 	            }
                 dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = sample;
 	        }
