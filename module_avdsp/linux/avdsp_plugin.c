@@ -136,6 +136,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	                dsp->previoussample = newsample;
 	            }
                 dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = sample;
+
 	        }
 
 	    } // for each samples
