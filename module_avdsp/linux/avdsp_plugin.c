@@ -58,6 +58,7 @@ typedef struct {
     double samplesmax;
     int tagoutput;      // tag the LSB, accepted value : 24 or 32 if not 0
     unsigned tagmask;
+    int previoussample;
 } snd_pcm_avdsp_t;
 
 
@@ -129,9 +130,10 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	            int out = dsp->coreio[nc].outputMap[ch];
 	            int sample = inputOutput[ out ];
 	            // add a tag that can be recognized easily to verify bitperfect, kind of dithering approach
-	            if (dsp->tagoutput) {
-	                sample &= dsp->tagmask;
-	                sample |= (((unsigned)sample) >> dsp->tagoutput);
+	            if ((ch == 0) && (dsp->tagoutput)) {
+	                int newsample = sample & dsp->tagmask;
+	                sample = newsample | (((unsigned)dsp->previoussample) >> dsp->tagoutput);
+	                dsp->previoussample = newsample;
 	            }
                 dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = sample;
 	        }
@@ -182,6 +184,7 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 	dsp->samplestotal   = 0.0;
 	if (dsp->timestat) dsp->samplesmax = (double)fs * (double)(dsp->timestat);    // stats will be printed every x sec
 	else dsp->samplesmax = 0.0;
+	dsp->previoussample = 0;
 	return 0;
 }
 
