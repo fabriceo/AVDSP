@@ -50,11 +50,14 @@ typedef struct {
     opcode_t opcodes[opcodesMax];
     opcode_t *codestart[nbCoreMax];
     int *dataPtr;
-    int status; // 0 not loaded, 1, loaded, 2, init, 3 transfer, 4 closed
-    int timestat;
+
+    int status;         // 0 not loaded, 1, loaded, 2, init, 3 intransfer, 4 outtransfer
+
+    int timestat;       // periodic prinitng of CPU usage
     double timespenttotal;
     double samplestotal;
     double samplesmax;
+    int tagoutput;      // tag the LSB, accepted value : 24 or 32 if not 0
 } snd_pcm_avdsp_t;
 
 
@@ -124,7 +127,22 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	        // extract results of the job done by the dspruntime and put it out as S32_LE stream
 	        for(ch = 0; ch < dsp->coreio[nc].nbchout; ch++) {
 	            int out = dsp->coreio[nc].outputMap[ch];
-                dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = inputOutput[ out ];
+	            int sample = inputOutput[ out ];
+	            switch (dsp->tagoutput) {
+                case 24:
+                    sample &= 0xFFFF0000;
+                    unsigned tag = sample;
+                    tag >>= 16; // logical shift without sign
+                    sample |= tag;
+                    break;
+	            case 32:
+                    sample &= 0xFFFFFF00;
+                    unsigned tag = sample;
+                    tag >>= 24; // logical shift without sign
+                    sample |= tag;
+                    break;
+	            }
+                dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = sample;
 	        }
 
 	    } // for each samples
@@ -210,6 +228,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	dsp->dither=31;
 	dsp->status = 0;
 	dsp->timestat = 0;
+	dsp->tagoutput = 0;
 
 	printf("AVDSP opening plugin...\n");
 
@@ -250,6 +269,16 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
                 }
             }
             SNDERR("Invalid timestat value");
+        }
+        if (strcmp(id, "tagoutput") == 0) {
+            long val;
+            if(snd_config_get_integer(n,&val)==0) {
+                if ((val == 24) || (val == 32)) {
+                    dsp->tagoutput = val;
+                    continue;
+                }
+            }
+            SNDERR("Invalid tagoutput value");
         }
 
 		SNDERR("Unknown field %s", id);
