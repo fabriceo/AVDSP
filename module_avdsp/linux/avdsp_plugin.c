@@ -51,7 +51,7 @@ typedef struct {
     opcode_t *codestart[nbCoreMax];
     int *dataPtr;
 
-    int status;         // 0 not loaded, 1, loaded, 2, init, 3 intransfer, 4 outtransfer
+    int status;         // 0 not loaded, 1 loaded, 2 inserted, 3 ready for transfer, 4 some transfer done
 
     int timestat;       // periodic prinitng of CPU usage
     double timespenttotal;
@@ -84,9 +84,9 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	clock_t start,stop;
 	double timespent;
 
-	if (dsp->status == 2) {
+	if (dsp->status == 3) {
 	    //printf("AVDSP first data transfer received.\n");
-        dsp->status = 3;
+        dsp->status = 4;
 	}
     start = clock();
 
@@ -109,14 +109,14 @@ dsp_transfer(snd_pcm_extplug_t *ext,
                     case SND_PCM_FORMAT_S32 :
                         sample = ((int*)src)[ samplepos ];
                         break;
-                    case SND_PCM_FORMAT_S16 :
-                        sample = (int)(((short*)src)[ samplepos ]) << 16;
-                        break;
                     case SND_PCM_FORMAT_S24_3LE : {
                         unsigned char * ptr = (unsigned char *)src;
                         samplepos *= 3; // 3 bytes per sample. not 32bits alligned...
                         sample = (ptr[samplepos] <<8) | (ptr[samplepos+1] <<16 ) | (ptr[samplepos+2] << 24 );
                         break; }
+                    case SND_PCM_FORMAT_S16 :
+                        sample = (int)(((short*)src)[ samplepos ]) << 16;
+                        break;
                 }
                 inputOutput[ in ] = sample;
 	        }
@@ -128,20 +128,10 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	        for(ch = 0; ch < dsp->coreio[nc].nbchout; ch++) {
 	            int out = dsp->coreio[nc].outputMap[ch];
 	            int sample = inputOutput[ out ];
-	            unsigned tag;
-	            switch (dsp->tagoutput) {
-                case 24:
-                    sample &= 0xFFFF0000;
-                    tag = sample;
-                    tag >>= 16; // logical shift without sign
-                    sample |= tag;
-                    break;
-	            case 32:
-                    sample &= 0xFFFFFF00;
-                    tag = sample;
-                    tag >>= 24; // logical shift without sign
-                    sample |= tag;
-                    break;
+	            // add a tag that can be recognized easily to verify bitperfect, kind of dithering approach
+	            if (dsp->tagoutput) {
+	                sample &= dsp->tagmask;
+	                sample |= (((unsigned)sample) >> dsp->tagoutput);
 	            }
                 dst[ n*dsp->nbchout + ( out - OUTOFFSET ) ] = sample;
 	        }
@@ -166,16 +156,13 @@ dsp_transfer(snd_pcm_extplug_t *ext,
             if (dsp->timestat == 1) dsp->samplesmax = 0.0;   // check for unic printing
         }
     }
-    if (dsp->status == 3) {
-        //dsp->status = 4;
-    }
 
 	return size;
 }
 
 static int dsp_close(snd_pcm_extplug_t *ext) {
     snd_pcm_avdsp_t *dsp = ext->private_data;
-    free(dsp);
+    if ((dsp) && (dsp->status)) free(dsp);
     printf("AVDSP closed\n");
     return 0;
 }
@@ -190,7 +177,7 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 		SNDERR("avdsp filter not supported  sample freq : %d\n",fs);
 		return -EINVAL;
 	}
-	dsp->status = 2;    // ready for transfer
+	dsp->status = 3;    // ready for transfer
 	dsp->timespenttotal = 0.0;
 	dsp->samplestotal   = 0.0;
 	if (dsp->timestat) dsp->samplesmax = (double)fs * (double)(dsp->timestat);    // stats will be printed every x sec
@@ -227,9 +214,10 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	dsp->ext.callback = &avdsp_callback;
 	dsp->ext.private_data = dsp;
 	dsp->dither=31;
-	dsp->status = 0;
+	dsp->status = 1;
 	dsp->timestat = 0;
 	dsp->tagoutput = 0;
+	dsp->tagmask = 0;
 
 	printf("AVDSP opening plugin...\n");
 
@@ -274,8 +262,9 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
         if (strcmp(id, "tagoutput") == 0) {
             long val;
             if(snd_config_get_integer(n,&val)==0) {
-                if ((val == 24) || (val == 32)) {
+                if ((val >= 15) && (val <= 31)) {
                     dsp->tagoutput = val;
+                    dsp->tagmask = (-1) << (32-val);
                     continue;
                 }
             }
@@ -365,9 +354,9 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
     snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,3,format_list);
     snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
 
-    dsp->status = 1;
+    dsp->status = 2;
+    *pcmp = dsp->ext.pcm;
 
-	*pcmp = dsp->ext.pcm;
 	return 0;
 }
 
