@@ -54,19 +54,19 @@ void dspcodes() {
 
     dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
     dsp_BIQUADS(filterLow);
-    dsp_SAT0DB_TPDF();
+    dsp_SAT0DB();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(2));
 
     dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
     dsp_BIQUADS(filterMid);
-    dsp_SAT0DB_TPDF();
+    dsp_SAT0DB();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(3));
 
     dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
     dsp_BIQUADS(filterHigh);
-    dsp_SAT0DB_TPDF();
+    dsp_SAT0DB();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(4));
 
@@ -74,19 +74,19 @@ void dspcodes() {
 
     dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
     dsp_BIQUADS(filterLow);
-    dsp_SAT0DB_TPDF();
+    dsp_SAT0DB();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(5));
 
     dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
     dsp_BIQUADS(filterMid);
-    dsp_SAT0DB_TPDF();
+    dsp_SAT0DB();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(6));
 
     dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
     dsp_BIQUADS(filterHigh);
-    dsp_SAT0DB_TPDF();
+    dsp_SAT0DB();
     dsp_DELAY_FixedMicroSec(100);
     dsp_STORE(DACOUT(7));
 
