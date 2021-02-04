@@ -6,7 +6,9 @@
 #define DACOUT(x) (x)
 #define DACIN(x)  (8+(x))
 
-void dspcodes() {
+void dspcodesstereo() {
+
+    dsp_CORE();
 
     dsp_PARAM();
     int filterHeadphones = dspBiquad_Sections_Flexible();
@@ -15,6 +17,25 @@ void dspcodes() {
         dsp_filter(FPEAK,  1000, 1.0,  1.0 );
         dsp_filter(FPEAK,  2000, 1.0,  1.0 );
 
+    dsp_TPDF_CALC(23);
+
+    dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
+    dsp_BIQUADS(filterHeadphones);
+    dsp_SAT0DB_TPDF();
+    dsp_STORE(DACOUT(0));
+
+    dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
+    dsp_BIQUADS(filterHeadphones);
+    dsp_SAT0DB_TPDF();
+    dsp_STORE(DACOUT(1));
+
+}
+
+void dspcodescrossover() {
+
+    dsp_CORE(); // left channel
+
+    dsp_PARAM(); // param section can be used by any core
     int filterLow = dspBiquad_Sections_Flexible();
         dsp_LP_LR4(400);
         dsp_filter(FHP1,   10,  1.0,   1.0 );
@@ -36,21 +57,6 @@ void dspcodes() {
         dsp_filter(FPEAK,  5000,  1.0,   1.0 );
         dsp_filter(FPEAK, 10000,  1.0,   1.0 );
         dsp_filter(FLP1,  15000, 1.0,   1.0 );
-
-    dsp_CORE();
-    dsp_TPDF_CALC(23);
-
-    dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
-    dsp_BIQUADS(filterHeadphones);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE(DACOUT(0));
-
-    dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
-    dsp_BIQUADS(filterHeadphones);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE(DACOUT(1));
-
-    dsp_CORE(); // left channel
 
     dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
     dsp_BIQUADS(filterLow);
@@ -93,9 +99,21 @@ void dspcodes() {
 }
 
 
+int crossover = 0;
 int dspProg(int argc,char **argv){
 
-    dspcodes();
+    for(int i=0 ; i<argc;i++) {
+        // parse USER'S command line parameters
+
+         if (strcmp(argv[i],"-crossover") == 0) {
+            dspprintf("generating dsp code for 8 channels\n");
+            crossover = 1;
+            continue; }
+    }
+
+    dspcodesstereo();
+
+    if (crossover) dspcodescrossover();
 
     return dsp_END_OF_CODE();
 
