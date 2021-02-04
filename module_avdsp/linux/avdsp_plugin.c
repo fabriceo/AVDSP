@@ -58,6 +58,7 @@ typedef struct {
     double samplestotal;
     double samplesmax;
     int tagoutput;      // tag the LSB, accepted value : 24 or 32 if not 0
+    unsigned tagmask;
 } snd_pcm_avdsp_t;
 
 
@@ -264,7 +265,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
             if(snd_config_get_integer(n,&val)==0) {
                 if ((val >= 15) && (val <= 31)) {
                     dsp->tagoutput = val;
-                    dsp->tagmask = (-1) << (32-val);
+                    dsp->tagmask = 0xFFFFFFFF << (32-val);
                     continue;
                 }
             }
