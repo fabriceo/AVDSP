@@ -30,7 +30,6 @@
 #define inputOutputMax 16
 #define OUTOFFSET 0
 #define INOFFSET 8
-#define INPUTMAX (inputOutputMax - INOFFSET)
 
 typedef struct {
     int		nbchin, nbchout;
@@ -215,6 +214,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 	dsp->ext.callback = &avdsp_callback;
 	dsp->ext.private_data = dsp;
 	dsp->dither=31;
+
 	dsp->status = 1;
 	dsp->timestat = 0;
 	dsp->tagoutput = 0;
@@ -238,6 +238,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 			if(snd_config_get_string(n,(const char **)&dspprogname)==0) 
 				continue;
 			SNDERR("Invalid dspprog name");
+            goto bad;
 		}
 
 		if (strcmp(id, "dither") == 0) {
@@ -249,6 +250,7 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 			    }
 			}
 			SNDERR("Invalid dither value");
+            goto bad;
 		}
         if (strcmp(id, "timestat") == 0) {
             long val;
@@ -259,6 +261,8 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
                 }
             }
             SNDERR("Invalid timestat value");
+            goto bad;
+
         }
         if (strcmp(id, "tagoutput") == 0) {
             long val;
@@ -270,9 +274,11 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
                 }
             }
             SNDERR("Invalid tagoutput value");
+            goto bad;
         }
 
 		SNDERR("Unknown field %s", id);
+    bad:
 		err = -EINVAL;
 	ok:
 		if (err < 0)
@@ -319,25 +325,26 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
     	   opcode_t *corePtr = dspFindCore(dsp->opcodes, dsp->nbcores+1);  // find the DSP_CORE instruction
            if (corePtr) {
                unsigned int usedInputs,usedOutputs;
-                   int * IOPtr = (int *)corePtr+1;             // point on DSP_CORE parameters
+               int * IOPtr = (int *)corePtr+1;             // point on DSP_CORE parameters
 
-                   usedInputs  = *IOPtr++;
-                   usedOutputs = *IOPtr;
+               usedInputs  = *IOPtr++;
+               usedOutputs = *IOPtr;
 
-                   corePtr = dspFindCoreBegin(corePtr);    // skip any useless opcode to reach the real core begin
-    
-                // compute nbchin / nbchout and input/output map by core
-            dsp->coreio[dsp->nbcores].nbchin=dsp->coreio[dsp->nbcores].nbchout=0;
+               corePtr = dspFindCoreBegin(corePtr);    // skip any useless opcode to reach the real core begin
+
+               // compute nbchin / nbchout and input/output map by core
+               dsp->coreio[dsp->nbcores].nbchin = dsp->coreio[dsp->nbcores].nbchout = 0;
+
                 for(ch=0;ch<inputOutputMax;ch++) {
                     if(usedInputs & (1<<ch)) {
-                        dsp->coreio[dsp->nbcores].inputMap[dsp->coreio[dsp->nbcores].nbchin]=ch;
+                        dsp->coreio[dsp->nbcores].inputMap[dsp->coreio[dsp->nbcores].nbchin] = ch;
                         dsp->coreio[dsp->nbcores].nbchin++;
-                        if((ch-INOFFSET+1)>dsp->nbchin) dsp->nbchin=ch-INOFFSET+1;
+                        if((ch-INOFFSET+1)>dsp->nbchin) dsp->nbchin = ch-INOFFSET+1;
                     }
                     if(usedOutputs & (1<<ch)) {
-                        dsp->coreio[dsp->nbcores].outputMap[dsp->coreio[dsp->nbcores].nbchout]=ch;
+                        dsp->coreio[dsp->nbcores].outputMap[dsp->coreio[dsp->nbcores].nbchout] = ch;
                         dsp->coreio[dsp->nbcores].nbchout++;
-                        if((ch-OUTOFFSET+1)>dsp->nbchout) dsp->nbchout=ch-OUTOFFSET+1;
+                        if((ch-OUTOFFSET+1)>dsp->nbchout) dsp->nbchout = ch-OUTOFFSET+1;
                     }
                 }
             }
@@ -347,13 +354,11 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 
     printf("AVDSP nbcores %d, nbchanin %d, nbchanout %d\n",dsp->nbcores, dsp->nbchin,dsp->nbchout);
 
-    //snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
-    // replaced by a range of input channels
-    snd_pcm_extplug_set_param_minmax(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin, INPUTMAX);
+    snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
     snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
     snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,3,format_list);
-    snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32);
+    snd_pcm_extplug_set_slave_param(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,SND_PCM_FORMAT_S32 );
 
     dsp->status = 2;
     *pcmp = dsp->ext.pcm;
