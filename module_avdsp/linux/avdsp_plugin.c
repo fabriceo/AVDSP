@@ -155,7 +155,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 }
 
 static int dsp_close(snd_pcm_extplug_t *ext) {
-    snd_pcm_equal_t *dsp = ext->private_data;
+    snd_pcm_dsp_t *dsp = ext->private_data;
     free(dsp);
     printf("AVDSP closed\n");
     return 0;
