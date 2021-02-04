@@ -30,6 +30,7 @@
 #define inputOutputMax 16
 #define OUTOFFSET 0
 #define INOFFSET 8
+#define INPUTMAX (inputOutputMax - INOFFSET)
 
 typedef struct {
     int		nbchin, nbchout;
@@ -153,6 +154,13 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	return size;
 }
 
+static int dsp_close(snd_pcm_extplug_t *ext) {
+    snd_pcm_equal_t *dsp = ext->private_data;
+    free(dsp);
+    printf("AVDSP closed\n");
+    return 0;
+}
+
 static int dsp_init(snd_pcm_extplug_t *ext)
 {
 	snd_pcm_avdsp_t *dsp = ext->private_data;
@@ -163,17 +171,20 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 		SNDERR("avdsp filter not supported  sample freq : %d\n",fs);
 		return -EINVAL;
 	}
-	dsp->status = 2;
+	dsp->status = 2;    // ready for transfer
 	dsp->timespenttotal = 0.0;
 	dsp->samplestotal   = 0.0;
-	if (dsp->timestat) dsp->samplesmax = (double)fs * (double)(abs(dsp->timestat));    // stats will be printed every x sec
+	if (dsp->timestat) dsp->samplesmax = (double)fs * (double)(dsp->timestat);    // stats will be printed every x sec
 	else dsp->samplesmax = 0.0;
 	return 0;
 }
 
+
+
 static const snd_pcm_extplug_callback_t avdsp_callback = {
 	.transfer = dsp_transfer,
-	.init = dsp_init,
+	.init     = dsp_init,
+	.close    = dsp_close,
 };
 
 SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
@@ -316,7 +327,9 @@ SND_PCM_PLUGIN_DEFINE_FUNC(avdsp)
 
     printf("AVDSP nbcores %d, nbchanin %d, nbchanout %d\n",dsp->nbcores, dsp->nbchin,dsp->nbchout);
 
-    snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
+    //snd_pcm_extplug_set_param(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin);
+    // replaced by a range of input channels
+    snd_pcm_extplug_set_param_minmax(&dsp->ext, SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchin, INPUTMAX);
     snd_pcm_extplug_set_slave_param(&dsp->ext,SND_PCM_EXTPLUG_HW_CHANNELS, dsp->nbchout);
 
     snd_pcm_extplug_set_param_list(&dsp->ext, SND_PCM_EXTPLUG_HW_FORMAT,3,format_list);
