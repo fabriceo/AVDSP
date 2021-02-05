@@ -69,5 +69,6 @@ The number of input used in the dspcode (dsp\_LOAD_xx) will be shown as the numb
 
 It is possible to create multiple dsp plugin for multiple dspcode programs supporting different number of channels.
 
-the PCM formats supported by the avdsp plugin used as slave are : _S16\_LE S24\_3LE S32\_LE_. The output format generated is always _S32\_LE_ with _32_ effectives bits.
-if the output device is not supporting _S32\_LE_, a plugin of type "plug" shall be inserted between your avdsp plug and your output device.  
+The PCM formats supported by the avdsp plugin used as slave are : **_S16\_LE, S24\_3LE, S32\_LE_**.
+The output format generated is always **S32\_LE** with 32 effectives bits.
+if the output device is not supporting **S32\_LE**, a plugin of type "plug" shall be inserted between your avdsp plugin and your output device.  
