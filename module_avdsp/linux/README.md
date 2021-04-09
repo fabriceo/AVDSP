@@ -21,7 +21,7 @@ Use the `dspcreate` command as stated in AVDSP general documentation.
 
 ## Install & Alsa configuration
 
-1. Copy the `libasound_module_pcm_avdsp.so` into your distrib alsa external plugin directory (ie for fedora : `/usr/lib64/alsa-lib/`, for volumio : `/usr/lib/arm-linux-gnueabihf/alsa-lib`).
+1. Copy the `libasound_module_pcm_avdsp.so` into your distrib alsa external plugin directory (ie for fedora : `/usr/lib64/alsa-lib/`, for volumio : `/usr/lib/arm-linux-gnueabihf/alsa-lib`, for Nvidia Jetson Ubuntu : `/usr/lib/aarch64-linux-gnu/alsa-lib`).
 
 2 . Create an alsa device in your alsa conf file (.asoundrc, /etc/asound.conf, etc ...) :
 
