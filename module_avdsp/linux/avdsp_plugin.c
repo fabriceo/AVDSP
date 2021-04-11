@@ -153,7 +153,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
             timespent = dsp->timespenttotal / dsp->samplestotal;  // averaged time spent by samples
             double timesample = 1000000.0 / (double)ext->rate; // sample duration in micro sec
             double percent = 100.0 * timespent / timesample;
-            printf("AVDSP time spent per samples = %f uSec = %f percents at %ld hz\n", timespent, percent, ext->rate);
+            printf("AVDSP time spent per samples = %f uSec = %f percents at %d hz\n", timespent, percent, ext->rate);
             dsp->timespenttotal = 0; dsp->samplestotal = 0; // reset avg
             if (dsp->timestat == 1) dsp->samplesmax = 0.0;   // check for unic printing
         }
@@ -174,7 +174,7 @@ static int dsp_init(snd_pcm_extplug_t *ext)
 	snd_pcm_avdsp_t *dsp = ext->private_data;
 	int dither;
 	int fs = ext->rate;
-	printf("AVDSP dspRuntimeReset(%ld)\n",fs);
+	printf("AVDSP dspRuntimeReset(%d)\n",fs);
 	if(dspRuntimeReset(fs, 0, dsp->dither)) {
 		SNDERR("avdsp filter not supported  sample freq : %d\n",fs);
 		return -EINVAL;

@@ -4,16 +4,13 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_C
-  "/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/asound_module_pcm_avdsp.dir/encoder/dsp_fileaccess.c.o"
-  "/home/fabriceo/AVDSP/module_avdsp/linux/avdsp_plugin.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/asound_module_pcm_avdsp.dir/linux/avdsp_plugin.c.o"
-  "/home/fabriceo/AVDSP/module_avdsp/runtime/dsp_runtime.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/asound_module_pcm_avdsp.dir/runtime/dsp_runtime.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/linux/hw_params.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/hw_params.dir/linux/hw_params.c.o"
   )
 set(CMAKE_C_COMPILER_ID "GNU")
 
 # Preprocessor definitions for this target.
 set(CMAKE_TARGET_DEFINITIONS_C
   "DSP_FORMAT=2"
-  "PIC"
   )
 
 # The include file search paths:

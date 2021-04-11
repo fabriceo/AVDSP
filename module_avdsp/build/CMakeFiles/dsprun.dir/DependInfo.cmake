@@ -4,9 +4,9 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_C
-  "/home/volumio/AVDSP/module_avdsp/encoder/dsp_fileaccess.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir/encoder/dsp_fileaccess.c.o"
-  "/home/volumio/AVDSP/module_avdsp/linux/dsprun.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir/linux/dsprun.c.o"
-  "/home/volumio/AVDSP/module_avdsp/runtime/dsp_runtime.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir/runtime/dsp_runtime.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir/encoder/dsp_fileaccess.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/linux/dsprun.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir/linux/dsprun.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/runtime/dsp_runtime.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir/runtime/dsp_runtime.c.o"
   )
 set(CMAKE_C_COMPILER_ID "GNU")
 

@@ -1,0 +1,1 @@
+/usr/bin/cc    CMakeFiles/hw_params.dir/linux/hw_params.c.o  -o hw_params -lasound 

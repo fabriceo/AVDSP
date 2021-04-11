@@ -1,4 +1,4 @@
-#IncludeRegexLine: ^[ 	]*#[ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
 
 #IncludeRegexScan: ^.*$
 
@@ -10,39 +10,39 @@
 stdio.h
 -
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_encoder.c
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_encoder.c
 dsp_encoder.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_encoder.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_encoder.h
 stdlib.h
 -
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_encoder.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_encoder.h
 dsp_header.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_header.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_header.h
 dsp_filters.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_filters.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_filters.h
 dsp_fileaccess.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_fileaccess.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.h
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_fileaccess.c
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.c
 dsp_fileaccess.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_fileaccess.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.h
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_fileaccess.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.h
 stdio.h
 -
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_filters.c
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_filters.c
 dsp_filters.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_filters.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_filters.h
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_filters.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_filters.h
 dsp_header.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_header.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_header.h
 math.h
 -
 
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_nanosharcxml.c
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_nanosharcxml.c
 string.h
 -
 stdlib.h
@@ -50,9 +50,9 @@ stdlib.h
 stdio.h
 -
 
-/home/volumio/AVDSP/module_avdsp/encoder/dspcreate.c
+/home/fabriceo/AVDSP/module_avdsp/encoder/dspcreate.c
 dsp_encoder.h
-/home/volumio/AVDSP/module_avdsp/encoder/dsp_encoder.h
+/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_encoder.h
 string.h
 -
 stdlib.h

@@ -1,6 +1,7 @@
-/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/edit_cache.dir
-/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/rebuild_cache.dir
-/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspprogs.dir
-/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir
-/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/asound_module_pcm_avdsp.dir
-/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/asound_module_pcm_avdsp.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/rebuild_cache.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspprogs.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/hw_params.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dsprun.dir
+/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/edit_cache.dir

@@ -4,11 +4,11 @@ set(CMAKE_DEPENDS_LANGUAGES
   )
 # The set of files for implicit dependencies of each language:
 set(CMAKE_DEPENDS_CHECK_C
-  "/home/volumio/AVDSP/module_avdsp/encoder/dsp_encoder.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_encoder.c.o"
-  "/home/volumio/AVDSP/module_avdsp/encoder/dsp_fileaccess.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_fileaccess.c.o"
-  "/home/volumio/AVDSP/module_avdsp/encoder/dsp_filters.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_filters.c.o"
-  "/home/volumio/AVDSP/module_avdsp/encoder/dsp_nanosharcxml.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_nanosharcxml.c.o"
-  "/home/volumio/AVDSP/module_avdsp/encoder/dspcreate.c" "/home/volumio/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dspcreate.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_encoder.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_encoder.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_fileaccess.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_fileaccess.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_filters.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_filters.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/encoder/dsp_nanosharcxml.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dsp_nanosharcxml.c.o"
+  "/home/fabriceo/AVDSP/module_avdsp/encoder/dspcreate.c" "/home/fabriceo/AVDSP/module_avdsp/build/CMakeFiles/dspcreate.dir/encoder/dspcreate.c.o"
   )
 set(CMAKE_C_COMPILER_ID "GNU")
 
