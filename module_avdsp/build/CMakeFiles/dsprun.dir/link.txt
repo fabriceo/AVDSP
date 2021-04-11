@@ -1,1 +1,0 @@
-/usr/bin/cc    CMakeFiles/dsprun.dir/runtime/dsp_runtime.c.o CMakeFiles/dsprun.dir/encoder/dsp_fileaccess.c.o CMakeFiles/dsprun.dir/linux/dsprun.c.o  -o dsprun -lsndfile -lm 
