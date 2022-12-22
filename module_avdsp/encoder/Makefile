@@ -17,14 +17,13 @@ endif
 #not satisfied with dsp_*c to be changed in a later version
 
 INCLUDES = -I../encoder -I../runtime
-CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
+CFLAGS += -DDSP_PRINTF=4 -Ofast -fPIC -Wall $(INCLUDES)
 
 
 ifeq ($(uname_S), Darwin)
 all:
 	$(CC) $(CFLAGS) -dynamiclib  -o libavdspencoder.dylib dsp_*.c
 	@rm -rf *.dSYM
-	@rmdir -rf *.dSYM
 	
 clean:
 	@rm -rf *.dylib 

@@ -8,6 +8,9 @@
 #define USBOUT(x) (16 + (x))          // the samples sent by USB Host are offseted by 16
 #define USBIN(x)  (16 + 8 + (x))      // the samples going to the USB Host are offseted by 24
 
+int modeoppo = 0;
+
+
 #if 0
 // special crossover for test, substractive and using Notch filters. Not really finished nor working
 // inspired from https://www.diyaudio.com/forums/multi-way/6655-active-crossover-3.html#post1088722
@@ -112,6 +115,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
     else dsp_SAT0DB_GAIN_Fixed( defaultGain);
     dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+
     if (microslow>0) {
         dsp_DELAY_FixedMicroSec(microslow);
         printf("woofer (ahead of compression) will be delayed by %d us\n",microslow); }
@@ -133,7 +137,6 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
 
 const int leftin  = USBOUT(0);  // get the left input sample from the USB out channel 0
 const int rightin = USBOUT(1);
-
 
 // main program for the crossover of a 2 way stystem based on 12LW1400 and 2" comp
 int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow, int mono){
@@ -173,13 +176,25 @@ dsp_CORE();  // first core
         printf("ditehring enabled for %d usefull bits\n",dither);
         dsp_TPDF_CALC(dither); }
 
-    dsp_LOAD_STORE();
-        dspLoadStore_Data( leftin,    DACOUT(0) );      // headphones
-        dspLoadStore_Data( rightin,   DACOUT(1) );
-        dspLoadStore_Data( rightin,   USBIN(7) );       // loopback for REW
-        dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // spdif in passtrough
-        dspLoadStore_Data( ADCIN(1),  USBIN(1) );
+    if (modeoppo == 0) {
+        dsp_LOAD_STORE();
+            dspLoadStore_Data( leftin,    DACOUT(0) );      // headphones
+            dspLoadStore_Data( rightin,   DACOUT(1) );
+            dspLoadStore_Data( rightin,   USBIN(7) );       // loopback for measurement of the response with REW
+            dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // spdif in passtrough (coax2 on my dacstereo)
+            dspLoadStore_Data( ADCIN(1),  USBIN(1) );
+    } else {
+        dsp_LOAD_STORE();
+            dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // coax 2 sent to host for looping and display sound presence
+            dspLoadStore_Data( ADCIN(1),  USBIN(1) );
+            dspLoadStore_Data( ADCIN(2),  USBIN(6) );       // center and Lfe channel
+            dspLoadStore_Data( ADCIN(3),  USBIN(7) );
+            dspLoadStore_Data( ADCIN(2),  DACOUT(6) );      // center and Lfe channel
+            dspLoadStore_Data( ADCIN(3),  DACOUT(7) );
+            dspLoadStore_Data( ADCIN(4),  DACOUT(0) );      // surround channel sent to main dac output
+            dspLoadStore_Data( ADCIN(5),  DACOUT(1) );      // instead of headphones
 
+    }
     if (mono) {
         dsp_LOAD_MUX(avgLR);        // load and mix left+right
         dsp_STORE_MEM(avgLRmem);
@@ -203,12 +218,11 @@ dsp_CORE();  // first core
 
         dsp_LOAD_MUX(avgLR);
     }
-    dsp_SAT0DB();
-    dsp_STORE(DACOUT(6));   // center = (left+right )/2
-    dsp_STORE(USBIN(6));
-
-    //dsp_STORE(DACOUT(7));   // lfe
-    //dsp_STORE(USBIN(7));
+    if (modeoppo == 0) {
+        dsp_SAT0DB();
+        dsp_STORE(DACOUT(6));   // center = (left+right )/2
+        dsp_STORE(USBIN(6));
+    }
 
 dsp_CORE();
     crossoverLV(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 4, 5);
@@ -277,6 +291,13 @@ int dspProg(int argc,char **argv){
                  i++;
                  gaincomp = strtof(argv[i], NULL); }
             dspprintf("gain on compression driver %f\n",gaincomp);
+            continue; }
+
+        if (strcmp(argv[i],"-oppo") == 0) {
+             if (argc>=i) {
+                 i++;
+                 modeoppo = 1; }
+            dspprintf("mode Oppo (output surround/coax3 on dac 0 and 1 and center/coax1 on dac 6 and 7)\n");
             continue; }
     }
 

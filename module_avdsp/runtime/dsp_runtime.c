@@ -803,7 +803,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 if (nSamples > maxSize) nSamples = maxSize;
             }
             if (nSamples) {
-                int index = *dataPtr++;
+                int index = *(dataPtr++);
                 dspALU_t * linePtr = (dspALU_t *)dataPtr;   // garanteed to be alligned 8
                 linePtr += index;   //(this multiply Index by 2 if dspALU_T is 64bits)
                 dspALU_t value = *linePtr;

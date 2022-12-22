@@ -12,7 +12,7 @@
 # will be compiled (you do not need to name the files individually).
 # 
 
-MODULE_DIRS = #module_avdsp/runtime	# compiles only the files in the runtime folder
+MODULE_DIRS = module_avdsp/runtime	# compiles only the files in the runtime folder
 
 SOURCE_DIRS  += $(MODULE_DIRS)
 INCLUDE_DIRS += $(MODULE_DIRS)

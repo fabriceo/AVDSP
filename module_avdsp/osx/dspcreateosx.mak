@@ -1,5 +1,5 @@
 INCLUDES = -I../encoder -I../runtime
-CFLAGS = -DDSP_PRINTF=3 -Ofast  -fPIC  -Wall $(INCLUDES)
+CFLAGS = -DDSP_PRINTF=4 -Ofast  -fPIC  -Wall $(INCLUDES)
 LIBS = -lm -ldl
 LIBS2 = $(LIBS) -L../encoder -lavdspencoder
 OBJS2 = ../encoder/dspcreate.o ../encoder/dsp_encoder.o ../encoder/dsp_filters.o ../encoder/dsp_fileaccess.o ../encoder/dsp_nanosharc.o
