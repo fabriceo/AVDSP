@@ -146,6 +146,7 @@ int  opcodeIndexMisAligned8();
 
  // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);
+ void dsp_DELAY_1();
  // used to define the delay , in a PARAM or PARAMNUM section
  int  dspDelay_MicroSec_Max(int maxus);
  int  dspDelay_MicroSec_Max_Default(int maxus, int us);

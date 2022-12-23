@@ -216,16 +216,14 @@ static void printFromCurrentIndex(){
 static void printLastOpcodes() {
     if (lastIndexPrinted < lastOpcodePrint) {
         dspprintf3("%4d : ",lastIndexPrinted);
-        for (int i = lastIndexPrinted; i< lastOpcodePrint; i++){
-            int val = opcodePtr(i)->i32;
-            dspprintf3("0x%X ",val);
-        }
+        for (int i = lastIndexPrinted; i< lastOpcodePrint; i++)
+            dspprintf3("0x%X ",opcodePtr(i)->i32 );
     } else lastOpcodePrint = lastIndexPrinted;
     if (lastOpcodePrint != opcodeIndex()) {
+#if defined(DSP_PRINTF) && ( DSP_PRINTF >=3 )
         opcode_t tmp = *opcodePtr(lastOpcodePrint);
-        unsigned int code = tmp.op.opcode;
-        unsigned int skip = tmp.op.skip;
-        dspprintf3("%4d : %d <%d> ",lastOpcodePrint, code, skip);
+        dspprintf3("%4d : %d <%d> ",lastOpcodePrint, tmp.op.opcode, tmp.op.skip);
+#endif
         for (int i = lastOpcodePrint+1; i< opcodeIndex(); i++) {
             int val = opcodePtr(i)->i32;
             if (val>=0)  dspprintf3("0x%X ",val)

@@ -5,8 +5,8 @@
  *      Author: fabrice
  */
 
-#ifndef DSP_BIQUADCALC_H_
-#define DSP_BIQUADCALC_H_
+#ifndef DSP_FILTERS_H_
+#define DSP_FILTERS_H_
 
 #include "dsp_header.h"
 #include <math.h>
@@ -21,7 +21,7 @@ enum filterTypes {
         Fna1,LPLR2,LPLR3,LPLR4,Fna3,LPLR6,Fna4,LPLR8,   // linkwitz rilley
         Fna5,HPLR2,HPLR3,HPLR4,Fna7,HPLR6,Fna8,HPLR8,
         FLP1,FLP2,FHP1,FHP2,FLS1,FLS2,FHS1,FHS2,
-        FAP1,FAP2,FPEAK,FNOTCH, FBP0DB, FBPQ            // other shelving, allpass, peaking, notch, bandpass
+        FAP1,FAP2,FPEAK,FNOTCH, FBP0DB, FBPQ, FHILB            // other shelving, allpass, peaking, notch, bandpass
 };
 
 
@@ -72,5 +72,6 @@ int dsp_HP_LR8(dspFilterParam_t freq);
 
 //generic function
 int dsp_filter(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
-
-#endif /* DSP_BIQUADCALC_H_ */
+//hilbert
+int dsp_Hilbert(int stages, dspFilterParam_t transition, dspGainParam_t phase);
+#endif /* DSP_FILTERS_H_ */

@@ -8,6 +8,9 @@
 
 #include "dsp_filters.h"      // enum dsp codes, typedefs and QNM definition
 
+extern //prototype
+void    compute_coefs_spec_order_tbw (float *coef_arr, int nbr_coefs, float transition);
+
 extern int dspMinSamplingFreq;  // from encoder.c, initialised by EncoderInit
 extern int dspMaxSamplingFreq;
 
@@ -23,59 +26,57 @@ void dspFilter1stOrder( int type,
         dspFilterParam_t * a2
  )
 {
-    dspFilterParam_t a0, w0, tw2, alpha;
-    w0 = M_PI * 2.0 * freq / fs;
-    tw2 = tan(w0/2.0);
-    a0 = gain;
-    *a2 = 0;
-    *b2 = 0;
+    dspFilterParam_t tw2, a0, alpha;
+    tw2 = tan(M_PI * freq / fs);
+    *a2 = 0.0;
+    *b2 = 0.0;
+    //stability condition : abs(a1)<1
     switch (type) {
     case FLP1: {
         alpha = 1.0 + tw2;
-        *a1 = ((1.0-tw2)/alpha) / a0;
-        *b0 = tw2/alpha / a0;
+        *a1 = (1.0-tw2) / alpha;
+        *b0 = tw2 / alpha * gain;
         *b1 = *b0;
     break; }
     case FHP1: {
         alpha = 1.0 + tw2;
-        *a1 = ((1.0-tw2)/alpha) /a0;
-        *b0 =  1.0/alpha / a0;
-        *b1 = -1.0/alpha / a0;
+        *a1 = ( (1.0-tw2) / alpha );
+        *b0 =  1.0 / alpha * gain;
+        *b1 = -1.0 / alpha * gain;
     break; }
-#if 0
-    case FLP1: {
-        alpha = (1.0-tw2)/(1.0+tw2);
-        *b0 = (1.0-alpha)/2.0;
-        *b1 = *b0;
-        *a1 = alpha;
-    break; }
-    case FHP1: {
-        alpha = (1.0-tw2)/(1.0+tw2);
-        *b0 = 1.0/(1.0+tw2);
-        *b1 = -*b0;
-        *a1 = alpha;
-    break; }
-#endif
     case FHS1: {
         dspFilterParam_t A = sqrt(gain);
         a0 = A*tw2+1.0;
-        *a1 = -(A*tw2-1.0)/a0;
-        *b0 = (A*tw2+gain)/a0;
-        *b1 = (A*tw2-gain)/a0;
+        *a1 = -( A * tw2 - 1.0 ) / a0;
+        *b0 =  ( A * tw2 + gain ) / a0;
+        *b1 =  ( A * tw2 - gain ) / a0;
         break; }
     case FLS1: {
         dspFilterParam_t A = sqrt(gain);
-        a0 = tw2+A;
-        *a1 = -(tw2-A)/a0;
-        *b0 = (gain*tw2+A)/a0;
-        *b1 = (gain*tw2-A)/a0;
+        a0 = tw2 + A;
+        *a1 = -( tw2 - A ) / a0;
+        *b0 =  ( gain * tw2 + A) / a0;
+        *b1 =  ( gain * tw2 - A) / a0;
         break; }
     case FAP1: {
+        alpha = (tw2 - 1.0) / (tw2 + 1.0) ;
+        *a1 = -alpha;
+        *b0 = alpha * gain;
+        *b1 = gain ;
         break;
     }
     } //switch
 
 }
+
+/*
+ *
+ * g = tan(pi*(Fc/Fs));
+ * b0 = (g-1)/(g+1);
+    b1 = 1;
+    b2 = 0;
+    a1 = b0;
+ */
 
 // calc the biquad coefficient for a given filter type
 void dspFilter2ndOrder( int type,
@@ -99,6 +100,7 @@ void dspFilter2ndOrder( int type,
     a0 = (1.0 + alpha);
     *a1 = -(-2.0 * cw0) / a0;       // sign is changed to accomodate convention
     *a2 = -(1.0 - alpha ) / a0;     // and coeficients are normalized vs a0
+    // stability condition : abs(a2)<1 &&  abs(a1)<(1+a2)
     switch (type) {
     case FLP2: {
         *b1 = (1.0 - cw0) / a0 * gain;
@@ -210,6 +212,28 @@ int dsp_Filter1stOrder(int type, dspFilterParam_t freq, dspGainParam_t gain){
         addBiquadCoeficients(b0, b1, b2, a1, a2);
     }
     sectionBiquadCoeficientsEnd();
+    return coefPtr;
+}
+
+int dsp_Hilbert(int stages, dspFilterParam_t transition, dspGainParam_t phase){
+    int coefPtr = 0;
+    float coefs[20];// max 10 stages allowed => 20 coefs
+    for (int i=0; i< stages; i++) {
+        int d = i*2 + ((phase == 0.0) ? 1 : 0);
+        sectionBiquadCoeficientsBegin();
+        for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
+            dspFilterParam_t fs = dspConvertFrequencyFromIndex(f);
+            compute_coefs_spec_order_tbw( &coefs[0], stages*2, transition / fs );
+            if (coefPtr == 0)
+                dspprintf3("HILBERT stage = %d, transition = %f, fs=%f\n", stages,transition, fs);
+            if (f == dspMinSamplingFreq) {
+                coefPtr =  addFilterParams(FHILB, 1000, transition, 1.0 );
+                dspprintf3("c%d = %f\n",d, coefs[d]);
+            }                   // xn       xn-1   xn-2    yn-1   yn-2
+            addBiquadCoeficients( coefs[d], 0.0,   -1.0,   0.0,   coefs[d] );
+        } // for f
+        sectionBiquadCoeficientsEnd();
+    } // for i
     return coefPtr;
 }
 
