@@ -10,6 +10,14 @@
 
 int modeoppo = 0;
 
+const int leftin   = USBOUT(0);     // get the left input sample from the USB out channel 0
+const int rightin  = USBOUT(1);
+const int centerin   = ADCIN(2);    // spdif center+lfe channel connected to "coax1" on my dac8stereo
+const int lfein      = ADCIN(3);
+const int suroundLeftin  = ADCIN(4);  // spdif surround   channel connected to "aes" on my dac8stereo
+const int suroundRightin = ADCIN(5);
+const float zerodB = 1.0;
+
 
 #if 0
 // special crossover for test, substractive and using Notch filters. Not really finished nor working
@@ -88,7 +96,7 @@ const float Q = 2.0;
 #endif
 
 // lipsitch vanderkoy crossover, using delay and substraction
-void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, int microslow, int in, int outlow, int outhigh){
+void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int microslow, int in, int outlow, int outhigh){
 
     dsp_PARAM();
     int lowpass = dspBiquad_Sections_Flexible();
@@ -112,8 +120,8 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_SUBYX();                // compute high pass in Y
 
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gain);
+    else dsp_SAT0DB_GAIN_Fixed( gain);
     dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
 
     if (microslow>0) {
@@ -126,8 +134,8 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_GAIN_Fixed(gaincomp);
     dsp_BIQUADS(compEQ);
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
+    else dsp_SAT0DB_GAIN_Fixed( gain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
 
     //dsp_NEGX(); // invert phase during tests to test allignement
@@ -135,7 +143,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
 }
 
 
-void dspsuroundEQ(int source, int dest, int defaultGain, int dither) {
+void dspSuroundEQ(int source, int dest, int gain, int dither) {
 
     dsp_PARAM();
     // surround channel equalization (JBL LS 40)
@@ -147,17 +155,71 @@ void dspsuroundEQ(int source, int dest, int defaultGain, int dither) {
 
     const float attSuround = dB2gain(-1.0);   // to compensate above potential gains and avoid any saturation in first biquads.
 
-    dsp_LOAD_GAIN_Fixed( source, dB2gain(attSuround) );
+    dsp_LOAD_GAIN_Fixed( source, attSuround );
     dsp_BIQUADS( suroundEQ );
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
+    else dsp_SAT0DB_GAIN_Fixed( gain );
     dsp_STORE( dest );
 }
 
-const int leftin  = USBOUT(0);  // get the left input sample from the USB out channel 0
-const int rightin = USBOUT(1);
-const int defaultGain = 1.0;
+void dspHeadphoneEQ(int source, int dest, int gain, int dither) {
+
+    dsp_PARAM();
+    int headphoneEQ = dspBiquad_Sections_Flexible();
+    dsp_filter(FPEAK, 100, 1.0, dB2gain(-0.01));
+    dsp_filter(FPEAK, 200, 2.0, dB2gain(-0.01));
+    dsp_filter(FPEAK, 400, 2.0, dB2gain(-0.01));
+    dsp_filter(FPEAK, 800, 2.0, dB2gain(-0.01));
+
+    const float attHeadphone = dB2gain(-1.0);   // to compensate above potential gains and avoid any saturation in first biquads.
+
+    dsp_LOAD_GAIN_Fixed( source, attHeadphone );
+    dsp_BIQUADS( headphoneEQ );
+    if (dither>=0)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
+    else dsp_SAT0DB_GAIN_Fixed( gain );
+    dsp_STORE( dest );
+}
+
+void dspCenterEQ(int source, int dest, int gain, int dither){
+    dsp_PARAM();
+    // center channel equalization (JBL LS Center)
+    int centerEQ = dspBiquad_Sections_Flexible();
+    dsp_filter(FPEAK, 100, 2.0, dB2gain(-0.01));
+    dsp_filter(FPEAK, 200, 2.0, dB2gain(-0.01));
+    dsp_filter(FPEAK, 400, 2.0, dB2gain(-0.01));
+    dsp_filter(FPEAK, 800, 2.0, dB2gain(-0.01));
+
+    const float attCenter  = dB2gain(-3.0);   // to compensate above potential gains and avoid any saturation in first biquads.
+
+    int hilbertEQ = dspBiquad_Sections_Flexible();
+    dsp_Hilbert( 4, 160.0, 0 );
+
+    int hilbertEQ90 = dspBiquad_Sections_Flexible();
+    dsp_Hilbert( 4, 160.0, 90 );            // (3, 120) is also acceptable
+
+    // treat center channel
+    if (modeoppo == 0) {
+        // create a center channel from left & right with 90° phase shift (studder method)
+        dsp_LOAD_GAIN_Fixed(leftin, attCenter);
+        dsp_DELAY_1();  // delay by 1 sample.
+        dsp_BIQUADS(hilbertEQ);
+        dsp_LOAD_GAIN_Fixed(rightin, attCenter); // previous result in ALU X is automatically transfered in Y
+        dsp_BIQUADS(hilbertEQ90);
+        dsp_SWAPXY();
+        dsp_SUBXY();
+    } else {
+        dsp_LOAD_GAIN_Fixed( source, attCenter ); // load center channel and apply gain to avoid saturation in biquad
+        //dsp_DCBLOCK(10);
+        dsp_BIQUADS(centerEQ);
+    }
+    if (dither>=0)
+         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
+    else dsp_SAT0DB_GAIN_Fixed( gain );
+    dsp_STORE( dest );
+
+}
 
 // main program for the crossover of a 2 way stystem based on 12LW1400 and 2" comp
 int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow, int mono){
@@ -165,59 +227,45 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
 
     dsp_PARAM();
 
-    int leftmem  = dspMem_Location();
+    int leftmem  = dspMem_Location();   //storage location for one sample to be passed by first core to crossover core
     int rightmem = dspMem_Location();
 
     // woofer equalization
     int rightEQ = dspBiquad_Sections_Flexible();
     dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
     dsp_filter(FPEAK, 580, 2.0, dB2gain(-4.0));
-    dsp_filter(FHP2,   10, 0.7, 1.0);               // high pass to protect xmax
+    dsp_filter(FHP2,   10, 0.7, zerodB);            // high pass to protect xmax
     dsp_filter(FPEAK,  73, 0.9, dB2gain(+2.0));     // to compensate box tuning and over sized
 
     int leftEQ = dspBiquad_Sections_Flexible();
     dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
     dsp_filter(FPEAK, 580, 2.0, dB2gain(-4.0));
-    dsp_filter(FHP2,   10, 0.7, 1.0);
+    dsp_filter(FHP2,   10, 0.7, zerodB);
     dsp_filter(FPEAK,  73, 0.9, dB2gain(+1.0)); // 1db less than Right due to loudspeaker in a corder
-
-    // center channel equalization (JBL LS Center)
-    int centerEQ = dspBiquad_Sections_Flexible();
-    dsp_Hilbert( 4, 40.0, 0 );
-    //dsp_filter(FPEAK, 200, 2.0, dB2gain(-0.01));
-    //dsp_filter(FPEAK, 400, 2.0, dB2gain(-0.01));
-    //dsp_filter(FPEAK, 800, 2.0, dB2gain(-0.01));
-
-    int centerEQ2 = dspBiquad_Sections_Flexible();
-    dsp_Hilbert( 4, 40.0, 90 );
 
     const float attRight   = dB2gain(-3.0);   // to compensate above potential gains and avoid any saturation in first biquads.
     const float attLeft    = dB2gain(-4.0);   // to compensate above potential gains and avoid any saturation in first biquads.
-    const float attCenter  = dB2gain(-3.0);   // to compensate above potential gains and avoid any saturation in first biquads.
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(leftin, 0.5 * attLeft);
         dspLoadMux_Data(rightin,0.5 * attRight);
 
-
 dsp_CORE();  // first core
 
     if (dither>=0) {
-        printf("ditehring enabled for %d usefull bits\n",dither);
+        printf("dithring enabled for %d usefull bits\n",dither);
         dsp_TPDF_CALC(dither); }
 
-    if (modeoppo == 0) {
+    if (modeoppo) {
         dsp_LOAD_STORE();
-            dspLoadStore_Data( leftin,    DACOUT(0) );      // headphones
-            dspLoadStore_Data( rightin,   DACOUT(1) );
-            dspLoadStore_Data( rightin,   USBIN(7) );       // loopback for measurement of the response with REW
-            dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // spdif in passtrough (coax2 on my dacstereo)
-            dspLoadStore_Data( ADCIN(1),  USBIN(1) );
+        dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // coax 2 sent to host for displaying sound presence
+        dspLoadStore_Data( ADCIN(1),  USBIN(1) );       // and to monitor spdif (in AES mode on dac8pro)
     } else {
         dsp_LOAD_STORE();
-            dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // coax 2 sent to host for displaying sound presence
-            dspLoadStore_Data( ADCIN(1),  USBIN(1) );
+        dspLoadStore_Data( rightin,    USBIN(1) );       //loopback for monitoring in REW
     }
+
+
     // prepare left and right channels with upfront EQ,
     if (mono) {
         dsp_LOAD_MUX(avgLR);        // load and mix left+right
@@ -231,60 +279,42 @@ dsp_CORE();  // first core
         dsp_LOAD_GAIN_Fixed(leftin, attLeft);
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(leftEQ);
-        dsp_STORE_MEM(leftmem);
+        dsp_STORE_MEM(leftmem);     // store EQ result in memory, for treatment by the crossover pogram in other dspcore
 
         dsp_LOAD_GAIN_Fixed(rightin, attRight);
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(rightEQ);
         dsp_STORE_MEM(rightmem);
     }
-    // treat center channel
-#if 0
-    if (modeoppo == 0)
-         dsp_LOAD_MUX(avgLR); // center = (left+right )/2
-    else dsp_LOAD_GAIN_Fixed( USBOUT(0), attCenter ); // load center channel and apply gain to avoid saturation in biquad
-    //dsp_DCBLOCK(10);
-    dsp_BIQUADS(centerEQ);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
-#endif
-    dsp_LOAD_GAIN_Fixed( leftin, attCenter );
-    dsp_DELAY_1();
-    dsp_BIQUADS(centerEQ);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
-    dsp_STORE(USBIN(7));    // possibility to monitor center on USB6
 
-    dsp_LOAD_GAIN_Fixed( leftin, attCenter );
-    dsp_BIQUADS(centerEQ2);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
-    dsp_STORE(USBIN(6));    // possibility to monitor center on USB6
-//    dsp_DELAY_1();  // to compensate delay inherent to crossover being in other cores
-//    dsp_STORE(DACOUT(6));
+    //possibility to monitor EQ on USB6
+    dspCenterEQ( centerin, USBOUT(6), zerodB, dither );
+    dsp_DELAY_1();  // to compensate delay inherent to crossover being in other cores
+    dsp_STORE( DACOUT(6) );
+
 
 dsp_CORE();
-    crossoverLV(fx, gd, dither, defaultGain , gaincomp, microslow, leftmem, 4, 5);
+    crossoverLV(fx, gd, dither, zerodB , gaincomp, microslow, leftmem, 4, 5);
     //crossoverLR6acoustic(fx, gd, dither, 1.0 , gaincomp, microslow, leftmem, 2, 3);
 
-    //consider spdif 3 as suround channel
-    if (modeoppo) {
-        dspsuroundEQ( ADCIN(4), DACOUT(0), defaultGain, dither );
-        // possibility to monitor surround EQ on USB7 (considering same for both channels)
-        dsp_STORE(USBIN(7));
-    }
+    if (modeoppo)
+        //consider spdif 3 as suround channel
+        dspSuroundEQ( suroundLeftin, DACOUT(0), zerodB, dither );
+    else
+        dspHeadphoneEQ( leftin, DACOUT(0), zerodB, dither );
 
+    dsp_STORE( USBIN(0) );      //possibility to monitor EQ on USB0 (considering same for both channels)
 
 
 dsp_CORE();
-    crossoverLV(fx, gd, dither, defaultGain , gaincomp, microslow, rightmem, 2, 3);
+    crossoverLV(fx, gd, dither, zerodB , gaincomp, microslow, rightmem, 2, 3);
     //crossoverLR6acoustic(fx, gd, dither, 1.0 , gaincomp, microslow, rightmem, 4, 5);
 
     //consider spdif 3 as suround channel
-    if (modeoppo) dspsuroundEQ( ADCIN(5), DACOUT(1), defaultGain, dither );
+    if (modeoppo)
+        dspSuroundEQ(  suroundRightin,  DACOUT(1), zerodB, dither );
+    else
+        dspHeadphoneEQ( rightin,  DACOUT(1), zerodB, dither );
 
     return dsp_END_OF_CODE();
 }
