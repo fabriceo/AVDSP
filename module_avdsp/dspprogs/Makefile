@@ -9,8 +9,10 @@ ifeq ($(uname_S), Windows)
 endif
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
+    PL = .dylib
 else
    CFLAGS = -DLINUX -std=gnu99
+    PL = .so
 endif
 
 INCLUDES = -I../encoder -I../runtime
@@ -19,10 +21,17 @@ CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
 ifeq ($(uname_S), Darwin)
 LIBS = -L../encoder -lavdspencoder
 
-PROGS = oktodac.dylib crossover2x2lfe.dylib crossoverLV6.dylib testfunction.dylib oktodac_fabriceo.dylib oktodac_diy.dylib oktodac_LX.dylib testrpi.dylib
+PROGS = oktodac.dylib \
+		crossover2x2lfe.dylib \
+		crossoverLV6.dylib \
+		testfunction.dylib \
+		oktodac_fabriceo.dylib \
+		oktodac_diy.dylib \
+		oktodac_LX.dylib \
+		testrpi.dylib
 
 %.dylib:	%.c
-	$(CC) $(CFLAGS) -dynamiclib $^ -o $*.dylib $(LIBS)
+	$(CC) $(CFLAGS) -dynamiclib $^ -o $*$(PL) $(LIBS)
 	@rm -f -r *.dSYM
 
 all:	 $(PROGS)
@@ -37,15 +46,23 @@ all:
 clean:
 
 else	#linux
-PROGS = oktodac.so crossover2x2lfe.so crossoverLV6.so REWgenericEQ.so testfunction.so oktodac_fabriceo.so oktodac_diy.so oktodac_LX.so testrpi.so
+PROGS = oktodac.so \
+		crossover2x2lfe.so \
+		crossoverLV6.so \
+		REWgenericEQ.so \
+		testfunction.so \
+		oktodac_fabriceo.so \
+		oktodac_diy.so \
+		oktodac_LX.so \
+		testrpi.so
 
 all:	$(PROGS)
 
 %.so:	%.o
-	$(CC) $(CFLAGS) -shared $^ -o $*.so
+	$(CC) $(CFLAGS) -shared $^ -o $*$(PL)
 	
 clean:
-	@rm -f *.so
+	@rm -f $(PROGS)
 	
 endif
 endif

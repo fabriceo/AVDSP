@@ -26,7 +26,7 @@ all:
 	@rm -rf *.dSYM
 	
 clean:
-	@rm -rf *.dylib 
+	@rm -rf *.dylib *.o
 
 else 
 ifeq ($(uname_S), Windows)
@@ -39,6 +39,6 @@ all:
 	$(CC) $(CFLAGS) -shared -o libavdspencoder.so dsp_*.c 
 	
 clean:
-	@rm -f *.so 
+	@rm -f *.so *.o
 endif
 endif
