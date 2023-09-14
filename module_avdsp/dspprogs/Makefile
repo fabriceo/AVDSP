@@ -17,7 +17,7 @@ endif
 
 INCLUDES = -I../encoder -I../runtime
 CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
-LIBS = -L. -lavdspencoder
+LIBS = -lm -ldl -L. -lavdspencoder
 
 ifeq ($(uname_S), Darwin)
 PROGS = oktodac.dylib \

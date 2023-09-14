@@ -17,6 +17,8 @@ endif
 
 INCLUDES = -I../encoder -I../runtime
 CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
+LIBS = -lm -ldl -L. -lavdspencoder
+
 FILESENCODER = ../encoder/dsp_encoder.c \
 		../encoder/dsp_encoder.h \
 		../encoder/dsp_fileaccess.c \
@@ -34,7 +36,7 @@ libavdspencoder.dylib: $(FILESENCODER)
 	@rm -rf *.dSYM
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.dylib
-	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ -L. -lavdspencoder
+	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS)
 	@rm -f -r *.dSYM
 
 clean:
@@ -53,7 +55,7 @@ libavdspencoder.so:	$(FILESENCODER)
 	$(CC) $(CFLAGS) -shared -o $@ ../encoder/dsp_*.c 
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.so
-	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ -L. -lavdspencoder
+	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS)
 
 clean:
 	@rm -f dspcreate *.so *.o
