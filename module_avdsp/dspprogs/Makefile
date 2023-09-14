@@ -17,10 +17,9 @@ endif
 
 INCLUDES = -I../encoder -I../runtime
 CFLAGS += -DDSP_PRINTF=3 -Ofast -fPIC -Wall $(INCLUDES)
+LIBS = -L. -lavdspencoder
 
 ifeq ($(uname_S), Darwin)
-LIBS = -L../encoder -lavdspencoder
-
 PROGS = oktodac.dylib \
 		crossover2x2lfe.dylib \
 		crossoverLV6.dylib \
@@ -59,7 +58,7 @@ PROGS = oktodac.so \
 all:	$(PROGS)
 
 %.so:	../dspprogs/%.o
-	$(CC) $(CFLAGS) -shared $^ -o $@
+	$(CC) $(CFLAGS) -shared $^ -o $@ $(LIBS)
 	
 clean:
 	@rm -f $(PROGS)

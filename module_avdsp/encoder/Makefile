@@ -34,7 +34,7 @@ libavdspencoder.dylib: $(FILESENCODER)
 	@rm -rf *.dSYM
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.dylib
-	$(CC) $(CFLAGS) $^ -o $@ 
+	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ -L. -lavdspencoder
 	@rm -f -r *.dSYM
 
 clean:
@@ -53,9 +53,9 @@ libavdspencoder.so:	$(FILESENCODER)
 	$(CC) $(CFLAGS) -shared -o $@ ../encoder/dsp_*.c 
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.so
-	$(CC) $(CFLAGS) $^ -o $@ 
+	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ -L. -lavdspencoder
 
 clean:
-	@rm -f despcreate *.so *.o
+	@rm -f dspcreate *.so *.o
 endif
 endif
