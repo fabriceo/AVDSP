@@ -30,8 +30,8 @@ PROGS = oktodac.dylib \
 		oktodac_LX.dylib \
 		testrpi.dylib
 
-%.dylib:	%.c
-	$(CC) $(CFLAGS) -dynamiclib $^ -o $*$(PL) $(LIBS)
+%.dylib:	../dspprogs/%.c
+	$(CC) $(CFLAGS) -dynamiclib $^ -o $@ $(LIBS)
 	@rm -f -r *.dSYM
 
 all:	 $(PROGS)
@@ -58,8 +58,8 @@ PROGS = oktodac.so \
 
 all:	$(PROGS)
 
-%.so:	%.o
-	$(CC) $(CFLAGS) -shared $^ -o $*$(PL)
+%.so:	../dspprogs/%.o
+	$(CC) $(CFLAGS) -shared $^ -o $@
 	
 clean:
 	@rm -f $(PROGS)
