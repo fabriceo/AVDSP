@@ -107,9 +107,11 @@ void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int mic
 
     // equalization for 18s 2" comp 2080 on Horn XR2064
     int compEQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FHP2,200,0.7,1.0);   // extra protection to remove lower freq            dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
-        dsp_filter(FPEAK,1700,3,dB2gain(-3.0));
-        dsp_filter(FHS2, 9000,0.6,dB2gain(5.0));
+        dsp_filter(FHP2,200,0.7,zerodB);   // extra protection to remove lower freq
+        //dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
+        dsp_filter(FPEAK,1700,3,dB2gain(-2.0));
+        dsp_filter(FPEAK,7400,3,dB2gain(+3.0));
+        dsp_filter(FHS2, 9000,0.6,dB2gain(+5.0));
 
 
     dsp_LOAD_MEM(in);
@@ -138,7 +140,7 @@ void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int mic
     else dsp_SAT0DB_GAIN_Fixed( gain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
 
-    //dsp_NEGX(); // invert phase during tests to test allignement
+    dsp_NEGX(); // invert phase during tests to test allignement
     dsp_STORE( DACOUT(outhigh) );
 }
 
@@ -232,19 +234,19 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
 
     // woofer equalization
     int rightEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
-    dsp_filter(FPEAK, 580, 2.0, dB2gain(-4.0));
+    dsp_filter(FPEAK, 230, 0.3, dB2gain(-3.0));     //according to room measurement with both speakers
+    dsp_filter(FPEAK,  40, 2.0, dB2gain(-3.0));
     dsp_filter(FHP2,   10, 0.7, zerodB);            // high pass to protect xmax
-    dsp_filter(FPEAK,  73, 0.9, dB2gain(+2.0));     // to compensate box tuning and over sized
+    dsp_filter(FPEAK, 120, 1.5, dB2gain(+2.0));
 
     int leftEQ = dspBiquad_Sections_Flexible();
-    dsp_filter(FPEAK, 150, 1.0, dB2gain(-3.0));
-    dsp_filter(FPEAK, 580, 2.0, dB2gain(-4.0));
+    dsp_filter(FPEAK, 230, 0.3, dB2gain(-3.0));
+    dsp_filter(FPEAK,  40, 2.0, dB2gain(-3.0));
     dsp_filter(FHP2,   10, 0.7, zerodB);
-    dsp_filter(FPEAK,  73, 0.9, dB2gain(+1.0)); // 1db less than Right due to loudspeaker in a corder
+    dsp_filter(FPEAK, 110, 2.0, dB2gain(+3.0));
 
     const float attRight   = dB2gain(-3.0);   // to compensate above potential gains and avoid any saturation in first biquads.
-    const float attLeft    = dB2gain(-4.0);   // to compensate above potential gains and avoid any saturation in first biquads.
+    const float attLeft    = dB2gain(-3.0);
 
     int avgLR = dspLoadMux_Inputs(0);
         dspLoadMux_Data(leftin, 0.5 * attLeft);
@@ -337,7 +339,7 @@ int dspProg(int argc,char **argv){
         // parse USER'S command line parameters
 
          if (strcmp(argv[i],"-dither") == 0) {
-             dither = 0;
+             dither = 24;
               if (argc>=i) {
                   i++;
                   dither = strtol(argv[i], NULL,10); }
