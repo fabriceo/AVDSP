@@ -124,7 +124,7 @@ int frontEQ = dspBiquad_Sections_Flexible();
 if (ftype == LPLR2) {
 
 	 lowpass = dspBiquad_Sections_Flexible();
-        dsp_filter(FLP2,   fx, 0.5,  1.0);
+        dsp_filter(FLP2,   fx, 0.5,  1.0);  // lowpass LR2 flat gain
 
 	 highpass = dspBiquad_Sections_Flexible();
         dsp_filter(FHP2,   fx, 0.5, -1.0 ); // highpass LR2 inverted 
@@ -141,7 +141,7 @@ if (ftype == LPLR2) {
 }
 
      lowEQ = dspBiquad_Sections_Flexible();
-        dsp_filter(FPEAK,   50,  0.7,    dB2gain( sub ? 0.0 : +7.0));    // bass boost only if no sub
+        dsp_filter(FPEAK,   50,  0.7,    dB2gain( sub ? 0.0 : +7.0));    // bass boost 7db only if no sub
         //dsp_filter(FPEAK,   68,  6.0,    dB2gain( +2.0));
         dsp_filter(FPEAK,   150, 1.0,    dB2gain( -2.0));
         dsp_filter(FPEAK,   230, 4.0,    dB2gain( -4.0));
@@ -158,7 +158,7 @@ if (ftype == LPLR2) {
         dsp_filter(FLS2,   1000,  0.5, dB2gain(+16.0));
         dsp_filter(FPEAK,  1900,  4.0, dB2gain( +3.0));;
         dsp_filter(FPEAK,  2500,  2.0, dB2gain( -5.0));
-        dsp_filter(FPEAK,  6000,  0.3, dB2gain( +1.8));   // driver defect ...
+        dsp_filter(FPEAK,  6000,  0.3, dB2gain( +1.8));   // my left driver has a problem ...
         dsp_filter(FHS2,   8000,  0.7, dB2gain( +5.0));
         dsp_filter(FPEAK, 15500,  1.0, dB2gain( +4.0));
         
@@ -179,7 +179,7 @@ if (sub) {
 
     // used to average Left and Right in case of 1 subwoofer.
     int avgLR = dspLoadMux_Inputs(0);
-        dspLoadMux_Data(leftin,  0.5); // gain can be adjusted lower
+        dspLoadMux_Data(leftin,  0.5);
         dspLoadMux_Data(rightin, 0.5);
 
 // end of dsp_PARAM
@@ -188,7 +188,7 @@ dsp_CORE();  // first core, stereo conditioning
 
     // basic transfers
     dsp_LOAD_STORE();
-        dspLoadStore_Data( leftin,    DACOUT(0) );      // headphones
+        dspLoadStore_Data( leftin,    DACOUT(0) );      // headphones passtrough
         dspLoadStore_Data( rightin,   DACOUT(1) );
         dspLoadStore_Data( ADCIN(0),  USBIN(0) );       // spdif in passtrough
         dspLoadStore_Data( ADCIN(1),  USBIN(1) );

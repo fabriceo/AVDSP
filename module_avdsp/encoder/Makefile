@@ -40,7 +40,7 @@ dspcreate:	 ../encoder/dspcreate.c libavdspencoder.dylib
 	@rm -f -r *.dSYM
 
 clean:
-	@rm -rf dspcreate *.dylib *.o
+	@rm -rf dspcreate libavdspencoder.dylib *.o
 
 else 
 ifeq ($(uname_S), Windows)
@@ -58,6 +58,6 @@ dspcreate:	 ../encoder/dspcreate.c libavdspencoder.so
 	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS)
 
 clean:
-	@rm -f dspcreate *.so *.o
+	@rm -f dspcreate libavdspencoder.so *.o
 endif
 endif
