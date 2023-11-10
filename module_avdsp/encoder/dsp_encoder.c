@@ -9,7 +9,7 @@
 #include "dsp_encoder.h"         // enum dsp codes, typedefs and QNM definition
 #include <stdlib.h>             // only for importing exit()
 
-#define DSP_ENCODER_VERSION ((1<<8) | (0 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
+#define DSP_ENCODER_VERSION ((1<<8) | (0 <<4) | 2) // will be stored in the program header for further interpretation by the runtime
 
 static opcode_t * dspOpcodesPtr  = 0;       // absolute adress start of the table containing the opcodes and data
 dspHeader_t* dspHeaderPtr = 0;              // point on the header containing program summary
@@ -42,78 +42,18 @@ static int usedOutputs           =  0;      // bit patern of all the output used
 static int usedInputsCore        =  0;      // at core level : bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
 static int usedOutputsCore       =  0;      // at core level : bit patern of all the output used by a STORE command
 
-static int ALUformat             =  0;      // represent the current format of the ALU known at compile time 0 = s31, 1 = double precision
+static int ALUformat             =  0;      // represent the current format of the ALU known at compile time 0 = s31, 1 = double precision or when a sampled is scaled with a gain
 static int firstTPDF;                       // index of the first identified TPDF instruction
 static int dspFormat;                       // dynamic management of the different format when encoding
 static int dspMant;                         // dynamic value of the DSP_MANT. initialize in encoderinit
 static int dspIOmax;                        // max number of IO that can be used with Load & Store (to avoid out of boundaries vs samples table)
 static int numberFrequencies;               // number of covered frequencies (mainly used in BIQUADS and FIR)
+static float maxParamValue      = 0.0;
+
 
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
 
-char * dspOpcodeText[DSP_MAX_OPCODE] = {
-    "DSP_END_OF_CODE",
-    "\nDSP_HEADER",
-    "DSP_NOP",
-    "\nDSP_CORE",
-    "\nDSP_PARAM",
-    "\nDSP_PARAM_NUM",
-    "DSP_SERIAL",
-    "DSP_TPDF_CALC",
-    "DSP_TPDF",
-    "DSP_WHITE",
-    "DSP_CLRXY",
-    "DSP_SWAPXY",
-    "DSP_COPYXY",
-    "DSP_COPYYX",
-    "DSP_ADDXY",
-    "DSP_ADDYX",
-    "DSP_SUBXY",
-    "DSP_SUBYX",
-    "DSP_MULXY",
-    "DSP_DIVXY",
-    "DSP_DIVYX",
-    "DSP_AVGXY",
-    "DSP_AVGYX",
-    "DSP_NEGX",
-    "DSP_NEGY",
-    "DSP_SQRTX",
-    "DSP_SHIFT",
-    "DSP_VALUE",
-    "DSP_VALUE_INT",
-    "DSP_MUL_VALUE",
-    "DSP_MUL_VALUE_INT",
-    "DSP_DIV_VALUE",
-    "DSP_DIV_VALUE_INT",
-    "DSP_AND_VALUE_INT",
-    "DSP_LOAD",
-    "DSP_LOAD_GAIN",
-    "DSP_LOAD_MUX",
-    "DSP_STORE",
-    "DSP_LOAD_STORE",
-    "DSP_LOAD_MEM",
-    "DSP_STORE_MEM",
-    "DSP_GAIN",
-    "DSP_SAT0DB",
-    "DSP_SAT0DB_TPDF",
-    "DSP_SAT0DB_GAIN",
-    "DSP_SAT0DB_TPDF_GAIN",
-    "DSP_DELAY_1",
-    "DSP_DELAY",
-    "DSP_DELAY_DP",
-    "DSP_DATA_TABLE",
-    "DSP_BIQUADS",
-    "DSP_FIR",
-    "DSP_RMS",
-    "DSP_DCBLOCK",
-    "DSP_DITHER",
-    "DSP_DITHER_NS2",
-    "DSP_DISTRIB",
-    "DSP_DIRAC",
-    "DSP_SQUAREWAVE",
-    "DSP_CLIP"
-};
 
 void dspprintfFatalError(){
     dspprintf("FATAL ERROR : ");
@@ -377,12 +317,12 @@ void dspEncoderFormat(int format){
         dspFormat       = format;
         dspMant         = DSP_MANT; }
     dspprintf("DSP ENCODER : format generated for handling ");
-    if      (dspFormat == 1) dspprintf("integer 32 bits")
-    else if (dspFormat == 2) dspprintf("integer 64 bits")
-    else if (dspFormat == 3) dspprintf("float (32bits)")
-    else if (dspFormat == 4) dspprintf("double (64bits)")
-    else if (dspFormat == 5) dspprintf("float with float samples")
-    else if (dspFormat == 6) dspprintf("double with float samples");
+    if      (dspFormat == DSP_FORMAT_INT32)         dspprintf("integer 32 bits, with %d bits mantissa",dspMant)
+    else if (dspFormat == DSP_FORMAT_INT64)         dspprintf("integer 64 bits, with %d bits mantissa",dspMant)
+    else if (dspFormat == DSP_FORMAT_FLOAT)         dspprintf("float (32bits)")
+    else if (dspFormat == DSP_FORMAT_DOUBLE)        dspprintf("double (64bits)")
+    else if (dspFormat == DSP_FORMAT_FLOAT_FLOAT)   dspprintf("float with float samples")
+    else if (dspFormat == DSP_FORMAT_DOUBLE_FLOAT)  dspprintf("double with float samples");
     dspprintf("\n");
     if (dspFormat < DSP_FORMAT_FLOAT)
          dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
@@ -416,6 +356,7 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
     ALUformat      = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex  = 0;
     firstTPDF = 0;
+    maxParamValue = 0.0;
 
     usedInputs = 0;
     usedOutputs = 0;
@@ -584,7 +525,13 @@ int dsp_END_OF_CODE(){
     dspprintf1("check sum      = 0x%X\n", sum);
     if (numCore == 0) numCore = 1;
     dspHeaderPtr->numCores = numCore;       // comit number of declared cores
-    dspprintf1("numcore       = %d\n",numCore);
+    dspprintf1("numcore        = %d\n",numCore);
+    if (dspFormat < DSP_FORMAT_FLOAT) {
+        int integ = maxParamValue;
+        for (int i=0; i<31; i++) { if (integ) integ >>= 1; else {integ = i; break;} } //compute log2
+        integ++; //adding a bit for the sign
+        dspprintf1("max encoded    = %f = %d:%d vs %d:%d\n", maxParamValue,integ,32-integ,32-dspMant,dspMant);
+    }
     dspHeaderPtr->maxOpcode   = maxOpcodeValue;
     dspHeaderPtr->usedInputs  = usedInputs;
     dspHeaderPtr->usedOutputs = usedOutputs;
@@ -653,13 +600,19 @@ static int addOpcodeLengthPrint(int code){
     return tmp;
 }
 
+static void calcMaxParamValue(float val){
+    if (val  > maxParamValue) maxParamValue = val;
+    if (-val > maxParamValue) maxParamValue = -val;
+}
+
 static int addGainCodeQNM(dspGainParam_t gain){
+    calcMaxParamValue(gain);
     if (dspFormat < DSP_FORMAT_FLOAT) {
         float max = 1 << (31 - dspMant);
         float min = -max;
         if ((gain>=max) || (gain<min))
             dspprintf(">>>> WARNING : float parameter doent fit in integer format chosen (%d.%d).\n",31-dspMant,dspMant);
-        return addCode(dspQNM(gain,dspMant));
+        return addCode(DSP_QM32(gain,dspMant));
     } else
         return addFloat(gain);
 }
@@ -728,7 +681,7 @@ void dsp_WHITE() { addSingleOpcodePrint(DSP_WHITE); }
 
 void dsp_SAT0DB() {
     addSingleOpcodePrint(DSP_SAT0DB);
-    ALUformat = 0;
+    ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
 }
 
 void dsp_SAT0DB_TPDF() {
@@ -799,10 +752,11 @@ void dsp_SHIFT_FixedInt(int bits){  //same :)
  *
  */
 
-// load ALU with the physical location provided
+// load ALU with the 32bits value of the physical location (or sample) provided
 void dsp_LOAD(int IO) {
+    ALUformat = 0;
     checkIOmax(IO);
-    if (IO<32) usedInputs |= 1ULL<<IO;
+    if (IO<32) usedInputs |= 1ULL<<IO;      //keep track of inputs used
     if (IO<32) usedInputsCore |= 1ULL<<IO;
     addOpcodeLengthPrint(DSP_LOAD);
     addCode(IO);
@@ -998,6 +952,7 @@ void dsp_AND_FixedInt(int value){
 
 
 void dsp_DELAY_1(){
+    ALUformat = 1;
     addOpcodeLengthPrint(DSP_DELAY_1);
     addDataSpaceAligned8(2);    // 2 words for supporting 64bits alu
 }
@@ -1094,6 +1049,7 @@ static void addMemLocation(int index, int base){
 
 // load a meory location from a PARAM area
 void dsp_LOAD_MEM_Index(int paramAddr, int index) {
+    ALUformat = 1;
     int tmp = addOpcodeLengthPrint(DSP_LOAD_MEM);
     addMemLocation(paramAddr + index*2, tmp);
 }
@@ -1141,11 +1097,13 @@ static void dsp_DELAY_(int paramAddr, int opcode){
 }
 
 void dsp_DELAY(int paramAddr){
+    ALUformat = 0;
     dsp_DELAY_(paramAddr, DSP_DELAY);
 }
 
 // exact same as above but double precision
 void dsp_DELAY_DP(int paramAddr){
+    ALUformat = 1;
     dsp_DELAY_(paramAddr, DSP_DELAY_DP);
 }
 
@@ -1189,7 +1147,7 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
 
 static void dsp_DELAY_FixedMicroSec_(unsigned short microSec, int opcode){
     int DP = 1;
-    if (opcode == DSP_DELAY_DP) DP = 2;
+    if (opcode == DSP_DELAY_DP) { DP = 2; ALUformat = 1; } else ALUformat = 0;
     addOpcodeLengthPrint(opcode);
     unsigned long long delayLineFactor = dspTableDelayFactor[dspMaxSamplingFreq];
     unsigned long long maxSamples_ = (delayLineFactor * microSec);
@@ -1237,7 +1195,7 @@ int dspGenerator_Sine(int samples){
     dspprintf3("dspGenerator : 2.PI sinewave in %d values\n",samples);
     for (int i=0; i<samples; i++) {
         double x = sin((2.0*M_PI * (double)i)/(double)samples);
-        addCode(dspQNM(x,31)); }
+        addCode(DSP_QM32(x,31)); }
     printFromCurrentIndex();
     return tmp;
 }
@@ -1308,12 +1266,19 @@ int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGain
 int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2){
 
     int tmp = paramAligned8();    // this enforce that coefficient are alligned 8, so 6 words per biquads and per frequency
+
+    calcMaxParamValue(b0);
+    calcMaxParamValue(b1);
+    calcMaxParamValue(b2);
+    calcMaxParamValue(a1-1.0);
+    calcMaxParamValue(a2);
+
     if (dspFormat < DSP_FORMAT_FLOAT) {   // integer alu
-        addCode(dspQNM(b0,DSP_MANTBQ));
-        addCode(dspQNM(b1,DSP_MANTBQ));
-        addCode(dspQNM(b2,DSP_MANTBQ));
-        addCode(dspQNM(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration/noise shapping
-        addCode(dspQNM(a2,DSP_MANTBQ));
+        addCode(DSP_QM32(b0,DSP_MANTBQ));
+        addCode(DSP_QM32(b1,DSP_MANTBQ));
+        addCode(DSP_QM32(b2,DSP_MANTBQ));
+        addCode(DSP_QM32(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration/noise shapping
+        addCode(DSP_QM32(a2,DSP_MANTBQ));
     } else {
         addFloat(b0);
         addFloat(b1);
@@ -1409,6 +1374,7 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
 // integrate a s.31 sample during x miliseconds. then moving average in delay line and Sqrt
 // result is s.31. should be used after dsp_STORE or dsp_LOAD or dsp_SAT0DB or dsp_DELAY
 void dsp_RMS_(int timetot, int delay, int delayInSteps, int pwr){
+    ALUformat = 1;
 
     addOpcodeLength(DSP_RMS);
     dspprintf3("%s %dms total integration time, ",dspOpcodeText[DSP_RMS],timetot);
@@ -1502,11 +1468,13 @@ void dsp_DCBLOCK(int lowfreq){
 }
 
 void dsp_DITHER(){
+    ALUformat = 1;
     addOpcodeLengthPrint(DSP_DITHER);
     addDataSpaceAligned8(6);    // might be double so 3x2
 }
 
 void dsp_DITHER_NS2(int paramAddr){
+    ALUformat = 1;
     // support only 6 triplets of coefficients in this version
     if ((dspMinSamplingFreq<F44100)||(dspMaxSamplingFreq>F192000))
         dspFatalError("frequency range provided in encoderinit incompatible.");
@@ -1528,11 +1496,12 @@ void dsp_DISTRIB(int IO, int size){
 }
 
 void dsp_DIRAC_(int freq, dspGainParam_t gain){
+    ALUformat = 1;
     int fmin = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
     checkInRange(freq, 0,fmin/2);
     addDataSpace(1);    // one word in data space as counter for recreating the dirac impulse at frequency "freq"
     addGainCodeQNM(gain);
-    for (int f=dspMinSamplingFreq; f<dspMaxSamplingFreq; f++){
+    for (int f=dspMinSamplingFreq; f<=dspMaxSamplingFreq; f++){
         int fs = dspConvertFrequencyFromIndex(f);
         int count = fs / freq;
         addCode(count);
@@ -1551,11 +1520,35 @@ void dsp_SQUAREWAVE_Fixed(int freq, dspGainParam_t gain){
 
 
 void dsp_CLIP_Fixed(dspGainParam_t value){
+    ALUformat = 1;
     addOpcodeLengthPrint(DSP_CLIP);
     if ((value >= 1.0) || (value <= -1.0))
         dspFatalError("value not in range -0.999..+0.999.");
     addGainCodeQNM(value);
 }
+
+void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_SINE);
+    int fmin = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
+    checkInRange(freq, 20, fmin/4);
+    addDataSpaceAligned8(4);    //data space for computing xn and yn each in 64bits
+    addGainCodeQNM(gain);       //initial value for yn (cosine) or when xn == 0
+    for (int f=dspMinSamplingFreq; f<=dspMaxSamplingFreq; f++){
+        int fs = dspConvertFrequencyFromIndex(f);
+        // for frequency > fs / 32, the value of epsilon must be adjusted...
+        // example measured at 48khz:
+        // 750 => 750.3
+        // 1500 => 1502
+        // 3000 => 3019
+        // 6000 => 6166
+        float epsilon = 2.0*M_PI*(float)freq / (float)fs;
+        addGainCodeQNM( epsilon );  //using standard dspmantissa (not specific biquad mantissa)
+    }
+}
+
+
+
 #if 0
 int intMode = 0; // 1 = in PARAM, 2 = in CORE
 

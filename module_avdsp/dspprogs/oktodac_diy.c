@@ -3,13 +3,13 @@
 #include <string.h>
 #include "dsp_encoder.h"
 
-#define DACOUT(x) (x)               // DAC outputs are stored at the begining of the samples table
-#define ADCIN(x)  (8  + (x) )         // SPDIF receiver stored with an offset of 8
-#define USBOUT(x) (16 + (x))          // the samples sent by USB Host are offseted by 16
-#define USBIN(x)  (16 + 8 + (x))      // the samples going to the USB Host are offseted by 24
+#define DACOUT(x) (x)                   // DAC outputs are stored at the begining of the samples table
+#define ADCIN(x)  (8  + (x) )           // SPDIF receiver stored with an offset of 8
+#define USBOUT(x) (16 + (x))            // the samples sent by USB Host are offseted by 16
+#define USBIN(x)  (16 + 8 + (x))        // the samples going to the USB Host are offseted by 24
 
 
-const int leftin  = USBOUT(0);  // get the left input sample from the USB out channel 0
+const int leftin  = USBOUT(0);          // get the left input sample from the USB out channel 0
 const int rightin = USBOUT(1);
 
 const int leftlow   = 2;
@@ -149,7 +149,7 @@ dsp_CORE();  // second core crossover low channel
     if (dither>=0)
         dsp_SAT0DB_TPDF_GAIN_Fixed( gainlow);
         else dsp_SAT0DB_GAIN_Fixed( gainlow);
-    dsp_STORE( USBIN(leftlow) );
+    dsp_STORE( USBIN(leftlow) );    //optional fedback to USB Host for measurment with REW
     dsp_STORE( DACOUT(leftlow));
 
     dsp_LOAD_MEM(rightmem);
@@ -206,14 +206,34 @@ dsp_CORE();  // 4th core crossover high channel
     return dsp_END_OF_CODE();
 }
 
+int dspProg_test() {
+
+    dsp_PARAM();
+
+
+dsp_CORE();
+
+    dsp_LOAD_STORE();
+    dspLoadStore_Data( rightin,   USBIN(1) );       // loopback for REW during tests only
+
+    dsp_LOAD_GAIN_Fixed( leftin, 0.5);           // load input and apply a gain on the left channel
+
+    dsp_STORE( USBIN(0) );
+
+
+    return dsp_END_OF_CODE();
+}
+
 int dspProg(int argc,char **argv){
    int prog = 0;
     for(int i=0 ; i<argc;i++) {
         // parse USER'S command line parameters
 
-         if (strcmp(argv[i],"-diy1") == 0) {
-            dspprintf("first diy program made for ASR\n");
-            prog = 1;
+         if (strcmp(argv[i],"-prog") == 0) {
+             if (argc>=i) {
+               i++;
+               prog = strtol(argv[i], NULL,10); }
+            dspprintf("generating code for program %d\n",prog);
             continue; }
 
          if (strcmp(argv[i],"-dither") == 0) {
@@ -228,7 +248,7 @@ int dspProg(int argc,char **argv){
              if (argc>=i) {
                  i++;
                  lpsub = strtol(argv[i], NULL,10); }
-            dspprintf("low pass subwoofer %dhz\n",lpsub);
+            dspprintf("low pass subwoofer at %dhz\n",lpsub);
             continue; }
 
         // .. put the other line options here.
@@ -236,11 +256,14 @@ int dspProg(int argc,char **argv){
 
     switch (prog) {
     case 1:  return dspProg_3ways_LR4();
-    case 2:
+    case 2:  return dspProg_test();
     case 3:
     case 4:
     case 5:
-    default:  return dsp_END_OF_CODE();
+    default:  {
+        dspprintf("no dsp code generated\n");
+        return dsp_END_OF_CODE();
+    }
     }
 }
 

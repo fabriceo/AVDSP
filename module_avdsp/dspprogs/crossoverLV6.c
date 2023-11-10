@@ -10,14 +10,16 @@
 
 
 int dspProg_crossoverLV6(int fcross, int delay){
-    dspprintf("test program prepared for okto dac\n");
+    dspprintf("dspProg_crossoverLV6 program prepared for okto dac\n");
 
     dsp_PARAM();
 
     int lowpass = dspBiquad_Sections(3);
-        dsp_LP_BES6(fcross);
+        dsp_LP_BES6(fcross*1.25);
+    int highpass = dspBiquad_Sections(1);
+        dsp_HP_BUT2(fcross*0.75);
 
-    if (delay == 0) delay = 752000/fcross;  // group delay of the bessel6
+    if (delay == 0) delay = 752000/(fcross*1.25);  // group delay of the bessel6
     //if (delay == 0) delay = 986000/fcross;  // group delay of the bessel8
 
     dsp_CORE();  // first core
@@ -28,17 +30,36 @@ int dspProg_crossoverLV6(int fcross, int delay){
     //dsp_CORE();  // second core just for test
     dsp_LOAD(USBOUT(0)); 
     dsp_COPYXY();
-    dsp_DELAY_FixedMicroSec(delay);
+    dsp_DELAY_FixedMicroSec(delay); //single precios delay is good here
     dsp_GAIN_Fixed(1.0);
     dsp_SWAPXY();
     dsp_GAIN_Fixed(1.0);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
     dsp_SUBYX();
     dsp_SAT0DB_TPDF(); 
-    dsp_STORE( USBIN(0) );
-    dsp_SWAPXY();
-    dsp_SAT0DB_TPDF(); 
     dsp_STORE( USBIN(2) );
+    dsp_SWAPXY();
+    //dsp_BIQUADS(highpass);   //compute lowpass filter
+    dsp_SAT0DB_TPDF(); 
+    dsp_STORE( USBIN(3) );
+
+    dsp_CORE();
+
+    dsp_PARAM();
+
+    int LPLR4 = dspBiquad_Sections(2); dsp_LP_LR4(fcross);
+    int HPLR4 = dspBiquad_Sections(2); dsp_HP_LR4(fcross);
+
+
+    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0);
+    dsp_COPYXY();
+    dsp_BIQUADS(LPLR4);
+    dsp_SAT0DB_TPDF();
+    dsp_STORE( USBIN(4) );
+    dsp_SWAPXY();
+    dsp_BIQUADS(HPLR4);
+    dsp_SAT0DB_TPDF();
+    dsp_STORE( USBIN(5) );
 
     return dsp_END_OF_CODE();
 }

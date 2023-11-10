@@ -283,6 +283,14 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
                 dspChangeThisData(cptr++, oldFormat, newFormat);
         } break;
 
+        case DSP_SINE: {
+            cptr++; // skip pointer on data space
+            dspChangeThisData(cptr++, oldFormat, newFormat);
+            for (int i=0; i< dspNumSamplingFreq; i++)
+                dspChangeThisData(cptr++, oldFormat, newFormat);
+        } break;
+
+
         } // switch
 
         ptr += skip;
@@ -1168,31 +1176,32 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             int IO = *cptr++;       // get output number (like for STORE)
             dspSample_t * samplePtr = sampPtr+IO;
             int size = *cptr++;     // get size of the array, this factor is also used to scale the ALU
-            int offset = *cptr;
-            int * dataPtr = rundataPtr+offset;   // where we have a data space for us
+            int offset = *cptr;     //offset of the storage table
+            int * dataPtr = rundataPtr+offset;   // where we have the storage space
             int index = *dataPtr++; // get position in the table for outputing the value as if it was a clean sample.
-            dspALU_SP_t sample = ALU;
-            int middle = size/2;
+            int middle = size >> 1; //midle of the table
+            dspALU_SP_t sample = ALU;   //convert as simple precision
             if (sample) {
             #if DSP_ALU_INT
                 int pos = dspmuls32_32_32(sample, size); // our sample is now between say -256..+255 if size = 512
             #elif DSP_ALU_FLOAT
-                int pos = sample * middle;   // ALU expected to be -1..+1
+                int pos = sample * middle;   // sample expected to be -1..+1 so pos expeted to be say -256..+256
             #endif
                 pos += middle;            // our array is 0..511 so centering the value
-                if ((pos>=0) && (pos<size)) (*(dataPtr+pos))++;   // one more sample counted
+                if ((pos>=0) && (pos<size))     //check boundaries
+                    (*(dataPtr+pos))++;   // one more sample counted
             }
             int value = *(dataPtr+index); // retreive occurence for displaying as a curve with REW Scope function
             if (value == 0) {   // special case to avoid one unique sample drop to 0
-                if (index) value = *(dataPtr+index-1);
+                if (index) value = *(dataPtr+index-1);  // get value of previous storage bin
                 else value = *(dataPtr+1);
             }
             index++;
-            if (index >= size) index = 0;
-            *--dataPtr = index;
+            if (index >= size) index = 0;   //rollover check
+            *--dataPtr = index; //store index in the first location of our dataspace
             // store raw value
             #if DSP_ALU_INT
-                *samplePtr = value;
+                *samplePtr = value;     //store value in the output number given
             #elif DSP_SAMPLE_INT
                 *samplePtr = value;
             #elif DSP_ALU_FLOAT
@@ -1271,7 +1280,32 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             ALU = *dataPtr;
         break;}
 
-        } // switch (opcode)
+
+        case DSP_SINE:{ //WIP
+            int offset = *cptr++;
+            dspALU_t * dataPtr = rundataPtr+offset;   // space for the 2 state variable xn yn potentially 64 bits
+            dspParam_t * gainPtr = (dspParam_t*)cptr++; //amplitude of sine
+            dspParam_t epsilon = (dspParam_t*)cptr[dspSamplingFreqIndex];
+            ALU = dataPtr[0];       //xn
+            #if DSP_ALU_INT
+                if (ALU == 0) dspmacs64_32_32_0(&ALU2, dspQNMmax(), (*gainPtr)) //force yn to "1" (cosine(0) = 1)
+                else ALU2 = dataPtr[1]; //yn
+                dspALU_SP_t yn = dspShiftInt(ALU2, DSP_MANT_FLEX);  //get a 32 bit version of yn
+                dspmacs64_32_32(&ALU, -epsilon, yn);    //compute xn+1 = xn - epsilon * yn
+                dspALU_SP_t xn = dspShiftInt(ALU, DSP_MANT_FLEX);  //get a 32 bit version of previous result (xn+1)
+                dspmacs64_32_32(&ALU2, epsilon, xn);    //compute yn+1 = yn + epsilon * xn+1
+            #elif DSP_ALU_FLOAT
+                 ALU2 = (ALU == 0.0) ? *gainPtr : dataPtr[1];    //force yn to "1" if xn=0
+                 ALU +=  (-epsilon * ALU2);   //xn+1 = xn - epsilon * yn
+                 ALU2 += ( epsilon * ALU);    //yn+1 = yn + epsilon * xn+1
+            #endif
+            dataPtr[1] = ALU2;  //yn
+            dataPtr[0] = ALU;   //xn
+            #endif
+        break;}
+
+
+        } // end of switch (opcode)
 
         ptr += skip;    // move on to next opcode
         dspprintf2("\n");

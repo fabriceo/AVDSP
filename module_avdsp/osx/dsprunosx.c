@@ -23,6 +23,13 @@ void dspFatalError(char *msg) {
     exit(1);    // from stdlib.h
 }
 
+// special macro for s.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
+#define DSP_Q31_MAX     (0x000000007fffffffULL)
+#define DSP_Q31_MIN     (0xFFFFFFFF80000000ULL)
+#define DSP_2P31F       (2147483648.0)
+#define DSP_2P31F_INV   (1.0/DSP_2P31F)
+#define DSP_F31(x)      ( (x == DSP_Q31_MAX) ? 1.0 : (double)(x)/DSP_2P31F )
+
 
 int main(int argc, char **argv) {
 
@@ -74,9 +81,9 @@ int main(int argc, char **argv) {
     inputOutput[9] = 0.5;
     printf("io(9) = %f\n",inputOutput[9]);
 #else
-    inputOutput[8] = DSP_Q31(-0.3);
+    inputOutput[8] = DSP_QM32(-0.3,31);
     printf("io(8) = 0x%X\n",inputOutput[8]);
-    inputOutput[9] = DSP_Q31(0.5);
+    inputOutput[9] = DSP_QM32(0.5,31);
     printf("io(9) = 0x%X\n",inputOutput[9]);
 #endif
 

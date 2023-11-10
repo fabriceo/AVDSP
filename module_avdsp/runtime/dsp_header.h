@@ -19,40 +19,24 @@
 #if defined(DSP_PRINTF) && ( DSP_PRINTF >=1 )
 #include <stdio.h>
 #define dspprintf(...)  { printf(__VA_ARGS__); }   // we do the normal printf
-#define dspprintf1(...) { if (DSP_PRINTF>=1) printf(__VA_ARGS__); }
-#define dspprintf2(...) { if (DSP_PRINTF>=2) printf(__VA_ARGS__); }
-#define dspprintf3(...) { if (DSP_PRINTF>=3) printf(__VA_ARGS__); }
+#define dspprintf1(...) { printf(__VA_ARGS__); }   // we do the normal printf
 #else
 #define dspprintf(...)  { } // we do nothing
 #define dspprintf1(...) { }
+#endif
+#if defined(DSP_PRINTF) && ( DSP_PRINTF >=2 )
+#define dspprintf2(...) { printf(__VA_ARGS__); }
+#else
 #define dspprintf2(...) { }
+#endif
+#if defined(DSP_PRINTF) && ( DSP_PRINTF >=3 )
+#define dspprintf3(...) { printf(__VA_ARGS__); }
+#else
 #define dspprintf3(...) { }
 #endif
 
-// this define the precision for the fixed point maths when opcodes are encoded with DSP_FORMAT_INxx
-// suggested format is 4.28 for parameters, gain and filters coeficients.
-// for INT32, DSP_MANT is maximum 15 by design
-// minimum is 8 by design
-#ifndef DSP_MANT
-#define DSP_MANT 28
-#endif
 
-// this defines the precision and format for the biquad coefficient only.
-// suggested same as DSP_MANT but not mandatory
-// remark for XS2 architecture, this value MUST be modified also in the biquad assembly file
-#ifndef DSP_MANTBQ
-#define DSP_MANTBQ 28
-#endif
-
-// special macro for s.31 format including saturation and special treatment for +1.0 recognition (nomally +1.0 is not possible!)
-#define DSP_Q31_MAX     (0x000000007fffffffULL)
-#define DSP_Q31_MIN     (0xFFFFFFFF80000000ULL)
-#define DSP_2P31F       (2147483648.0)
-#define DSP_2P31F_INV   (1.0/DSP_2P31F)
-#define DSP_F31(x)      ( (x == DSP_Q31_MAX) ? 1.0 : (double)(x)/DSP_2P31F )
-#define DSP_Q31(f)      ( (f >= 1.0 ) ? DSP_Q31_MAX : (f <= -1.0) ? DSP_Q31_MIN : ( (long long)( (f) * (DSP_2P31F + 0.5) ) ) )
-
-// list of all DSP supported opcode as of this version
+// list of all DSP supported opcode as of this version. The last opcode is marked in the header
 enum dspOpcodesEnum {
     DSP_END_OF_CODE,    // this opcode value is 0 and its length is 0 as a convention
     DSP_HEADER,         // contain summary information about the program.
@@ -67,8 +51,8 @@ enum dspOpcodesEnum {
     DSP_TPDF,           // prepare for dithering at bit N as parameter
     DSP_WHITE,          // load the random int32 number that was generated for the tpdf
     DSP_CLRXY,          // clear both ALU register
-    DSP_SWAPXY,         // exchange ALU with second one "Y".
-    DSP_COPYXY,         // save ALU X in a second "Y" register.
+    DSP_SWAPXY,         // exchange ALU X with second one "Y".
+    DSP_COPYXY,         // copy ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
 
     DSP_ADDXY,          // perform X = X + Y, 64 bits
@@ -95,7 +79,7 @@ enum dspOpcodesEnum {
 /* IO engine */
     DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
                         // eg physical ADC input number = position in the sample array
-    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a QNM gain. result is double precision
+    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. result is double precision
 
     DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is double precision
 
@@ -111,11 +95,11 @@ enum dspOpcodesEnum {
 
     DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (s.31 in lsb only)
     DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
-    DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries
-    DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries
+    DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries as above
+    DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries as above
 
 /* delays */
-    DSP_DELAY_1,        // equivalent to a delay of 1 sample (Z-1)
+    DSP_DELAY_1,        // equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
 
     DSP_DELAY,          // execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
 
@@ -127,23 +111,27 @@ enum dspOpcodesEnum {
 /* filters */
     DSP_BIQUADS,        // execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
 
-    DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency
+    DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     DSP_DCBLOCK,        // remove any DC offset
     DSP_DITHER,         // add dithering on bit x and noise shapping
     DSP_DITHER_NS2,     // same with custom noise shapping factors
-    DSP_DISTRIB,        // for fun, use a dsp_WHITE before it and geenrate a sample according to distribution of the input
-    DSP_DIRAC,          // generate a single sample pulse at a given frequency. pulse amplitude depends on provided float number
-    DSP_SQUAREWAVE,     // generate a square waved (zero symetrical) at a given frequency
-    DSP_CLIP,           // check wether the sample is reaching the thresold given.
+    DSP_DISTRIB,        // experimental : distribute the value of ALU towards a table[N] and provide table[i] as outcome. Used to show the noise distibution on a scope view
+    DSP_DIRAC,          // generate a single sample pulse at a given frequency. frequency and pulse amplitude depends on provided float number
+    DSP_SQUAREWAVE,     // generate a square waved (zero symetrical) at a given frequency and amplitude
+    DSP_CLIP,           // check wether the sample is reaching the thresold given and maximize/minize it accordingly.
 
     // new code after release 1.0
-    DSP_LOAD_MEM_DATA,  // load the double precision value store in data space at an absolute adress
+    DSP_LOAD_MEM_DATA,  // load the double precision value stored in data space at an absolute adress
+
+    // new code after release 1.1 (october 2023)
+    DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };
 
+extern const char * dspOpcodeText[DSP_MAX_OPCODE];  //defined in dsp_header.c
 
 enum dspFreqs {
     F8000,   F16000,
@@ -206,40 +194,43 @@ typedef double dspFilterParam_t;        // can be changed for float but then biq
 
 typedef long long __attribute__((aligned(8))) dspAligned64_t;
 
-
 typedef union opcode_u {
-            struct opcode_s {   // both coded in a single word. to be changed in a later version for separate words
-                unsigned short skip;
-                unsigned short opcode; } op;
-            struct short_s {
-                short low;
-                short high; } s16;
-            unsigned u32;
-            int      i32;
-            float    f32;
-            int      i[1];
-            unsigned u[1];
-        } opcode_t;
+    struct opcode_s {   // both coded in a single word
+        unsigned short skip;
+        unsigned short opcode; } op;
+    struct short_s {
+        short low;
+        short high; } s16;
+    unsigned u32;
+    int      i32;
+    float    f32;
+    int      i[1];
+    unsigned u[1];
+} opcode_t;
 
 
 //used at the very begining of the dsp program to store basic information
 typedef struct dspHeader_s {    // 11 words
-/* 0 */     opcode_t head;
+/* 0 */     opcode_t head;      // marker
 /* 1 */     int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 8bytes
 /* 2 */     int   dataSize;     // required data space for executing the dsp program (in 32 bits words)
 /* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program
 /* 4 */     int   numCores;     // number of cores/tasks declared in the dsp program
 /* 5 */     int   version;      // version of the encoder used MAJOR, MINOR,BUGFIX
-/* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 0 for float encoding
+/* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 0 for float encoding (recomended)
 /*   */     unsigned short   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
 /* 7 */     int   freqMin;          // minimum frequency possible for this program, in raw format eg 44100
 /* 8 */     int   freqMax;          // maximum frequency possible for this program, in raw format eg 192000
-/* 9 */     unsigned usedInputs;    //bit mapping of all used inputs
-/* 10 */    unsigned usedOutputs;   //bit mapping of all used outputs
-/* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output
+/* 9 */     unsigned usedInputs;    // bit mapping of all used inputs  (max 32 in this version)
+/* 10 */    unsigned usedOutputs;   // bit mapping of all used outputs (max 32 in this version)
+/* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
+                                    // this location might be reused for a global Volume
         } dspHeader_t;
 
 
+//this function is declared inline and not stored in dsp_header.c
+//just for compatibility with XMOS XC compiler (due to unsafe pointers)...
+//it is used only once in both dsp_runtime.c and dsp_encoder.c
 static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore, unsigned int maxcode){
     *sum = 0;
     *numCore = 0;
@@ -259,21 +250,43 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
     } // while(1)
 }
 
-static inline long long dspQNMmax(){ return DSP_Q31_MAX; }
-static inline long long dspQNMmin(){ return DSP_Q31_MIN; }
 
-// convert a float number to a fixed point integer with a mantissa of "mant" bit
-// eg : if mant = 28, the value 0.5 will be coded as 0x08000000
-static inline int dspQNM(float f, int mant){
-    int integ = 32-mant-1;
-    int max = (1<<integ);
-    float maxf = max;
-    if (f >=   maxf)  return dspQNMmax();
-    if (f < (-maxf))  return dspQNMmin();
-    unsigned mul = 1<<mant;
-    f *= mul;
-    return f;
-}
+// this define the precision for the fixed point maths when runtime is using DSP_FORMAT_INTxx
+// suggested format is 4.28 for parameters, gain and filters coeficients.
+// for INT32, DSP_MANT is maximum 15 by design
+// minimum is 8 by design
+#ifndef DSP_MANT
+#define DSP_MANT 28
+#endif
 
+// this defines the precision and format for the biquad coefficient ONLY.
+// suggested same as DSP_MANT but not mandatory, absolute maximum is 30, to allow coeff between -2..+1.999
+// remark for XS2/XS3 architecture, this value MUST be modified also in the dsp_biquadXS2.S assembly file as it is not passed as parameter
+#ifndef DSP_MANTBQ
+#define DSP_MANTBQ 28
+#endif
+
+
+// convert a float/double number to a fixed point integer with a mantissa of "m" bit
+// eg : if mant = 28, the value 0.5 will be coded as 0x08000000 = 2^27
+// and the maximum number for a 32bits container will be 7.99999999 (2^3-epsilon) as bit 31 is used for sign
+// using double as input in order to have 52bits precision compared to float which is 24bits mantissa only
+// should works for any target container between 8bits and 64 bits. QM32 and QM64 are predefined for 32/64bits targets
+
+#define DSP_MAXPOS(b) ( ((b)>=64) ?   9223372036854775807LL      : ((1UL << (b-1))-1) )
+#define DSP_MINNEG(b) ( ((b)>=64) ? (-9223372036854775807LL-1LL) :  (1UL << (b-1))    )
+#define DSP_QMSCALE(x,m,b) ( ((b)>=33) ? (long long)((double)(x)*(1LL<<(m))) : (int)((double)(x)*(1L<<(m))) )
+#define DSP_QMBMIN(x,m,b) ( ( (-(x)) >  ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MINNEG(b) : DSP_QMSCALE(x,m,b) )
+#define DSP_QMBMAX(x,m,b) ( (   (x)  >= ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MAXPOS(b) : DSP_QMBMIN(x,m,b)  )
+#define DSP_QMB(x,m,b) ( ( ((m)>=(b))||((b)>64)||((m)<1) ) ? (1/((m)-(m))) : DSP_QMBMAX(x,m,b) )
+
+#define DSP_QNM(x,n,m) DSP_QMB(x,m,n+m) //convert to m bit mantissa and n bit integer part including sign bit
+#define DSP_QM32(x,m)  DSP_QMB(x,m,32)  //convert to 32bits int with mantissa "m"
+#define DSP_QM64(x,m)  DSP_QMB(x,m,64)  //convert to 64bit long long with mantissa "m"
+
+//same as functions
+extern long long dspQNM(double x, int n, int m);
+extern long long dspQM64(double x, int m);
+extern int dspQM32(double x, int m);
 
 #endif /* DSP_HEADER_H_ */

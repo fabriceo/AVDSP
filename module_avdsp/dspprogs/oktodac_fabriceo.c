@@ -9,6 +9,7 @@
 #define USBIN(x)  (16 + 8 + (x))      // the samples going to the USB Host are offseted by 24
 
 int modeoppo = 0;
+int centerhilbert=0;
 
 const int leftin   = USBOUT(0);     // get the left input sample from the USB out channel 0
 const int rightin  = USBOUT(1);
@@ -111,7 +112,6 @@ void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int mic
         //dsp_filter(FPEAK,1000,5,dB2gain(+4.0));
         dsp_filter(FPEAK,1700,3,dB2gain(-2.0));
         dsp_filter(FPEAK,7400,3,dB2gain(+3.0));
-        dsp_filter(FHS2, 9000,0.6,dB2gain(+5.0));
 
 
     dsp_LOAD_MEM(in);
@@ -140,7 +140,7 @@ void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int mic
     else dsp_SAT0DB_GAIN_Fixed( gain );
     dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
 
-    dsp_NEGX(); // invert phase during tests to test allignement
+    //dsp_NEGX(); // invert phase during tests to test allignement
     dsp_STORE( DACOUT(outhigh) );
 }
 
@@ -168,11 +168,10 @@ void dspSuroundEQ(int source, int dest, int gain, int dither) {
 void dspHeadphoneEQ(int source, int dest, int gain, int dither) {
 
     dsp_PARAM();
-    int headphoneEQ = dspBiquad_Sections_Flexible();
+    int headphoneEQ = dspBiquad_Sections_Flexible();    //3 filters compatible with 96k on XU216
     dsp_filter(FPEAK, 100, 1.0, dB2gain(-0.01));
     dsp_filter(FPEAK, 200, 2.0, dB2gain(-0.01));
     dsp_filter(FPEAK, 400, 2.0, dB2gain(-0.01));
-    dsp_filter(FPEAK, 800, 2.0, dB2gain(-0.01));
 
     const float attHeadphone = dB2gain(-1.0);   // to compensate above potential gains and avoid any saturation in first biquads.
 
@@ -238,12 +237,16 @@ int dspProgDACFABRICEO(int fx, int gd, int dither, float gaincomp, int microslow
     dsp_filter(FPEAK,  40, 2.0, dB2gain(-3.0));
     dsp_filter(FHP2,   10, 0.7, zerodB);            // high pass to protect xmax
     dsp_filter(FPEAK, 120, 1.5, dB2gain(+2.0));
+    dsp_filter(FHS2, 9000,0.6,dB2gain(+5.0));
+
 
     int leftEQ = dspBiquad_Sections_Flexible();
     dsp_filter(FPEAK, 230, 0.3, dB2gain(-3.0));
     dsp_filter(FPEAK,  40, 2.0, dB2gain(-3.0));
     dsp_filter(FHP2,   10, 0.7, zerodB);
     dsp_filter(FPEAK, 110, 2.0, dB2gain(+3.0));
+    dsp_filter(FHS2, 9000,0.6,dB2gain(+5.0));       //comp...
+
 
     const float attRight   = dB2gain(-3.0);   // to compensate above potential gains and avoid any saturation in first biquads.
     const float attLeft    = dB2gain(-3.0);
@@ -289,10 +292,12 @@ dsp_CORE();  // first core
         dsp_STORE_MEM(rightmem);
     }
 
-    //possibility to monitor EQ on USB6
-    dspCenterEQ( centerin, USBOUT(6), zerodB, dither );
-    dsp_DELAY_1();  // to compensate delay inherent to crossover being in other cores
-    dsp_STORE( DACOUT(6) );
+    if (centerhilbert) {
+        dspCenterEQ( centerin, USBOUT(6), zerodB, dither );
+        dsp_DELAY_1();  // to compensate delay inherent to crossover being in other cores
+        //possibility to monitor EQ on USB6
+        dsp_STORE( DACOUT(6) );
+    }
 
 
 dsp_CORE();
@@ -305,7 +310,7 @@ dsp_CORE();
     else
         dspHeadphoneEQ( leftin, DACOUT(0), zerodB, dither );
 
-    dsp_STORE( USBIN(0) );      //possibility to monitor EQ on USB0 (considering same for both channels)
+
 
 
 dsp_CORE();
@@ -384,6 +389,13 @@ int dspProg(int argc,char **argv){
                  i++;
                  modeoppo = 1; }
             dspprintf("mode Oppo (output surround/coax3 on dac 0 and 1 and center/coax1 on dac 6 and 7)\n");
+            continue; }
+
+        if (strcmp(argv[i],"-centerhilbert") == 0) {
+             if (argc>=i) {
+                 i++;
+                 centerhilbert = 1; }
+            dspprintf("center channel created with hilbert transform\n");
             continue; }
     }
 

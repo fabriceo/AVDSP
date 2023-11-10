@@ -26,13 +26,15 @@ FILESENCODER = ../encoder/dsp_encoder.c \
 		../encoder/dsp_filters.c \
 		../encoder/dsp_filters.h \
 		../encoder/dsp_HilbertDesign.c \
-		../encoder/dsp_nanosharcxml.c
+		../encoder/dsp_nanosharcxml.c \
+		../runtime/dsp_header.h \
+		../runtime/dsp_header.c
 
 ifeq ($(uname_S), Darwin)
 all:	libavdspencoder.dylib dspcreate
 
 libavdspencoder.dylib: $(FILESENCODER)
-	$(CC) $(CFLAGS) -dynamiclib  -o $@ ../encoder/dsp_*.c
+	$(CC) $(CFLAGS) -dynamiclib  -o $@ ../encoder/dsp_*.c ../runtime/dsp_header.c
 	@rm -rf *.dSYM
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.dylib
@@ -52,7 +54,7 @@ else
 all:	libavdspencoder.so dspcreate
 
 libavdspencoder.so:	$(FILESENCODER)
-	$(CC) $(CFLAGS) -shared -o $@ ../encoder/dsp_*.c 
+	$(CC) $(CFLAGS) -shared -o $@ ../encoder/dsp_*.c ../runtime/dsp_header.c
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.so
 	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS)

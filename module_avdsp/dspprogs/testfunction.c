@@ -45,23 +45,23 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     int nscoefs = dspDataTableFloat(noiseshaper, 3*6);
 
     int lowpass1 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES4(1000);
+        dsp_LP_BES2(100);
 
     int lowpass2 = dspBiquad_Sections_Flexible();
         dsp_LP_BES4(1000);
 
     dsp_CORE();
-    dsp_TPDF_CALC(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
+//    dsp_TPDF_CALC(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
 
-    dsp_LOAD( USBOUT(0) );       // loopback rew, no treatments
-    dsp_DISTRIB(USBIN(0), 512);  // prepare a table of 512 value spreading the original -1..+1 noise around the 512 bins
-    //dsp_STORE( USBIN(0) );      // show perfect triangular noise distribution with REW Scope function
+//    dsp_LOAD( USBOUT(0) );       // loopback rew, no treatments
+//    dsp_DISTRIB(USBIN(0), 960);  // prepare a table of 960 value spreading the original -1..+1 noise around the 960 bins
+                                  // and show perfect triangular noise distribution with REW Scope function
 
     dsp_LOAD( USBOUT(1) );       // loopback rew, no treatments
     dsp_STORE( USBIN(1) );
-
+#if 0
     dsp_GAIN_Fixed( 1.0 );      // apply a gain on the previous LOAD above to bring it to dual precision
-    dsp_CLIP_Fixed( 0.5 );      // clip the signal below -0.5 and above +0.5
+    dsp_CLIP_Fixed( 0.75 );     // clip the signal below -0.75 and above +0.75
     dsp_BIQUADS(lowpass1);      // show filtered response of a clipped signal, or squared
     dsp_SAT0DB();
     dsp_STORE( USBIN(3) );
@@ -69,8 +69,8 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_WHITE();                // provide white noise as an int32
     dsp_STORE( USBIN(4) );      // full white noise measured with REW -2.5dBFS rms
 
-    //dsp_SQUAREWAVE_Fixed( 100, 1.0 );// generate a 100hz square
-    dsp_DIRAC_Fixed( 100, 1.0 );    // generate 100 value per seconds of dirac impulse
+    dsp_SQUAREWAVE_Fixed( 100, 1.0 );// generate a 100hz square
+    //dsp_DIRAC_Fixed( 100, 1.0 );    // generate 100 value per seconds of dirac impulse
     dsp_BIQUADS(lowpass2);
     dsp_SAT0DB();
     dsp_STORE( USBIN(5) );      // show filter impulse response in REW with Scope
@@ -83,26 +83,40 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_DITHER_NS2(nscoefs);    // noise shape the input signal with special coeficient declared above
     dsp_SAT0DB();
     dsp_STORE( USBIN(7) );      // see shaping curve with REW FFT: -85.5dBFS for dither 16bits, +3db curve@2800hz, +12db/octave
+#endif
+    dsp_SINE_Fixed(1000, 0.5);
+    //dsp_SAT0DB();
+    //dsp_SAT0DB_TPDF();          // show effect of triangular dithering no noise shaping
+    dsp_STORE( USBIN(7) );      // see shaping curve with REW FFT: -85.5dBFS for dither 16bits, +3db curve@2800hz, +12db/octave
 
     return dsp_END_OF_CODE();
 }
 
 
 int dspProg_testFloat(int dither){
+    //to test float, use the "-testfloat option and configure the runtime in DSP_FORMAT 3 or 4
 
     dsp_PARAM();
     int nscoefs = dspDataTableFloat(noiseshaper2, 3*6);
     int lowpass1 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES4(1000);
+        dsp_LP_BES2(1000);
 
 
     dsp_CORE();
-    dsp_TPDF_CALC(dither);
+    //dsp_TPDF_CALC(dither);
+
+    dsp_LOAD( USBOUT(1) );       // loopback rew, no treatments
+    dsp_STORE( USBIN(1) );
+
     //dsp_DIRAC_Fixed(100, 1.0);
     //dsp_LOAD( USBOUT(0) );
-    dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
-    dsp_SAT0DB_TPDF();
+    //dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
+    //dsp_CLIP_Fixed(0.25);
+    //dsp_SAT0DB_TPDF();
+    dsp_SINE_Fixed(750,0.95);
     dsp_STORE( USBIN(0) );
+    return dsp_END_OF_CODE();
+
     dsp_TPDF(20);
     dsp_SAT0DB_TPDF();
     dsp_STORE( USBIN(2) );

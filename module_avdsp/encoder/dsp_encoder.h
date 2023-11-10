@@ -214,6 +214,9 @@ int  opcodeIndexMisAligned8();
  // clip the sample to the given value
  void dsp_CLIP_Fixed(dspGainParam_t value);
 
+ //generate a sine wave with Modified Coupled Form Oscillator -> extremly performant for 64bits ALU
+ void dsp_SINE_Fixed(int freq, dspGainParam_t gain);
+
  // convert a deciBell value to a float number. e.g. dB2gain(10.0) => 3.162277
  static inline dspGainParam_t dB2gain(dspGainParam_t db){
      db /= 20.0;
