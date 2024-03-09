@@ -1,0 +1,59 @@
+################
+### CONSTANT ###
+################
+
+DACout 0	; AESin  8	; USBout 16	; USBin  24
+
+gain_inputs -3db
+LP_cutoff	= 400
+
+leftin		=USBout+0 ; rightin		=USBout+1
+leftout 	=DACout+0 ; rightout 	=DACout+1
+
+#######################
+### MEM and FILTERS ###
+#######################
+
+mymix		MIXER (leftin,-6db) (leftin,-6db) (leftin,-6db) (leftin,-6db) 
+temp_mem	MEMORY
+low_pass	LPLR4( LP_cutoff , 0db )  
+high_pass	LPLR4( LP_cutoff , 0db )  HP2(1000, 0.7, 0db) HP2(1000, 0.7, 0db) 
+
+###############
+### PROGRAM ###
+###############
+
+core
+inputgain (leftin,gain_inputs) (leftin,gain_inputs) 
+transfer (USBout+1, USBin+1)
+mixer mymix
+
+core
+transfer (USBout+0, DACout+0)
+
+core
+transfer (USBout+1, DACout+1)
+
+core
+transfer (USBout+0, USBin+0)
+
+
+end
+core 
+# REW sync channel
+transfer (USBout+1, USBin+1)
+inputgain (leftin,gain_inputs)
+biquad high_pass
+saturate
+delayus 200
+output leftout
+#output USBin+0
+
+core
+inputgain leftin gain_inputs
+dcblock 10
+biquad high_pass
+saturate
+delayus 200
+output leftout
+end

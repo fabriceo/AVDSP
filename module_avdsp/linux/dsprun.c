@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
 			}
 		}
 	
-    		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput); 
+    		DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], inputOutput, 0);
 
        		for(ch=0;ch<coreio[nc].nbchout;ch++) {
     			Outputs[n*maxnbchout+(coreio[nc].outputMap[ch]-OUTOFFSET)]=inputOutput[coreio[nc].outputMap[ch]];

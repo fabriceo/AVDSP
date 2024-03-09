@@ -15,9 +15,9 @@ int dspProg_crossoverLV6(int fcross, int delay){
     dsp_PARAM();
 
     int lowpass = dspBiquad_Sections(3);
-        dsp_LP_BES6(fcross*1.25);
+        dsp_LP_BES6(fcross*1.25,1.0);
     int highpass = dspBiquad_Sections(1);
-        dsp_HP_BUT2(fcross*0.75);
+        dsp_HP_BUT2(fcross*0.75,1.0);
 
     if (delay == 0) delay = 752000/(fcross*1.25);  // group delay of the bessel6
     //if (delay == 0) delay = 986000/fcross;  // group delay of the bessel8
@@ -47,8 +47,8 @@ int dspProg_crossoverLV6(int fcross, int delay){
 
     dsp_PARAM();
 
-    int LPLR4 = dspBiquad_Sections(2); dsp_LP_LR4(fcross);
-    int HPLR4 = dspBiquad_Sections(2); dsp_HP_LR4(fcross);
+    int LPLR4 = dspBiquad_Sections(2); dsp_LP_LR4(fcross,1.0);
+    int HPLR4 = dspBiquad_Sections(2); dsp_HP_LR4(fcross,1.0);
 
 
     dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0);

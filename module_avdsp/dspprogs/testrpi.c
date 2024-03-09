@@ -37,22 +37,22 @@ void dspcodescrossover() {
 
     dsp_PARAM(); // param section can be used by any core
     int filterLow = dspBiquad_Sections_Flexible();
-        dsp_LP_LR4(400);
+        dsp_LP_LR4(400,1.0);
         dsp_filter(FHP1,   10,  1.0,   1.0 );
         dsp_filter(FPEAK,  80,  1.0,   1.0 );
         dsp_filter(FPEAK,  100, 1.0,   1.0 );
         dsp_filter(FPEAK,  150, 1.0,   1.0 );
 
     int filterMid = dspBiquad_Sections_Flexible();
-        dsp_HP_LR4(400);
-        dsp_LP_LR4(2500);
+        dsp_HP_LR4(400,1.0);
+        dsp_LP_LR4(2500,1.0);
         dsp_filter(FPEAK,  500,  1.0,   1.0 );
         dsp_filter(FPEAK,  800,  1.0,   1.0 );
         dsp_filter(FPEAK,  1200, 1.0,   1.0 );
         dsp_filter(FPEAK,  1500, 1.0,   1.0 );
 
     int filterHigh = dspBiquad_Sections_Flexible();
-        dsp_HP_LR4(2500);
+        dsp_HP_LR4(2500,1.0);
         dsp_filter(FPEAK,  4000,  1.0,   1.0 );
         dsp_filter(FPEAK,  5000,  1.0,   1.0 );
         dsp_filter(FPEAK, 10000,  1.0,   1.0 );

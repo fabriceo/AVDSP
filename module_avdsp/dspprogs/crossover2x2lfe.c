@@ -14,13 +14,13 @@ static void prefilterLowpass(int in, int mem, int flow){
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
 //        dspGain_Default(1.0); test for error detection
-        dsp_LP_BUT4(flow);
+        dsp_LP_BUT4(flow,1.0);
 
         dsp_dumpParameterNum(prefilter,4+6*6,"BQ6_PRE_FILTER",in); // generate an entry in the dumpfile
 
     dsp_LOAD_GAIN(in, defaultGain); // load input and apply a gain on it
     dsp_BIQUADS(prefilter);
-    dsp_STORE_MEM(mem);             // result of the biquad calculation is now stored in a memory location
+    dsp_STORE_X_MEM(mem);             // result of the biquad calculation is now stored in a memory location
 }
 
 static void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, float highgain){
@@ -29,12 +29,12 @@ static void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, floa
     dsp_PARAM_NUM(paramnumIndex);
 
     int lowpass = dspBiquad_Sections(4);
-        dsp_LP_LR4(f);
+        dsp_LP_LR4(f,1.0);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
 
     int highpass  = dspBiquad_Sections(4);
-        dsp_HP_LR4(f);
+        dsp_HP_LR4(f,1.0);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
         dsp_Filter2ndOrder(FPEAK,1000, 0.5, 1.0);
 
@@ -74,8 +74,9 @@ static void LFEChannel(int mem1,int mem2, int out, int dist){
     dsp_dumpParameterNum(filterlfe,4+4*6,"BQ4_EQ_LFE",-1);
     dsp_dumpParameterNum(delayline,1,"DELAY_LFE",-1);
 
-    dsp_LOAD_MEM(mem1);
-    dsp_LOAD_MEM(mem2);
+    dsp_LOAD_X_MEM(mem1);
+    dsp_COPYXY();
+    dsp_LOAD_X_MEM(mem2);
     dsp_ADDXY();
     dsp_BIQUADS(filterlfe);
     dsp_SAT0DB();
