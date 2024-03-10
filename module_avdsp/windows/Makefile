@@ -9,8 +9,8 @@ DSPPROGS = mydspcode.bin
 all:	$(DSPPROGS)
 
 # this code is used to generate the main encoder library
-libavdspencoder.dll:	../encoder/dsp_*.c
-	gcc $(CFLAGS) -shared -o libavdspencoder.dll ../encoder/dsp_*.c
+libavdspencoder.dll:	../encoder/dsp_*.c ../runtime/dsp_header.c
+	gcc $(CFLAGS) -shared -o libavdspencoder.dll $^
 
 #this code is used to generate the dspcreate executable
 dspcreate.exe:	libavdspencoder.dll ../encoder/dspcreate.c

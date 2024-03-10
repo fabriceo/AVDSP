@@ -90,8 +90,7 @@ int dspProgDACSTEREO(int outs, int dither){
 		break;}
 		case 8: {
 		dsp_LOAD_STORE();	// cpu optimized version for a multiple LOAD and STORE sequence
-    	for (int i=0; i<8; i++)
-	    	dspLoadStore_Data( USBOUT(i), DACOUT(i) );
+    	for (int i=0; i<8; i++) { dspLoadStore_Data( USBOUT(i), DACOUT(i) ); }
 		break;}
 	}
 
@@ -254,7 +253,7 @@ int dspProgTest(){
         int testBQ = dspBiquad_Sections_Flexible();
         dsp_filter(FAP2,1000, 0.58, 1.0);
 /*
-        dsp_LP_BUT4(1000);
+        dsp_LP_BUT4(1000,1.0);
         dsp_filter(FPEAK, 400,  1.0, dB2gain(6.0));
         dsp_filter(FPEAK, 100,  1.0, dB2gain(-6.0));
 */
@@ -280,19 +279,19 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
 
     dsp_PARAM();
     int lowpass = dspBiquad_Sections_Flexible();
-        dsp_LP_BUT4(532);
+        dsp_LP_BUT4(532,1.0);
         dsp_filter(FHS1,  500,  0.5, dB2gain(-5.0));
         dsp_filter(FPEAK, 180,  2.5, dB2gain(-1.9));
         dsp_filter(FPEAK, 544,  4.0, dB2gain(-2.0));
 
     int highpass = dspBiquad_Sections_Flexible();
-        dsp_HP_BUT3(822);
+        dsp_HP_BUT3(822,1.0);
         dsp_filter(FPEAK, 1710, 2.0, dB2gain(-4.8));
         dsp_filter(FPEAK,  917, 5.0, dB2gain(+3.0));
         dsp_filter(FHS2, 11500, 0.7, dB2gain(+6.0));
 
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
 
     if (dither>=0)
@@ -305,7 +304,7 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
     }
     dsp_STORE( DACOUT(outlow) ); // low driver
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(highpass);   //compute lowpass filter
     if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
@@ -346,25 +345,25 @@ const float Q = 2.0;
         dsp_filter(FPEAK,1700,3,dB2gain(-3.0)); // 2,dB2gain(-4.8));
         dsp_filter(FHS2,9000,0.6,dB2gain(6.0)); // 11500, 0.7,dB2gain(7.0)
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(HPF1);
     dsp_COPYXY();
     dsp_BIQUADS(HBPF2);
-    dsp_STORE_MEM(memHBPF);
+    dsp_STORE_X_MEM(memHBPF);
     dsp_NEGX();
     dsp_ADDXY();
-    dsp_STORE_MEM(memHPF);
+    dsp_STORE_X_MEM(memHPF);
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(LPF1);
     dsp_COPYXY();
     dsp_BIQUADS(LBPF2);
-    dsp_STORE_MEM(memLBPF);
+    dsp_STORE_X_MEM(memLBPF);
     dsp_NEGX();
     dsp_ADDXY();
-    dsp_LOAD_MEM(memHBPF);
+    dsp_LOAD_X_MEM(memHBPF);
     dsp_ADDXY();
-    dsp_STORE_MEM(memLPF);
+    dsp_STORE_X_MEM(memLPF);
     // low is ready
     if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
@@ -376,8 +375,8 @@ const float Q = 2.0;
     dsp_STORE( DACOUT(outlow) );
 
 
-    dsp_LOAD_MEM(memHPF);
-    dsp_LOAD_MEM(memLBPF);
+    dsp_LOAD_X_MEM(memHPF);
+    dsp_LOAD_X_MEM(memLBPF);
     dsp_ADDXY();
     // high ready
 
@@ -400,7 +399,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
 
     dsp_PARAM();
     int lowpass = dspBiquad_Sections_Flexible();
-        dsp_LP_BES6(freq);
+        dsp_LP_BES6(freq, 1.0);
 
     if (gd == 0) gd = 752000/freq;  // group delay of the bessel6
     //if (gd == 0) gd = 986000/freq;  // group delay of the bessel8
@@ -412,7 +411,7 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
         dsp_filter(FHS2, 9000,0.6,dB2gain(5.0));
 
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_COPYXY();
     dsp_DELAY_DP_FixedMicroSec(gd);
     dsp_SWAPXY();
@@ -493,24 +492,24 @@ dsp_CORE();  // first core
 
     if (mono) {
         dsp_LOAD_MUX(avgLR);        // load and mix left+right
-        dsp_STORE_MEM(avgLRmem);
+        dsp_STORE_X_MEM(avgLRmem);
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(rightEQ);
-        dsp_STORE_MEM(leftmem);
-        dsp_STORE_MEM(rightmem);
+        dsp_STORE_X_MEM(leftmem);
+        dsp_STORE_X_MEM(rightmem);
 
-        dsp_LOAD_MEM(avgLRmem);
+        dsp_LOAD_X_MEM(avgLRmem);
     } else {
 
         dsp_LOAD_GAIN_Fixed(leftin, attLeft);
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(leftEQ);
-        dsp_STORE_MEM(leftmem);
+        dsp_STORE_X_MEM(leftmem);
 
         dsp_LOAD_GAIN_Fixed(rightin, attRight);
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(rightEQ);
-        dsp_STORE_MEM(rightmem);
+        dsp_STORE_X_MEM(rightmem);
 
         dsp_LOAD_MUX(avgLR);
     }
