@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
                      minidspProgName = argv[i];
                      continue; } }
 
-        if (strcmp(argv[i],"-dspbasic") == 0) {
+        if (strcmp(argv[i],"-dsptext") == 0) {
                 i++;
                 if (argc>i) {
                      dspbasicProgName = argv[i];

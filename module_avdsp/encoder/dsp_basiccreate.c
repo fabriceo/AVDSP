@@ -683,14 +683,18 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 if (keyw == -1) {   //this is not a keyword so it has to be a label then
                     if (paramsection == 0) { errNum=17; goto error; }
                     labelptr_t l = searchLabel( &p );
+                    errPtr = p;
                     if (l) {
-                        //verify if user wants to overload label definition (?)
+                        //label found, verify if user wants to overload label definition (?)
                         res = searchDelimiter( &p, "?" );
-                        errPtr = p;
                         if (res == 0) { errNum = 12; goto error; }
+                        //yes overloading
+                        errPtr = p;
                     } else {
                         //label unknown. add it to the list
                         l = appendNewLabel( &p );
+                        res = searchDelimiter( &p, "?" );
+                        errPtr = p;
                     }
                     int filterNum=0, filterType;
                     errPtr = p;
@@ -699,6 +703,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     if ( filterType >= 0 ) {
                         if ( filterNum == 0 ) {
                             //this new label is followed by a filter name for the first time
+                            if ((l->labelType != _empty)&&(l->labelType != label_filter)) { errNum = 12; goto error; };
                             l->labelType = label_filter;
                             l->address = dspBiquad_Sections_Flexible();
                         }
@@ -750,6 +755,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                         res = searchKeywords( &p, paramKeywords, paramKeywordsNumber );
                         if (res == 0 ) {
                             // MEM keyword recognized
+                            if ((l->labelType != _empty)&&(l->labelType != label_memory)) { errNum = 12; goto error; };
                             l->labelType = label_memory;
                             errPtr = p;
                             //accept a potential MEM size parameter as an integer
@@ -769,19 +775,26 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                             // not a MEMORY , then should be an numerical expression
                             res = searchDelimiter( &p, "=" );
                             errPtr = p;
+                            enum label_type_e old = l->labelType;
+                            double temp;
                             if (res) {
                                 //value or label authorized after an "="
-                                if ((res = searchExpression( &p, &l->value )) < _error) goto error;
+                                if ((res = searchExpression( &p, &temp )) < _error) goto error;
                                 errPtr = p;
+                                old = _empty;  //clear previous definition if any
                             } else {
                                 char * prevp = p;
-                                res = searchValue( &p, &l->value, 1 );  //otherwise only numerical
+                                res = searchValue( &p, &temp, 1 );  //otherwise only numerical
                                 errPtr = p;
                                 if (res == _empty)  { errNum = 7; goto error; }
                                 if (testDelimiter( &p, "+-*/")) { errPtr= prevp; errNum = 31; goto error; }
                             }
-                            l->labelType = res;
-                            dspprintf2("label %s type %d created with value %f\n",l->name,l->labelType, l->value);
+                            if (old == _empty) {
+                                l->value = temp;
+                                l->labelType = res;
+                                dspprintf2("label %s type %d created with value %f\n",l->name,l->labelType, l->value);
+                            } else
+                                dspprintf2("label %s type %d already set with value %f\n",l->name,l->labelType, l->value);
                         } // expression value
                     } // not a filter
                 } //if keyw == -1
@@ -789,7 +802,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     int res = searchDelimiter( &p, ";#\n\r" );     //optional delimiter on a line
                     errPtr=p;
                     if (res ==0 ) { errNum = 13; goto error; }
-                    if (res != ';') {errPtr=p; break; }
+                    if (res != ';') {errPtr=p; break; } //skip end of line
                 }
             } else {
                 //a strange caracter is encountered
