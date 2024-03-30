@@ -6,7 +6,7 @@
 
 static FILE* dspbasicInput  = NULL;    //user basic dsp code as text file
 
-#define filterTypesNumber 54
+#define filterTypesNumber 56
 
 const char * filterNames[filterTypesNumber] = {
     "LPBE2","LPBE3","LPBE4","LPBE6","LPBE8",
@@ -19,7 +19,7 @@ const char * filterNames[filterTypesNumber] = {
     "HPLR2","HPLR3","HPLR4","HPLR6","HPLR8",
     "LP1","HP1","LS1","HS1","AP1","BP0DB",
     "LP2","HP2", "LS2","HS2", "AP2",
-    "PEAK","NOTCH","BPQ"
+    "PEAK","NOTCH","BPQ","HILB","LT"
 };
 
 const char filterTypes[filterTypesNumber] = {
@@ -35,12 +35,12 @@ const char filterTypes[filterTypesNumber] = {
     FLP2,FHP2,    // low pass and high pass
     FLS2,FHS2,    // low shelf and high shelf
     FAP2,FPEAK,FNOTCH, // allpass, eak and notch
-    FBPQ      // bandpass and hilbert
+    FBPQ, FHILB, FLT      // bandpass and hilbert
 };
 
 const char filterOrders[filterTypesNumber] = {
     2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8,
-    1,1,1,1,1,2,2,2,2,2,2,2,2,2
+    1,1,1,1,1,2,2,2,2,2,2,2,2,2,99,2
 };
 
 enum keywords_e {
@@ -50,7 +50,7 @@ enum keywords_e {
     _saturate, _saturatevol, _saturategain, _saturatetpdf, _saturategaintpdf,
     _delayone, _delayus, _delaydpus,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
-    _dcblock, _biquad, _biquad8,
+    _dcblock, _biquad, _biquad8, _convol,
     _tpdf, _white, _sine,_square,_dirac,
     dspKeywordsNumber
 };
@@ -61,16 +61,16 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "saturate", "saturatevol","saturategain", "saturatetpdf", "saturategaintpdf",
     "delayone", "delayus", "delaydpus",
     "savexmem", "loadxmem","saveymem", "loadymem",
-    "dcblock", "biquad", "biquad8",
+    "dcblock", "biquad", "biquad8", "convol",
     "tpdf", "white", "sine","square","dirac",
 };
 
-#define paramKeywordsNumber 1
-static const char * paramKeywords[paramKeywordsNumber] = { "MEMORY" };
+#define paramKeywordsNumber 2
+static const char * paramKeywords[paramKeywordsNumber] = { "MEMORY","TAPS" };
 
-enum   tvalue_e { _tIO, _tfreq, _tgain,_tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tnone };
-double valueMin[_tnone] = {  0,    10, -8,    0,  0 ,  1, -32, 8  };
-double valueMax[_tnone] = { 31, 40000, +8, 1000, 20 , 16,  32, 31 };
+enum   tvalue_e { _tIO, _tfreq, _tgain,_tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _ttaps, _tnone };
+double valueMin[_tnone] = {  0,    10, -8,    0,  0 ,  1, -32, 8,   1  };
+double valueMax[_tnone] = { 31, 40000, +8, 1000, 20 , 16,  32, 31, -1 };
 double errMin=0.0, errMax=0.0;
 
 static inline int isNumber(char ch){
@@ -148,7 +148,8 @@ enum label_type_e {
     _valuedb = 2,       //contains a value in decibel
     _valueint = 3,      //contains an integer
     label_filter = 4,   //point on a list of filters in param space
-    label_memory = 5    //points on a 64bit data location in param space
+    label_memory = 5,    //points on a 64bit data location in param space
+    label_taps = 6      //points on a list of Taps
 };
 
 typedef struct label_s {
@@ -204,6 +205,7 @@ static void freeAllLabels(){
         l = next;
     }
 }
+
 
 //points on previous set of character where an error is detected
 static char * errPtr;
@@ -391,7 +393,25 @@ void clearParamSection() {
 
 int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     char line[512] = ""; //buffer for one line of code
-    dspprintf2("reading file %s\n",dspbasicName);
+    char * nextName = dspbasicName;
+    int lineNum = 0;
+    int size    = 0;
+
+    while (nextName && (*nextName)) {
+
+    dspbasicName = nextName;
+
+    char * plus = strchr(dspbasicName, '+');
+    if (plus) {
+        *plus = 0;
+        plus++; while ((*plus) == ' ') plus++;
+        if (*plus) nextName = plus;
+        else nextName = 0;
+    } else nextName = 0;
+
+    dspprintf1("reading file %s\n\n",dspbasicName);
+    if (nextName) dspprintf2("...next file %s\n\n",nextName);
+
     dspbasicInput = fopen( dspbasicName, "r" );
     if (dspbasicInput == NULL) {
         fprintf(stderr,"Error: Failed to open %s file.\n",dspbasicName);
@@ -409,9 +429,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
       fprintf(stderr,"Error: Failed to set file pointer for %s file (size=%d).\n",dspbasicName,dspbasicFileSize);
      return -1;
     }
-    int lineNum = 0;
-    int size    = 0;
-    double input, output, gain, delay, freq, filterQ, tpdf;
+    double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
     char * p;   //pointer on the character to analyse
     int countarg = 0;
 
@@ -425,9 +443,8 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 dspprintf2("option %d %s\n",countarg,line);
                 countarg++;
             } else lineNum = 1;
-        } else lineNum++;
+        }
         if (lineNum) if (fgets( line, 512, dspbasicInput ) == 0) break;   //read line from file
-        errPtr = p = line;
         errPtr = p = line;
         while (*p ) {
             //skip any spaces or tab
@@ -652,6 +669,20 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     if (l->labelType != label_filter) { errNum = 4; goto error; }
                     dsp_BIQUADS( l->address );
                     break; }
+                case _convol: {
+                    int numFilt = 0;
+                    do {
+                        errPtr = p;
+                        labelptr_t l = searchLabel( &p );
+                        if (l == NULL) { errNum = 33; goto error; }
+                        if (l->labelType != label_taps) { errNum = 33; goto error; }
+                        if (numFilt == 0) ; //generate opcode
+                        else ; // generates taps adresses
+                        numFilt++;
+                        //TODO generated opcode with adress of taps
+                        res = searchDelimiter( &p, ",");
+                    } while(res);
+                    break; }
                 case _tpdf: {
                     if ((res = searchExpressionRange( &p, &tpdf, _ttpdf )) < _error) goto error;
                     dsp_TPDF(tpdf);
@@ -729,8 +760,27 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                             if (res ==  _empty) { errNum = 15; goto error; }
                             errPtr = p;
                             if (outOfRange( filterQ, valueMin[_tfilterQ], valueMax[_tfilterQ] )) goto error;
-                            //read filter gain
+                            if (filterType == 55) { //FLT
+                                res = searchDelimiter( &p, "," );
+                                errPtr = p;
+                                if (res ==  0) { errNum = 21; goto error; }
+                                //read frequency fp & qp
+                                if ((res = testExpression( &p, &freqLT )) < _error) goto error;
+                                if (res == _empty) { errNum = 14; goto error; }
+                                if (res == _valuedb) { errNum = 25; goto error; }
+                                errPtr = p;
+                                if (outOfRange( freqLT, valueMin[_tfreq], valueMax[_tfreq])) goto error;
+                                //read filter Q
+                                res = searchDelimiter( &p, "," );
+                                errPtr = p;
+                                if (res ==  0) { errNum = 21; goto error; }
+                                if ((res = testExpression( &p, &filterQLT )) < _error) goto error;
+                                if (res ==  _empty) { errNum = 15; goto error; }
+                                errPtr = p;
+                                if (outOfRange( filterQLT, valueMin[_tfilterQ], valueMax[_tfilterQ] )) goto error;
+                            }
                         }
+                        //read filter gain
                         res = searchDelimiter( &p, "," );
                         errPtr = p;
                         if (res>0)
@@ -739,9 +789,19 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                         res = searchDelimiter( &p, ")" );
                         errPtr = p;
                         if (res ==  0) { errNum = 20; goto error; }
-                        dspprintf2("filter %s type %s created with F=%f, Q=%f, G=%f\n",l->name,filterNames[filterType],freq,filterQ,gain);
-                        //add filter characteristics in the dsp code (param section)
-                        dsp_filter( filterTypes[filterType], freq, filterQ, gain );
+                        if (filterType == 55) {
+                            dspprintf2("filter %s LT with F0=%f, Q0=%f, Fp=%f, Qp=%f, G=%f\n",l->name,freq,filterQ,freqLT,filterQLT,gain);
+                            //add filter characteristics in the dsp code (param section)
+                            dsp_FilterLT( freq, filterQ, freqLT, filterQLT, gain );
+                        } else
+                        if (filterType == 54) {
+                            dspprintf2("filter %s HILBERT with xx=%f, xx=%f, G=%f\n",l->name,freq,filterQ,gain);
+                            //TODO dsp_hilbert
+                        } else {
+                            dspprintf2("filter %s type %s created with F=%f, Q=%f, G=%f\n",l->name,filterNames[filterType],freq,filterQ,gain);
+                            //add filter characteristics in the dsp code (param section)
+                            dsp_filter( filterTypes[filterType], freq, filterQ, gain );
+                        }
                         //accept potentially other filters on the same line, separated with comma
                         errPtr = p;
                         filterType = searchKeywords( &p, filterNames, filterTypesNumber );
@@ -771,8 +831,27 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                             //allocate space in the dsp code
                             l->address = dspMem_LocationMultiple(memSizeInt);
                             dspprintf2("label %s created with MEM adr = %d size = %f\n",l->name,l->address, l->value);
-                        } else {
-                            // not a MEMORY , then should be an numerical expression
+                        } else
+                        if (res == 1) { //TAPS
+                            int numTaps=0;
+                            do {
+                                if ((l->labelType != _empty)&&(l->labelType != label_taps)) { errNum = 12; goto error; };
+                                l->labelType = label_taps;
+                                errPtr = p;
+                                //accept a potential MEM size parameter as an integer
+                                double tap = 0.0;
+                                if ((res = searchExpressionRange( &p, &tap, _ttaps )) < _error) goto error;
+                                numTaps++;
+                                errPtr = p;
+                                res = searchDelimiter( &p, "," );
+                                l->value = 0;
+                                l->address = 0;
+                            } while (res);
+                            //convert all taps
+                            dspprintf2("*** %d TAPS ***\n",numTaps);
+                        } else
+                        {
+                            // not a MEMORY nor TAPS, then should be an numerical expression
                             res = searchDelimiter( &p, "=" );
                             errPtr = p;
                             enum label_type_e old = l->labelType;
@@ -811,10 +890,14 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     } //while (1)
 finished:
 
+    fclose(dspbasicInput);
+
+    dspprintf1("\n");
+    } // while (nextname);
+
     size = dsp_END_OF_CODE();
 
     freeAllLabels();
-    fclose(dspbasicInput);
     return size;
 
 error:
@@ -852,6 +935,7 @@ error:
     case -30: fprintf(stderr,"Error: comma \",\" is expected\n"); break;
     case -31: fprintf(stderr,"Error: expression with operator requires equal \"=\" operator\n"); break;
     case -32: fprintf(stderr,"Error: end of line expected\n"); break;
+    case -33: fprintf(stderr,"Error: taps label expected\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",lineNum,line);

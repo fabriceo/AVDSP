@@ -1,6 +1,6 @@
 # test of a simple low pass LR4 with REW
 
-lowpass		LPLR4(1000)
+lowpass		LPBU4(25000)
 ap2			AP2(1000,1,10db)
 notch		NOTCH(1000,0.5)
 eq			PEAK(1000,1,10db)
@@ -9,9 +9,11 @@ x			MEMORY 1
 test8		LPBE8(2000) PEAK(1000,1,0db) PEAK(2000,1,0db) PEAK(1000,1,0db) PEAK(2000,1,0db)
 
 transfer (16,24)
-inputgain (16,-1db)
+transfer (16,26)
+inputgain (16,0db)
 biquad lowpass
 output 25
+
 end
 
 inputgain (16,0db)

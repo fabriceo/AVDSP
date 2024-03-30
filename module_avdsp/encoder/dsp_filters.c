@@ -164,12 +164,63 @@ void dspFilter2ndOrder( int type,
     } //switch
 }
 
+void dspFilterLT(
+        dspFilterParam_t fs,
+        dspFilterParam_t f0,
+        dspFilterParam_t Q0,
+        dspFilterParam_t fp,
+        dspFilterParam_t Qp,
+        dspGainParam_t   gain,
+        dspFilterParam_t * b0,
+        dspFilterParam_t * b1,
+        dspFilterParam_t * b2,
+        dspFilterParam_t * a1,
+        dspFilterParam_t * a2
+ ) {
+    dspFilterParam_t a0,c0,c1,d0,d1,fc,gn,gn2;
+    d0 = (2.0 * M_PI * f0 ); d0 *= d0;
+    c0 = (2.0 * M_PI * fp ); c0 *= c0;
+    d1 = (2.0 * M_PI * f0 / Q0);
+    c1 = (2.0 * M_PI * fp / Qp);
+    fc = (f0 + fp) / 2.0;
+    gn = 2.0 * M_PI * fc / tan( M_PI * fc/fs);
+    gn2 = gn * gn;
+    a0 = c0 + gn * c1 + gn2;
+    *b0 = (d0 + gn * d1 + gn2 ) / a0;
+    *b1 = 2.0 * (d0 - gn2) / a0;
+    *b2 = (d0 - gn * d1 + gn2) / a0;
+    *a1 = - 2.0 * (c0 - gn2) / a0;
+    *a2 = - (c0 - gn * c1 + gn2) / a0;
+}
 
 // from dsp_encoder.c
 extern int  addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2);
 extern int  addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
 extern void sectionBiquadCoeficientsBegin();
 extern void sectionBiquadCoeficientsEnd();
+
+int dsp_FilterLT(dspFilterParam_t f0, dspFilterParam_t Q0, dspFilterParam_t fp, dspFilterParam_t Qp, dspGainParam_t gain){
+    int coefPtr = 0;
+    dspFilterParam_t a1, a2, b0, b1, b2;
+    sectionBiquadCoeficientsBegin();
+    for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
+        dspFilterParam_t fs = dspConvertFrequencyFromIndex(f);
+        dspFilterLT(fs, f0, Q0, fp, Qp, gain, &b0, &b1, &b2, &a1, &a2);
+
+        if (coefPtr==0) {
+            coefPtr =  addFilterParams(FLT, f0, Q0, gain);
+            dspprintf2("FILTER f0 = %f, Q0 = %f, fp = %f, Qp = %f, G = %f\n", f0, Q0, fp, Qp, gain);
+            dspprintf3(" b0 = %f, ",b0);
+            dspprintf3(" b1 = %f,",b1);
+            dspprintf3(" b2 = %f,",b2);
+            dspprintf3(" a1 = %f, ",a1);
+            dspprintf3(" a2 = %f\n",a2); }
+        addBiquadCoeficients(b0, b1, b2, a1, a2);
+    }
+    sectionBiquadCoeficientsEnd();
+    return coefPtr;
+}
+
 
 int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain){
     int coefPtr = 0;
