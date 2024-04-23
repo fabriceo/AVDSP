@@ -39,7 +39,7 @@ libavdspencoder.dylib: $(FILESENCODER)
 	@rm -rf *.dSYM
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.dylib
-	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS) -Wl,-R.
+	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS)
 	@rm -f -r *.dSYM
 
 clean:
