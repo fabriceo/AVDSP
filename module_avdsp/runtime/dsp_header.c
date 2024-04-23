@@ -8,17 +8,31 @@
 
 //used in both dsp_encoder.c and dsp_runtime
 const char * dspOpcodeText[DSP_MAX_OPCODE] = {
-    "DSP_END_OF_CODE",
-    "\nDSP_HEADER",
+    "DSP_END_OF_CODE",  //0
+    "DSP_HEADER",
+    "DSP_PARAM",
+    "DSP_PARAM_NUM",
     "DSP_NOP",
-    "\nDSP_CORE",
-    "\nDSP_PARAM",
-    "\nDSP_PARAM_NUM",
-    "DSP_SERIAL",
-    "DSP_TPDF_CALC",
-    "DSP_TPDF",
-    "DSP_WHITE",
-    "DSP_CLRXY",
+    "DSP_CORE",
+    "DSP_SECTION",
+
+    "DSP_LOAD",         //6
+    "DSP_STORE",
+    "DSP_LOAD_STORE",
+    "DSP_STORE_TPDF",
+    "DSP_STORE_GAIN",
+    "DSP_LOAD_GAIN",
+    "DSP_LOAD_MUX",
+    "DSP_MIXER",
+
+    "DSP_LOAD_X_MEM",
+    "DSP_STORE_X_MEM",
+    "DSP_LOAD_Y_MEM",
+    "DSP_STORE_Y_MEM",
+
+    "DSP_LOAD_MEM_DATA",
+
+    "DSP_CLRXY",        //15
     "DSP_SWAPXY",
     "DSP_COPYXY",
     "DSP_COPYYX",
@@ -27,49 +41,47 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_SUBXY",
     "DSP_SUBYX",
     "DSP_MULXY",
+    "DSP_MULYX",
     "DSP_DIVXY",
     "DSP_DIVYX",
     "DSP_AVGXY",
     "DSP_AVGYX",
     "DSP_NEGX",
     "DSP_NEGY",
-    "DSP_SQRTX",
     "DSP_SHIFT",
-    "DSP_VALUE",
-    "DSP_VALUE_INT",
-    "DSP_MUL_VALUE",
-    "DSP_MUL_VALUE_INT",
-    "DSP_DIV_VALUE",
-    "DSP_DIV_VALUE_INT",
-    "DSP_AND_VALUE_INT",
-    "DSP_LOAD",
-    "DSP_LOAD_GAIN",
-    "DSP_LOAD_MUX",
-    "DSP_STORE",
-    "DSP_LOAD_STORE",
-    "DSP_LOAD_MEM",
-    "DSP_STORE_MEM",
-    "DSP_GAIN",
-    "DSP_SAT0DB",
+    "DSP_VALUEX",
+    "DSP_VALUEY",
+
+    "DSP_GAIN",     //33
+    "DSP_CLIP",
+
+    "DSP_SAT0DB",   //35
+    "DSP_SAT0DB_VOL",
     "DSP_SAT0DB_TPDF",
     "DSP_SAT0DB_GAIN",
     "DSP_SAT0DB_TPDF_GAIN",
-    "DSP_DELAY_1",
+    "DSP_SERIAL",
+
+    "DSP_DELAY_1",  //40
     "DSP_DELAY",
     "DSP_DELAY_DP",
-    "DSP_DATA_TABLE",
+
     "DSP_BIQUADS",
-    "DSP_FIR",
-    "DSP_RMS",
     "DSP_DCBLOCK",
+
+    "DSP_DATA_TABLE",
+    "DSP_TPDF_CALC",
+    "DSP_TPDF",
+    "DSP_WHITE",
     "DSP_DITHER",
     "DSP_DITHER_NS2",
     "DSP_DISTRIB",
     "DSP_DIRAC",
     "DSP_SQUAREWAVE",
-    "DSP_CLIP",
-    "DSP_LOAD_MEM_DATA",
-    "DSP_SINE"
+    "DSP_SINE",
+    "DSP_SQRTX",
+    "DSP_RMS",
+    "DSP_FIR",
 };
 
 

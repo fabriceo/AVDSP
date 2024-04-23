@@ -25,19 +25,19 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
 
     dsp_PARAM();
     int lowpass = dspBiquad_Sections_Flexible();
-        dsp_LP_BUT4(532);
+        dsp_LP_BUT4(532,1.0);
         dsp_filter(FHS1,  500,  0.5, dB2gain(-5.0));
         dsp_filter(FPEAK, 180,  2.5, dB2gain(-1.9));
         dsp_filter(FPEAK, 544,  4.0, dB2gain(-2.0));
 
     int highpass = dspBiquad_Sections_Flexible();
-        dsp_HP_BUT3(822);
+        dsp_HP_BUT3(822,1.0);
         dsp_filter(FPEAK, 1710, 2.0, dB2gain(-4.8));
         dsp_filter(FPEAK,  917, 5.0, dB2gain(+3.0));
         dsp_filter(FHS2, 11500, 0.7, dB2gain(+6.0));
 
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
 
     if (dither>=0)
@@ -50,7 +50,7 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
     }
     dsp_STORE( DACOUT(outlow) ); // low driver
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(highpass);   //compute lowpass filter
     if (dither>=0)
          dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
@@ -107,15 +107,15 @@ int dspProg_3ways_LR4(){
     dsp_filter(FPEAK, 400, 1.0, dB2gain(0.0));
 
     int lplowbq = dspBiquad_Sections_Flexible();
-        dsp_HP_BUT2(hpdc);	// to remove DC, could be replaced by lpsub to complement subwoofer
-        dsp_LP_LR4(lplow);
+        dsp_HP_BUT2(hpdc,1.0);	// to remove DC, could be replaced by lpsub to complement subwoofer
+        dsp_LP_LR4(lplow,1.0);
 
     int midbq = dspBiquad_Sections_Flexible();
-        dsp_HP_LR4(hpmid);
-        dsp_LP_LR4(lpmid);
+        dsp_HP_LR4(hpmid,1.0);
+        dsp_LP_LR4(lpmid,1.0);
 
     int hphighbq = dspBiquad_Sections_Flexible();
-        dsp_HP_LR4(hphigh);
+        dsp_HP_LR4(hphigh,1.0);
 
     int leftmem  = dspMem_Location();
     int rightmem = dspMem_Location();
@@ -134,16 +134,16 @@ dsp_CORE();  // first core, stereo conditioning
 
     dsp_LOAD_GAIN_Fixed(leftin, attLeft);           // load input and apply a gain on the left channel
     dsp_BIQUADS(leftEQ);                            // compute EQs
-    dsp_STORE_MEM(leftmem);                         // store in temporary location for second core
+    dsp_STORE_X_MEM(leftmem);                         // store in temporary location for second core
 
     dsp_LOAD_GAIN_Fixed(rightin, attRight);
     dsp_BIQUADS(rightEQ);
-    dsp_STORE_MEM(rightmem);                        // store in temporary location for third core
+    dsp_STORE_X_MEM(rightmem);                        // store in temporary location for third core
 
 dsp_CORE();  // second core crossover low channel
     
     //low channel
-    dsp_LOAD_MEM(leftmem);
+    dsp_LOAD_X_MEM(leftmem);
     dsp_BIQUADS(lplowbq);   //compute lowpass filter
     if (dellow) dsp_DELAY_FixedMicroSec(dellow);
     if (dither>=0)
@@ -152,7 +152,7 @@ dsp_CORE();  // second core crossover low channel
     dsp_STORE( USBIN(leftlow) );    //optional fedback to USB Host for measurment with REW
     dsp_STORE( DACOUT(leftlow));
 
-    dsp_LOAD_MEM(rightmem);
+    dsp_LOAD_X_MEM(rightmem);
     dsp_BIQUADS(lplowbq);   //compute lowpass filter
     if (dellow) dsp_DELAY_FixedMicroSec(dellow);
     if (dither>=0)
@@ -164,7 +164,7 @@ dsp_CORE();  // second core crossover low channel
 dsp_CORE();  // third core crossover mid channel
 
     // mid channel
-    dsp_LOAD_MEM(leftmem);
+    dsp_LOAD_X_MEM(leftmem);
     dsp_BIQUADS(midbq);
     if (delmid) dsp_DELAY_FixedMicroSec(delmid);
     if (dither>=0)
@@ -173,7 +173,7 @@ dsp_CORE();  // third core crossover mid channel
     //dsp_STORE( USBIN(leftmid) );
     dsp_STORE( DACOUT(leftmid));
 
-    dsp_LOAD_MEM(rightmem);
+    dsp_LOAD_X_MEM(rightmem);
     dsp_BIQUADS(midbq);
     if (delmid) dsp_DELAY_FixedMicroSec(delmid);
     if (dither>=0)
@@ -185,7 +185,7 @@ dsp_CORE();  // third core crossover mid channel
 dsp_CORE();  // 4th core crossover high channel
 
     //high channel
-    dsp_LOAD_MEM(leftmem);
+    dsp_LOAD_X_MEM(leftmem);
     dsp_BIQUADS(hphighbq);
     if (delhigh) dsp_DELAY_FixedMicroSec(delhigh);
     if (dither>=0)
@@ -194,7 +194,7 @@ dsp_CORE();  // 4th core crossover high channel
     dsp_STORE( USBIN(lefthigh) );
     dsp_STORE( DACOUT(lefthigh));
 
-    dsp_LOAD_MEM(rightmem);
+    dsp_LOAD_X_MEM(rightmem);
     dsp_BIQUADS(hphighbq);
     if (delhigh) dsp_DELAY_FixedMicroSec(delhigh);
     if (dither>=0)

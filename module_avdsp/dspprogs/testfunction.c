@@ -45,10 +45,10 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     int nscoefs = dspDataTableFloat(noiseshaper, 3*6);
 
     int lowpass1 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES2(100);
+        dsp_LP_BES2(100,1.0);
 
     int lowpass2 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES4(1000);
+        dsp_LP_BES4(1000,1.0);
 
     dsp_CORE();
 //    dsp_TPDF_CALC(dither);           // generate triangular noise for dithering, ALU X contains 1bit noise at "dither" position,
@@ -99,7 +99,7 @@ int dspProg_testFloat(int dither){
     dsp_PARAM();
     int nscoefs = dspDataTableFloat(noiseshaper2, 3*6);
     int lowpass1 = dspBiquad_Sections_Flexible();
-        dsp_LP_BES2(1000);
+        dsp_LP_BES2(1000,1.0);
 
 
     dsp_CORE();

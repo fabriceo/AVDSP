@@ -73,7 +73,7 @@ static int parseSimpleValue(char * function, int *x, int*y, float*val){
     return 0;
 }
 
-const char * filterNames[] = {
+static const char * filterNames[] = {
    "PK",
    "APF",
    "SH",

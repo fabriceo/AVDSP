@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 #endif
 
     for(int nc=0; nc<nbcores; nc++) 
-        DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], dataPtr, inputOutput);    // simulate 1 fs cycle in the first task
+        DSP_RUNTIME_FORMAT(dspRuntime)(codeStart[nc], inputOutput, 0);    // simulate 1 fs cycle in the first task
 
 #if DSP_SAMPLE_FLOAT
     dspprintf("io(10) = %f\n",inputOutput[10]);

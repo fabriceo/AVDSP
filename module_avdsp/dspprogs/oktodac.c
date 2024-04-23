@@ -13,6 +13,8 @@
 // basic program providing a passtrough between USB and DAC/ADC
 int dspProgDAC8PRODSP(int dither){
 
+    return dsp_END_OF_CODE();
+
     dsp_CORE();  
 
     dsp_LOAD_STORE();   // cpu optimized version for a multiple LOAD and STORE sequence
@@ -279,7 +281,7 @@ int dspProgTest(){
 #endif
 
         int lowpass = dspBiquad_Sections_Flexible();
-        dsp_LP_BES6(800);
+        dsp_LP_BES6(800,1.0);
 
 
 
@@ -289,7 +291,7 @@ dsp_CORE();
         //dsp_LOAD_MUX(mux);
         dsp_LOAD_GAIN_Fixed( USBOUT(0) , 0.5 );
         dsp_BIQUADS(lowpass);
-        dsp_STORE_MEM(mem1);
+        dsp_STORE_X_MEM(mem1);
         dsp_SAT0DB_GAIN_Fixed(2.0);
         dsp_STORE( USBIN(0) );
 
@@ -297,7 +299,7 @@ dsp_CORE();
         dsp_LOAD_GAIN_Fixed( USBOUT(0) , 0.5 );
         dsp_DELAY_DP_FixedMicroSec(752000/800);
         //dsp_BIQUADS(allpass);
-        dsp_LOAD_MEM(mem1);
+        dsp_LOAD_X_MEM(mem1);
         dsp_SUBXY();
         dsp_NEGX();
         dsp_SAT0DB_GAIN_Fixed(2.0);

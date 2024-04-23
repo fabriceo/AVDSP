@@ -21,7 +21,7 @@ enum filterTypes {
         Fna1,LPLR2,LPLR3,LPLR4,Fna3,LPLR6,Fna4,LPLR8,   // linkwitz rilley
         Fna5,HPLR2,HPLR3,HPLR4,Fna7,HPLR6,Fna8,HPLR8,
         FLP1,FLP2,FHP1,FHP2,FLS1,FLS2,FHS1,FHS2,
-        FAP1,FAP2,FPEAK,FNOTCH, FBP0DB, FBPQ, FHILB            // other shelving, allpass, peaking, notch, bandpass
+        FAP1,FAP2,FPEAK,FNOTCH, FBP0DB, FBPQ, FHILB, FLT            // other shelving, allpass, peaking, notch, bandpass
 };
 
 
@@ -29,49 +29,52 @@ enum filterTypes {
 //prototypes from dsp_filter.c
 int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
 int dsp_Filter1stOrder(int type, dspFilterParam_t freq,  dspGainParam_t gain);
-int dsp_LP_BES2(dspFilterParam_t freq);
-int dsp_HP_BES2(dspFilterParam_t freq);
-int dsp_LP_BES2_3DB(dspFilterParam_t freq);
-int dsp_HP_BES2_3DB(dspFilterParam_t freq);
-int dsp_LP_BUT2(dspFilterParam_t freq);
-int dsp_HP_BUT2(dspFilterParam_t freq);
-int dsp_LP_LR2(dspFilterParam_t freq);
-int dsp_HP_LR2(dspFilterParam_t freq);
-int dsp_LP_BES3(dspFilterParam_t freq);
-int dsp_HP_BES3(dspFilterParam_t freq);
-int dsp_LP_BES3_3DB(dspFilterParam_t freq);
-int dsp_HP_BES3_3DB(dspFilterParam_t freq);
-int dsp_LP_BUT3(dspFilterParam_t freq);
-int dsp_HP_BUT3(dspFilterParam_t freq);
-int dsp_LP_LR3(dspFilterParam_t freq);
-int dsp_HP_LR3(dspFilterParam_t freq);
-int dsp_LP_BES4(dspFilterParam_t freq);
-int dsp_HP_BES4(dspFilterParam_t freq);
-int dsp_LP_BES4_3DB(dspFilterParam_t freq);
-int dsp_HP_BES4_3DB(dspFilterParam_t freq);
-int dsp_LP_BUT4(dspFilterParam_t freq);
-int dsp_HP_BUT4(dspFilterParam_t freq);
-int dsp_LP_LR4(dspFilterParam_t freq);
-int dsp_HP_LR4(dspFilterParam_t freq);
-int dsp_LP_BES6(dspFilterParam_t freq);
-int dsp_HP_BES6(dspFilterParam_t freq);
-int dsp_LP_BES6_3DB(dspFilterParam_t freq);
-int dsp_HP_BES6_3DB(dspFilterParam_t freq);
-int dsp_LP_BUT6(dspFilterParam_t freq);
-int dsp_HP_BUT6(dspFilterParam_t freq);
-int dsp_LP_LR6(dspFilterParam_t freq);
-int dsp_HP_LR6(dspFilterParam_t freq);
-int dsp_LP_BES8(dspFilterParam_t freq);
-int dsp_HP_BES8(dspFilterParam_t freq);
-int dsp_LP_BES8_3DB(dspFilterParam_t freq);
-int dsp_HP_BES8_3DB(dspFilterParam_t freq);
-int dsp_LP_BUT8(dspFilterParam_t freq);
-int dsp_HP_BUT8(dspFilterParam_t freq);
-int dsp_LP_LR8(dspFilterParam_t freq);
-int dsp_HP_LR8(dspFilterParam_t freq);
+int dsp_LP_BES2(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES2(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES2_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES2_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BUT2(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BUT2(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_LR2(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_LR2(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES3(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES3(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES3_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES3_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BUT3(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BUT3(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_LR3(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_LR3(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES4(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES4(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES4_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES4_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BUT4(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BUT4(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_LR4(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_LR4(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES6(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES6(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES6_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES6_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BUT6(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BUT6(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_LR6(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_LR6(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES8(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES8(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BES8_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BES8_3DB(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_BUT8(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_BUT8(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_LP_LR8(dspFilterParam_t freq, dspGainParam_t gain);
+int dsp_HP_LR8(dspFilterParam_t freq, dspGainParam_t gain);
 
 //generic function
 int dsp_filter(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
 //hilbert
 int dsp_Hilbert(int stages, dspFilterParam_t transition, dspGainParam_t phase);
+//LT
+int dsp_FilterLT(dspFilterParam_t f0, dspFilterParam_t Q0, dspFilterParam_t fp, dspFilterParam_t Qp, dspGainParam_t gain);
+
 #endif /* DSP_FILTERS_H_ */

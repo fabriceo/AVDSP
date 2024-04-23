@@ -32,6 +32,8 @@ int  opcodeIndexMisAligned8();
  int  dsp_END_OF_CODE();
  void dsp_NOP();
  void dsp_CORE();
+ void dsp_CORE_Prog(unsigned progAny1, unsigned progAny0);
+ void dsp_SECTION(unsigned progAny1, unsigned progAny0);
  void dsp_SERIAL(unsigned hash);
 
  void dsp_SWAPXY();
@@ -44,7 +46,8 @@ int  opcodeIndexMisAligned8();
  void dsp_SUBXY();
  void dsp_SUBYX();
  void dsp_MULXY();
- void dsp_DIVXY();
+ void dsp_MULYX();
+  void dsp_DIVXY();
  void dsp_DIVYX();
  void dsp_AVGXY();
  void dsp_AVGYX();
@@ -58,6 +61,8 @@ int  opcodeIndexMisAligned8();
  int dsp_TPDF(int bits);
  // load the ALU with the random number
  void dsp_WHITE();
+ //saturate the ALU to keep value between -1..+1 and apply a volume and a potential reduction computed automatically
+ void dsp_SAT0DB_VOL(int IO);
  //saturate the ALU to keep value between -1..+1 and transform to s.31 format (for int64 ALU)
  void dsp_SAT0DB();
  //apply a gain before saturation
@@ -87,8 +92,13 @@ int  opcodeIndexMisAligned8();
  // describe each couple IO - gain
  void dspLoadMux_Data(int in, dspGainParam_t gain);
 
- // store a s.31 sample from ALU lsb. msb is discarded
+ // store a s.31 sample from ALU
  void dsp_STORE(int IO);
+ // store a s.31 sample from ALU
+ void dsp_STORE_TPDF(int IO);
+ // store a sample in s.31 and apply a gain
+  void dsp_STORE_GAIN(int IO, int paramAddr);
+  void dsp_STORE_GAIN_Fixed(int IO, dspGainParam_t gain);
 
 // load inputs and store them imediately (32 bits)
  void dsp_LOAD_STORE();
@@ -96,17 +106,29 @@ int  opcodeIndexMisAligned8();
  void dspLoadStore_Data(int memin, int memout);
 
 // load a memory (64 bits) location in the ALU
- void dsp_LOAD_MEM(int paramAddr);
+ void dsp_LOAD_X_MEM(int paramAddr);
  //store ALU (64 bits) in memory location
- void dsp_STORE_MEM(int paramAddr);
+ void dsp_STORE_X_MEM(int paramAddr);
  // load a memory (64 bits) location in the ALU
-  void dsp_LOAD_MEM_Index(int paramAddr, int index);
+  void dsp_LOAD_X_MEM_Index(int paramAddr, int index);
   //store ALU (64 bits) in memory location
-  void dsp_STORE_MEM_Index(int paramAddr, int index);
+  void dsp_STORE_X_MEM_Index(int paramAddr, int index);
+  // load a memory (64 bits) location in the ALU
+   void dsp_LOAD_Y_MEM(int paramAddr);
+   //store ALU (64 bits) in memory location
+   void dsp_STORE_Y_MEM(int paramAddr);
+   // load a memory (64 bits) location in the ALU
+    void dsp_LOAD_Y_MEM_Index(int paramAddr, int index);
+    //store ALU (64 bits) in memory location
+    void dsp_STORE_Y_MEM_Index(int paramAddr, int index);
  // define a memory location within opcode table. to be used within PARAM or PARAM_NUM
  int  dspMem_Location();
  // define multiple locations so that STORE_MEM_Indexed can be used
  int  dspMem_LocationMultiple(int number);
+
+ //same as dsp_LOAD_MUX but with parameters just below, not in param section
+ void dsp_MIXER();
+ void dspMixer_Data(int in,  dspGainParam_t gain);
 
 // initialize an area of data (biquad, gain, delay line, matrix...)
  int  dsp_PARAM();
@@ -127,22 +149,11 @@ int  opcodeIndexMisAligned8();
  int  dspGain_Default(dspGainParam_t gain);
 
  //load a value in the ALU (previous ALU moved to ALU2)
- void dsp_VALUE_Fixed(float value);
- void dsp_VALUE_FixedInt(int value);
- void dsp_VALUE(int paramAddr);
+ void dsp_VALUEX_Fixed(float value);
+ void dsp_VALUEX(int paramAddr);
+ void dsp_VALUEY_Fixed(float value);
+ void dsp_VALUEY(int paramAddr);
  int  dspValue_Default(float value);
-
- // divide the ALU by a fixed number coded 4.28
- void dsp_DIV_Fixed(float value);
- // divide the ALU by a fixed int32 number
- void dsp_DIV_FixedInt(int value);
-
- // multiply the ALU by a fixed number coded 4.28
- void dsp_MUL_Fixed(float value);
- // multiply the ALU by a fixed int32 number
- void dsp_MUL_FixedInt(int value);
-
- void dsp_AND_FixedInt(int value);
 
  // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);

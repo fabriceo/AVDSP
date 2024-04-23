@@ -1,0 +1,59 @@
+### example ###
+
+################
+### CONSTANT ###
+################
+
+gain_inputs 	-3db
+LP_cutoff		= 400 -2*3+1
+
+DACout 0
+AESin  8
+USBout 16
+USBin  24
+leftin		=USBout+0
+rightin		=USBout+1
+leftout 	=DACout+0
+rightout 	=DACout+1
+
+#######################
+### MEM and FILTERS ###
+#######################
+
+temp_mem	MEM
+low_pass	LPLR4( LP_cutoff , -6db )  
+high_pass	HP2(1000, 0.7, 0db) ; HP2(1500, 0.7, 0db)
+
+###############
+### PROGRAM ###
+###############
+
+core 
+inputgain leftin gain_inputs ; inputgainadd rightin gain_inputs
+savemem temp_mem
+delayone
+loadmem temp_mem
+dcblock 10
+biquad low_pass
+saturategain 1.0
+delayus 100
+output leftout
+output rightout
+end
+
+core
+
+biquad 
+saturate
+delay 100
+delayone
+output 9
+
+core
+loadmem 0
+biquad HPLR4 400 1.0
+saturate 1.0
+delay 100
+delayone
+output 10
+

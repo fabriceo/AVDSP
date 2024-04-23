@@ -45,7 +45,7 @@ int delaysubright = 0;
 // lipsitch vanderkoy crossover, using delay and substraction
 void crossoverLV(int lowpass, int loweq, int mideq, int in, int outlow, int outhigh){
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_COPYXY();
     dsp_DELAY_DP_FixedMicroSec( gd );
     dsp_SWAPXY();
@@ -72,7 +72,7 @@ void crossoverLV(int lowpass, int loweq, int mideq, int in, int outlow, int outh
 
 void crossoverLR2(int lowpass, int loweq, int highpass, int mideq, int in, int outlow, int outmid){
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
     dsp_BIQUADS(loweq);
     if (dither>=0)
@@ -81,7 +81,7 @@ void crossoverLR2(int lowpass, int loweq, int highpass, int mideq, int in, int o
     dsp_STORE( USBIN(outlow) );
     dsp_STORE( DACOUT(outlow));
 
-    dsp_LOAD_MEM(in);
+    dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(highpass);
     dsp_BIQUADS(mideq);
     if (dither>=0)
@@ -134,9 +134,9 @@ if (ftype == LPLR2) {
 	int freq;
     lowpass = dspBiquad_Sections_Flexible();
 	switch (ftype) {
-		case LPBE4 : freq = fx * 1.111;  gd =  526140/freq; dsp_LP_BES4(freq); break;
-		case LPBE6 : freq = fx * 1.2563; gd =  759230/freq; dsp_LP_BES6(freq); break;
-		case LPBE8 : freq = fx * 1.391;  gd = 1020994/freq; dsp_LP_BES8(freq); break;
+		case LPBE4 : freq = fx * 1.111;  gd =  526140/freq; dsp_LP_BES4(freq,1.0); break;
+		case LPBE6 : freq = fx * 1.2563; gd =  759230/freq; dsp_LP_BES6(freq,1.0); break;
+		case LPBE8 : freq = fx * 1.391;  gd = 1020994/freq; dsp_LP_BES8(freq,1.0); break;
 	}	
 }
 
@@ -198,11 +198,11 @@ dsp_CORE();  // first core, stereo conditioning
 
     dsp_LOAD_GAIN_Fixed(leftin, attn);           // load input and apply a gain 
     dsp_BIQUADS(frontEQ);                        // compute EQs
-    dsp_STORE_MEM(leftmem);                      // store in temporary location for second core
+    dsp_STORE_X_MEM(leftmem);                      // store in temporary location for second core
 
     dsp_LOAD_GAIN_Fixed(rightin, attn);
     dsp_BIQUADS(frontEQ);
-    dsp_STORE_MEM(rightmem);                        // store in temporary location for third core
+    dsp_STORE_X_MEM(rightmem);                        // store in temporary location for third core
 
 if (ftype == LPLR2) {
 
@@ -227,7 +227,7 @@ if ( sub ) {
     dsp_CORE();  // 4th core for subwoofers
 
     if (sub == 2)
-         dsp_LOAD_MEM(rightmem);
+         dsp_LOAD_X_MEM(rightmem);
     else dsp_LOAD_MUX(avgLR);        // load and mix left+right
     dsp_BIQUADS(rightsubEQ);
     if (sub == 1) dsp_COPYXY();     // temporary store EQed
@@ -237,7 +237,7 @@ if ( sub ) {
     dsp_STORE( DACOUT(rightsub));
 
     if (sub == 2) {
-        dsp_LOAD_MEM(leftmem);
+        dsp_LOAD_X_MEM(leftmem);
         dsp_BIQUADS(leftsubEQ);
     } else dsp_COPYYX();            // retreive stored value
     dsp_SAT0DB_GAIN_Fixed( gainsubleft );

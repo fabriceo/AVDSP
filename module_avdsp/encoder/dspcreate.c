@@ -12,6 +12,7 @@
 #include <dlfcn.h>
 
 extern int minidspCreateParameters(char * xmlName);
+extern int dspbasicCreate(char * fileName, int argc, char ** argv);
 
 #define opcodesMax 10000                 // just to define a maximum, could be up to 65000 (=256kbytes)
 
@@ -20,14 +21,21 @@ extern int minidspCreateParameters(char * xmlName);
 int freqMin = DSP_DEFAULT_MIN_FREQ;     // default value from header.h
 int freqMax = DSP_DEFAULT_MAX_FREQ;
 
-const char * hexBegin = "const unsigned int dspFactory[] = {";
-const char * hexEnd = "};";
+const char * hexBegin =
+        "#define DSP_CODESIZE %d\n"
+        "#define DSP_DATASIZE %d\n"
+        "#define DSP_NUMCORES %d\n"
+        "const unsigned int __attribute__((aligned(8))) dspCodeArray[ DSP_CODESIZE ] = {\n";
+const char * hexEnd =
+        "};\n"
+        " unsigned int __attribute__((aligned(8))) dspDataArray[ DSP_DATASIZE ];\n\t";
 
 void usage() {
     fprintf(stderr,"command line options:\n");
-    fprintf(stderr,"-dspprog name \n");
+    fprintf(stderr,"-dspprog   <libfilename> \n");
+    fprintf(stderr,"-dspbasic  <textfilename> \n");
     fprintf(stderr,"-dspformat <2..6> \n");
-    fprintf(stderr,"-binfile <filename> -hexfile <filename> -dumpfile <filename>\n");
+    fprintf(stderr,"-binfile   <filename> -hexfile <filename> -dumpfile <filename>\n");
     fprintf(stderr,"[dsprogs paramaters ...] \n");
 }
 
@@ -41,6 +49,7 @@ int main(int argc, char **argv) {
     char *dumpFileName = NULL;
     char *dspProgName = NULL;
     char *minidspProgName = NULL;
+    char *dspbasicProgName = NULL;
     int outFileType = 0;
     int defaultType = DSP_FORMAT_FLOAT;
     int i,size;
@@ -59,6 +68,12 @@ int main(int argc, char **argv) {
                      minidspProgName = argv[i];
                      continue; } }
 
+        if (strcmp(argv[i],"-dsptext") == 0) {
+                i++;
+                if (argc>i) {
+                     dspbasicProgName = argv[i];
+                     continue; } }
+
         if (strcmp(argv[i],"-dspprog") == 0) {
                 i++;
                 if (argc>i) {
@@ -70,63 +85,76 @@ int main(int argc, char **argv) {
                     binFileName = argv[i];
                     outFileType |= 1;
                     continue; } }
-            if (strcmp(argv[i],"-hexfile") == 0) {
-                i++;
-                if (argc>i) {
-                    hexFileName = argv[i];
-                    outFileType |= 2;
-                    continue; } }
-            if (strcmp(argv[i],"-asmfile") == 0) {
-                i++;
-                if (argc>i) {
-                    asmFileName = argv[i];
-                    outFileType |= 4;
-                    continue; } }
-            if (strcmp(argv[i],"-dumpfile") == 0) {
-                i++;
-                if (argc>i) {
-                    dumpFileName = argv[i];
-                    outFileType |= 8;
-                    dumpFileInit(dumpFileName);
-                    continue; } }
-            if (strcmp(argv[i],"-dspformat") == 0) {
-                i++;
-                if (argc>i) {
-                    defaultType = strtol(argv[i], &perr,10);
-                    continue; } }
-            if (strcmp(argv[i],"-fsmin") == 0) {
-                i++;
-                if (argc>i) {
-                    int f = strtol(argv[i], &perr,10);
-                    int res = dspConvertFrequencyToIndex(f);
-                    if (res >= FMAXpos) {
-                        fprintf(stderr,"Could not find this sampling rate %d\n",f);
-                        exit(-1); }
-                    freqMin = res;
-                    continue; } }
-            if (strcmp(argv[i],"-fsmax") == 0) {
-                i++;
-                if (argc>i) {
-                    int f = strtol(argv[i], &perr,10);
-                    int res = dspConvertFrequencyToIndex(f);
-                    if (res >= FMAXpos) {
-                        fprintf(stderr,"Could not find this sampling rate %d\n",f);
-                        exit(-1); }
-                    fprintf(stderr,"sampling rate max = %d (%d)\n",f,res);
-                    freqMax = res;
-                    continue; } }
+        if (strcmp(argv[i],"-hexfile") == 0) {
+            i++;
+            if (argc>i) {
+                hexFileName = argv[i];
+                outFileType |= 2;
+                continue; } }
+        if (strcmp(argv[i],"-asmfile") == 0) {
+            i++;
+            if (argc>i) {
+                asmFileName = argv[i];
+                outFileType |= 4;
+                continue; } }
+        if (strcmp(argv[i],"-dumpfile") == 0) {
+            i++;
+            if (argc>i) {
+                dumpFileName = argv[i];
+                outFileType |= 8;
+                dumpFileInit(dumpFileName);
+                continue; } }
+        if (strcmp(argv[i],"-dspformat") == 0) {
+            i++;
+            if (argc>i) {
+                defaultType = strtol(argv[i], &perr,10);
+                continue; } }
+        if (strcmp(argv[i],"-fsmin") == 0) {
+            i++;
+            if (argc>i) {
+                int f = strtol(argv[i], &perr,10);
+                int res = dspConvertFrequencyToIndex(f);
+                if (res >= FMAXpos) {
+                    fprintf(stderr,"Could not find this sampling rate %d\n",f);
+                    exit(-1); }
+                freqMin = res;
+                continue; } }
+        if (strcmp(argv[i],"-fsmax") == 0) {
+            i++;
+            if (argc>i) {
+                int f = strtol(argv[i], &perr,10);
+                int res = dspConvertFrequencyToIndex(f);
+                if (res >= FMAXpos) {
+                    fprintf(stderr,"Could not find this sampling rate %d\n",f);
+                    exit(-1); }
+                fprintf(stderr,"sampling rate max = %d (%d)\n",f,res);
+                freqMax = res;
+                continue; } }
 	    break;
     }
 
-    if (minidspProgName != NULL)
+    /*
+        if( dumpFileName == NULL) {
+            fprintf(stderr,"-dumpfile name Needed\n\n");
+        usage();
+        exit(-1);
+        }
+    */
+
+    if (minidspProgName != NULL)    //experimental
         if (minidspCreateParameters(minidspProgName)) exit(-1);
-/*
-    if( dumpFileName == NULL) {
-    	fprintf(stderr,"-dumpfile name Needed\n\n");
-	usage();
-	exit(-1);
-    }
-*/
+
+    if (dspbasicProgName != NULL) {
+        dspEncoderInit( opcodes,            // table where we store the generated opcodes
+                        max,                // max number of words in this table
+                        defaultType,        // format of the dsp : int64, float or double (see runtime.h)
+                        freqMin, freqMax,   // list of frequencies treated by runtime. used to pre-generate biquad coef and delay lines
+                        inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
+
+        size = dspbasicCreate(dspbasicProgName, argc-i,&argv[i]);
+        if (size <0) exit(size);
+    } else {
+
     if(dspProgName == NULL) {
     	fprintf(stderr,"-dspprog name Needed\n\n");
 	usage();
@@ -151,6 +179,7 @@ int main(int argc, char **argv) {
                     inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
 
 	size = dspProg(argc-i,&argv[i]);     
+    }
 
     if (size > 0) {
         dspprintf("DSP program file successfully generated \n");
@@ -159,7 +188,8 @@ int main(int argc, char **argv) {
             dspprintf("stored in-> %s\n",binFileName);
         }
         if (outFileType & 2) {
-            dspCreateIntFile(hexFileName, (int*)opcodes, size, (char*)hexBegin, (char*)hexEnd);
+            dspHeader_t *head = (dspHeader_t*)opcodes;
+            dspCreateIntFile(hexFileName, (int*)opcodes, size, head->dataSize, head->numCores, (char*)hexBegin, (char*)hexEnd);
             dspprintf("stored in-> %s\n",hexFileName);
         }
         if (outFileType & 4) {

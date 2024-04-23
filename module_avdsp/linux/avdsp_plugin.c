@@ -123,7 +123,7 @@ dsp_transfer(snd_pcm_extplug_t *ext,
 	        }
 	
 	        // execute one dsp core
-	        DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], dsp->dataPtr, inputOutput);
+	        DSP_RUNTIME_FORMAT(dspRuntime)(dsp->codestart[nc], inputOutput, 0);
 
 	        // extract results of the job done by the dspruntime and put it out as S32_LE stream
 	        for(ch = 0; ch < dsp->coreio[nc].nbchout; ch++) {

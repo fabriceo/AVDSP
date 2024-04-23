@@ -38,95 +38,92 @@
 
 // list of all DSP supported opcode as of this version. The last opcode is marked in the header
 enum dspOpcodesEnum {
-    DSP_END_OF_CODE,    // this opcode value is 0 and its length is 0 as a convention
+    DSP_END_OF_CODE,    // 0 this opcode value is 0 and its length is 0 as a convention
     DSP_HEADER,         // contain summary information about the program.
-    DSP_NOP,            // sometime used to align opcode adress start to a 8byte cell
-    DSP_CORE,           // used to separate each dsp code trunck and distribute opcodes on multiple tasks.
     DSP_PARAM,          // define an area of data (or parameters), like a sine wave or biquad coefs or any kind of data in fact
     DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and each param_num section can be accessed separately
-    DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
+    DSP_NOP,            // sometime used to align opcode adress start to a 8byte cell
+    DSP_CORE,           // used to separate each dsp code trunck and distribute opcodes on multiple tasks.
+    DSP_SECTION,        //conditional section.
+
+/* IO engine */
+    DSP_LOAD,           // 6 load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
+    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
+    DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
+
+    DSP_STORE_TPDF,     //apply a gain and store result in an output
+    DSP_STORE_GAIN,     //apply a gain and store result in an output
+    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. result is double precision
+    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is double precision
+    DSP_MIXER,          // load all inputs with their respective gain, couples stores below opcode
+
+    DSP_LOAD_X_MEM,       // load a memory location 64bits into the ALU "X" without any conversion.
+    DSP_STORE_X_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
+    DSP_LOAD_Y_MEM,       // load a memory location 64bits into the ALU "X" without any conversion.
+    DSP_STORE_Y_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
+
+    DSP_LOAD_MEM_DATA,  // load the double precision value stored in data space at an absolute adress
 
 /* math engine */
-    DSP_TPDF_CALC,      // generate radom number (white & triangular) and prepare for dithering bit Nth
-    DSP_TPDF,           // prepare for dithering at bit N as parameter
-    DSP_WHITE,          // load the random int32 number that was generated for the tpdf
-    DSP_CLRXY,          // clear both ALU register
+
+    DSP_CLRXY,          // 15 clear both ALU register
     DSP_SWAPXY,         // exchange ALU X with second one "Y".
     DSP_COPYXY,         // copy ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
-
     DSP_ADDXY,          // perform X = X + Y, 64 bits
     DSP_ADDYX,          // perform Y = X + Y
     DSP_SUBXY,          // perform X = X - Y
     DSP_SUBYX,          // perform Y = Y - X
     DSP_MULXY,          // perform X = X * Y
+    DSP_MULYX,          // perform X = X * Y
     DSP_DIVXY,          // perform X = X / Y
     DSP_DIVYX,          // perform Y = Y / X
     DSP_AVGXY,          // perform X = X/2 + Y/2;
     DSP_AVGYX,          // perform Y = X/2 + Y/2;
     DSP_NEGX,           // perform X = -X
     DSP_NEGY,           // perform Y = -Y
-    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
     DSP_SHIFT,          // perform shift left or right if param is negative
-    DSP_VALUE,          // load an imediate value qnm or float
-    DSP_VALUE_INT,      // load an imediate int32 value without conversion
-    DSP_MUL_VALUE,      // perform X = X * V where V is provided as a parameter (qnm or float)
-    DSP_MUL_VALUE_INT,  // perform X = X * V where V is provided as a pure int32 value
-    DSP_DIV_VALUE,      // perform X = X / V where V is provided as a parameter (qnm or float)
-    DSP_DIV_VALUE_INT,  // perform X = X / V where V is provided as a pure int32 value
-    DSP_AND_VALUE_INT,  // perform X = X & V (bitwise and) where V is provided as a pure int32 value
+    DSP_VALUEX,          // load an imediate value qnm or float
+    DSP_VALUEY,      // load an imediate int32 value without conversion
 
-/* IO engine */
-    DSP_LOAD,           // load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
-                        // eg physical ADC input number = position in the sample array
-    DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. result is double precision
-
-    DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is double precision
-
-    DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
-
-    DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
-
-    DSP_LOAD_MEM,       // load a memory location 64bits into the ALU "X" without any conversion. ALU X saved in ALU Y
-    DSP_STORE_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
 
 /* gains */
-    DSP_GAIN,           // apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
+    DSP_GAIN,           // 38 apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
+    DSP_CLIP,           // check wether the sample is reaching the thresold given and maximize/minize it accordingly.
 
-    DSP_SAT0DB,         // verify boundaries -1/+1. input as s4.59, output as 33.31 (s.31 in lsb only)
+    DSP_SAT0DB,         // verify boundaries -1/+1.
+    DSP_SAT0DB_VOL,     // apply volume and then verify boundaries -1/+1.
     DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
     DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries as above
     DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries as above
+    DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* delays */
-    DSP_DELAY_1,        // equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
+    DSP_DELAY_1,        // 45 equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
+    DSP_DELAY,          // 46 execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
+    DSP_DELAY_DP,       // 47 same as DSP_DELAY but 64bits (twice data space required ofcourse)
 
-    DSP_DELAY,          // execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
-
-    DSP_DELAY_DP,       // same as DSP_DELAY but 64bits (twice data space required ofcourse)
-
-/* table of data */
-    DSP_DATA_TABLE,      // extract one sample of a data block. typically used for sinewave generation
 
 /* filters */
     DSP_BIQUADS,        // execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
+    DSP_DCBLOCK,        // remove any DC offset. equivalent to first order high pass with noise reinjection
 
-    DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
-
-    DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
-    DSP_DCBLOCK,        // remove any DC offset
+/* specials */
+    DSP_DATA_TABLE,      // extract one sample of a data block. typically used for wave generation
+    DSP_TPDF_CALC,      // generate radom number (white & triangular) and prepare for dithering bit Nth
+    DSP_TPDF,           // prepare for dithering at bit N as parameter
+    DSP_WHITE,          // load the random int32 number that was generated for the tpdf
     DSP_DITHER,         // add dithering on bit x and noise shapping
     DSP_DITHER_NS2,     // same with custom noise shapping factors
     DSP_DISTRIB,        // experimental : distribute the value of ALU towards a table[N] and provide table[i] as outcome. Used to show the noise distibution on a scope view
     DSP_DIRAC,          // generate a single sample pulse at a given frequency. frequency and pulse amplitude depends on provided float number
     DSP_SQUAREWAVE,     // generate a square waved (zero symetrical) at a given frequency and amplitude
-    DSP_CLIP,           // check wether the sample is reaching the thresold given and maximize/minize it accordingly.
+    DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
+    DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
+    DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
+    DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
     // new code after release 1.0
-    DSP_LOAD_MEM_DATA,  // load the double precision value stored in data space at an absolute adress
-
-    // new code after release 1.1 (october 2023)
-    DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };
@@ -196,8 +193,8 @@ typedef long long __attribute__((aligned(8))) dspAligned64_t;
 
 typedef union opcode_u {
     struct opcode_s {   // both coded in a single word
-        unsigned short skip;
-        unsigned short opcode; } op;
+        short skip;
+        short opcode; } op;
     struct short_s {
         short low;
         short high; } s16;
@@ -224,7 +221,6 @@ typedef struct dspHeader_s {    // 11 words
 /* 9 */     unsigned usedInputs;    // bit mapping of all used inputs  (max 32 in this version)
 /* 10 */    unsigned usedOutputs;   // bit mapping of all used outputs (max 32 in this version)
 /* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
-                                    // this location might be reused for a global Volume
         } dspHeader_t;
 
 
@@ -236,13 +232,18 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
     *numCore = 0;
     unsigned int p = 0;
     while(1){
-        int code = ptr->op.opcode;
-        unsigned int skip = ptr->op.skip;
+        enum dspOpcodesEnum code = ptr->op.opcode;
+        int skip = ptr->op.skip;
         if (skip == 0) {
             if (*numCore == 0) *numCore = 1;
             break;   // end of program encountered
         }
         if (code == DSP_CORE) (*numCore)++;
+        if ( ( *numCore == 0 ) &&   //any first opcode will generate a core
+                (code != DSP_HEADER) &&
+                (code != DSP_NOP) &&
+                (code != DSP_PARAM) &&
+                (code != DSP_PARAM_NUM) ) *numCore = 1;
         *sum += ptr->u32;
         p += skip;
         if (p > maxcode) { dspprintf("BUGG in memory : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // fatal issue
@@ -255,13 +256,14 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
 // suggested format is 4.28 for parameters, gain and filters coeficients.
 // for INT32, DSP_MANT is maximum 15 by design
 // minimum is 8 by design
+// remark for XS2/XS3 architecture, this value MUST be modified also in the assembly file as it is not passed as parameter
 #ifndef DSP_MANT
 #define DSP_MANT 28
 #endif
 
 // this defines the precision and format for the biquad coefficient ONLY.
 // suggested same as DSP_MANT but not mandatory, absolute maximum is 30, to allow coeff between -2..+1.999
-// remark for XS2/XS3 architecture, this value MUST be modified also in the dsp_biquadXS2.S assembly file as it is not passed as parameter
+// remark for XS2/XS3 architecture this value is forced same as DSP_MANT
 #ifndef DSP_MANTBQ
 #define DSP_MANTBQ 28
 #endif

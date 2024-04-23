@@ -42,7 +42,7 @@ void dspFilter1stOrder( int type,
         alpha = 1.0 + tw2;
         *a1 = ( (1.0-tw2) / alpha );
         *b0 =  1.0 / alpha * gain;
-        *b1 = -1.0 / alpha * gain;
+        *b1 = -*b0;
     break; }
     case FHS1: {
         dspFilterParam_t A = sqrt(gain);
@@ -123,14 +123,14 @@ void dspFilter2ndOrder( int type,
         *b2 = *b0;
         break; }
     case FBPQ : { // peak gain = Q
-        *b0= sw0/2.0 / a0;
+        *b0= sw0/2.0 / a0 * gain;
         *b1 = 0;
-        *b2 = -sw0/2.0 / a0;
+        *b2 = -*b0;
         break; }
     case FBP0DB : { // 0DB peak gain
-        *b0= alpha / a0;
+        *b0= alpha / a0 * gain;
         *b1 = 0;
-        *b2 = -alpha / a0;
+        *b2 = -*b0;
     break; }
     case FPEAK: {
         dspFilterParam_t A = sqrt(gain);
@@ -164,12 +164,63 @@ void dspFilter2ndOrder( int type,
     } //switch
 }
 
+void dspFilterLT(
+        dspFilterParam_t fs,
+        dspFilterParam_t f0,
+        dspFilterParam_t Q0,
+        dspFilterParam_t fp,
+        dspFilterParam_t Qp,
+        dspGainParam_t   gain,
+        dspFilterParam_t * b0,
+        dspFilterParam_t * b1,
+        dspFilterParam_t * b2,
+        dspFilterParam_t * a1,
+        dspFilterParam_t * a2
+ ) {
+    dspFilterParam_t a0,c0,c1,d0,d1,fc,gn,gn2;
+    d0 = (2.0 * M_PI * f0 ); d0 *= d0;
+    c0 = (2.0 * M_PI * fp ); c0 *= c0;
+    d1 = (2.0 * M_PI * f0 / Q0);
+    c1 = (2.0 * M_PI * fp / Qp);
+    fc = (f0 + fp) / 2.0;
+    gn = 2.0 * M_PI * fc / tan( M_PI * fc/fs);
+    gn2 = gn * gn;
+    a0 = c0 + gn * c1 + gn2;
+    *b0 = (d0 + gn * d1 + gn2 ) / a0;
+    *b1 = 2.0 * (d0 - gn2) / a0;
+    *b2 = (d0 - gn * d1 + gn2) / a0;
+    *a1 = - 2.0 * (c0 - gn2) / a0;
+    *a2 = - (c0 - gn * c1 + gn2) / a0;
+}
 
 // from dsp_encoder.c
 extern int  addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2);
 extern int  addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
 extern void sectionBiquadCoeficientsBegin();
 extern void sectionBiquadCoeficientsEnd();
+
+int dsp_FilterLT(dspFilterParam_t f0, dspFilterParam_t Q0, dspFilterParam_t fp, dspFilterParam_t Qp, dspGainParam_t gain){
+    int coefPtr = 0;
+    dspFilterParam_t a1, a2, b0, b1, b2;
+    sectionBiquadCoeficientsBegin();
+    for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
+        dspFilterParam_t fs = dspConvertFrequencyFromIndex(f);
+        dspFilterLT(fs, f0, Q0, fp, Qp, gain, &b0, &b1, &b2, &a1, &a2);
+
+        if (coefPtr==0) {
+            coefPtr =  addFilterParams(FLT, f0, Q0, gain);
+            dspprintf2("FILTER f0 = %f, Q0 = %f, fp = %f, Qp = %f, G = %f\n", f0, Q0, fp, Qp, gain);
+            dspprintf3(" b0 = %f, ",b0);
+            dspprintf3(" b1 = %f,",b1);
+            dspprintf3(" b2 = %f,",b2);
+            dspprintf3(" a1 = %f, ",a1);
+            dspprintf3(" a2 = %f\n",a2); }
+        addBiquadCoeficients(b0, b1, b2, a1, a2);
+    }
+    sectionBiquadCoeficientsEnd();
+    return coefPtr;
+}
+
 
 int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain){
     int coefPtr = 0;
@@ -238,277 +289,277 @@ int dsp_Hilbert(int stages, dspFilterParam_t transition, dspGainParam_t phase){
 }
 
 
-int dsp_LP_BES2(dspFilterParam_t freq) {   // low pass cutoff freq is in phase with high pass cutoff
-    return dsp_Filter2ndOrder(FLP2, freq, 0.57735026919 , 1.0); }
+int dsp_LP_BES2(dspFilterParam_t freq, dspGainParam_t gain) {   // low pass cutoff freq is in phase with high pass cutoff
+    return dsp_Filter2ndOrder(FLP2, freq, 0.57735026919 , gain); }
 
-int dsp_LP_BES2_3DB(dspFilterParam_t freq) {   // cutoff is at -3db, but not in phase with high pass
-    return dsp_LP_BES2(freq * 1.27201964951);
+int dsp_LP_BES2_3DB(dspFilterParam_t freq, dspGainParam_t gain) {   // cutoff is at -3db, but not in phase with high pass
+    return dsp_LP_BES2(freq * 1.27201964951, gain);
 }
 
-int dsp_HP_BES2(dspFilterParam_t freq) {   // high pass cutoff freq is in phase with low pass cutoff
-    return dsp_Filter2ndOrder(FHP2, freq, 0.57735026919 , 1.0); }
+int dsp_HP_BES2(dspFilterParam_t freq, dspGainParam_t gain) {   // high pass cutoff freq is in phase with low pass cutoff
+    return dsp_Filter2ndOrder(FHP2, freq, 0.57735026919 , gain); }
 
-int dsp_HP_BES2_3DB(dspFilterParam_t freq) {   // cutoff is at -3db, but not in phase with low pass
-    return dsp_HP_BES2(freq / 1.27201964951);
+int dsp_HP_BES2_3DB(dspFilterParam_t freq, dspGainParam_t gain) {   // cutoff is at -3db, but not in phase with low pass
+    return dsp_HP_BES2(freq / 1.27201964951, gain);
 }
 
-int  dsp_LP_BUT2(dspFilterParam_t freq) {
-    return dsp_Filter2ndOrder(FLP2, freq, M_SQRT1_2 , 1.0); }
+int  dsp_LP_BUT2(dspFilterParam_t freq, dspGainParam_t gain) {
+    return dsp_Filter2ndOrder(FLP2, freq, M_SQRT1_2 , gain); }
 
-int dsp_HP_BUT2(dspFilterParam_t freq) {
-    return dsp_Filter2ndOrder(FHP2, freq, M_SQRT1_2 , 1.0);
+int dsp_HP_BUT2(dspFilterParam_t freq, dspGainParam_t gain) {
+    return dsp_Filter2ndOrder(FHP2, freq, M_SQRT1_2 , gain);
 }
 
-int dsp_LP_LR2(dspFilterParam_t freq) { // -6db cutoff at fc ?
-    return dsp_Filter2ndOrder(FLP2, freq, 0.5 , 1.0); }
+int dsp_LP_LR2(dspFilterParam_t freq, dspGainParam_t gain) { // -6db cutoff at fc ?
+    return dsp_Filter2ndOrder(FLP2, freq, 0.5 , gain); }
 
-int dsp_HP_LR2(dspFilterParam_t freq) { // -6db cutoff ? 180 deg phase shift vs low pass
-    return dsp_Filter2ndOrder(FHP2, freq, 0.5 , 1.0); }
+int dsp_HP_LR2(dspFilterParam_t freq, dspGainParam_t gain) { // -6db cutoff ? 180 deg phase shift vs low pass
+    return dsp_Filter2ndOrder(FHP2, freq, 0.5 , gain); }
 
 
 
-int dsp_LP_BES3(dspFilterParam_t freq) {   // low pass cutoff freq is in phase with high pass cutoff
+int dsp_LP_BES3(dspFilterParam_t freq, dspGainParam_t gain) {   // low pass cutoff freq is in phase with high pass cutoff
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 0.941600026533, 0.691046625825 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 0.941600026533, 0.691046625825 , gain);
     dsp_Filter1stOrder(FLP1, freq * 1.03054454544, 1.0);
     return tmp;
 }
 
-int dsp_LP_BES3_3DB(dspFilterParam_t freq) {   // cutoff is at -3db, but not in phase with high pass
+int dsp_LP_BES3_3DB(dspFilterParam_t freq, dspGainParam_t gain) {   // cutoff is at -3db, but not in phase with high pass
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 1.32267579991, 0.691046625825 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 1.32267579991, 0.691046625825 , gain);
     dsp_Filter1stOrder(FLP1, freq * 1.44761713315,  1.0);
     return tmp;
 }
 
-int dsp_HP_BES3(dspFilterParam_t freq) {   // high pass cutoff freq is in phase with low pass cutoff
+int dsp_HP_BES3(dspFilterParam_t freq, dspGainParam_t gain) {   // high pass cutoff freq is in phase with low pass cutoff
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 0.941600026533 , 0.691046625825 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 0.941600026533 , 0.691046625825 , gain);
     dsp_Filter1stOrder(FHP1, freq / 1.03054454544,    1.0);
     return tmp;
 }
 
-int dsp_HP_BES3_3DB(dspFilterParam_t freq) {   // cutoff is at -3db, but not in phase with low pass
+int dsp_HP_BES3_3DB(dspFilterParam_t freq, dspGainParam_t gain) {   // cutoff is at -3db, but not in phase with low pass
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 1.32267579991 , 0.691046625825 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 1.32267579991 , 0.691046625825 , gain);
     dsp_Filter1stOrder(FHP1, freq / 1.44761713315,   1.0);
     return tmp;
 }
 
-int  dsp_LP_BUT3(dspFilterParam_t freq) {
+int  dsp_LP_BUT3(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, 1.0 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, 1.0 , gain);
     dsp_Filter1stOrder(FLP1, freq,  1.0);
     return tmp;
 }
 
-int dsp_HP_BUT3(dspFilterParam_t freq) {
+int dsp_HP_BUT3(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, 1.0 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, 1.0 , gain);
     dsp_Filter1stOrder(FHP1, freq,  1.0);
     return tmp;
 }
 
-int dsp_LP_LR3(dspFilterParam_t freq) { // -6db cutoff at fc ?
+int dsp_LP_LR3(dspFilterParam_t freq, dspGainParam_t gain) { // -6db cutoff at fc ?
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, 0.5 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, 0.5 , gain);
     dsp_Filter1stOrder(FLP1, freq,  1.0);
     return tmp;
 }
 
-int dsp_HP_LR3(dspFilterParam_t freq) { // -6db cutoff ? 180 deg phase shift vs low pass
+int dsp_HP_LR3(dspFilterParam_t freq, dspGainParam_t gain) { // -6db cutoff ? 180 deg phase shift vs low pass
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, 0.5 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, 0.5 , gain);
     dsp_Filter1stOrder(FHP1, freq,  1.0);
     return tmp;
 }
 
 
 
-int dsp_LP_BES4(dspFilterParam_t freq) {   // low pass cutoff freq is IN PHASE with high pass cutoff
+int dsp_LP_BES4(dspFilterParam_t freq, dspGainParam_t gain) {   // low pass cutoff freq is IN PHASE with high pass cutoff
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 0.944449808226 , 0.521934581669 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 0.944449808226 , 0.521934581669 , gain);
     dsp_Filter2ndOrder(FLP2, freq * 1.05881751607  , 0.805538281842 , 1.0);
     return tmp;
 }
 
-int dsp_LP_BES4_3DB(dspFilterParam_t freq) {   // cutoff is at -3db, but not in phase with low pass
+int dsp_LP_BES4_3DB(dspFilterParam_t freq, dspGainParam_t gain) {   // cutoff is at -3db, but not in phase with low pass
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 1.43017155999  , 0.521934581669 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 1.43017155999  , 0.521934581669 , gain);
     dsp_Filter2ndOrder(FLP2, freq * 1.60335751622  , 0.805538281842 , 1.0);
     return tmp;
 }
-int dsp_HP_BES4(dspFilterParam_t freq) {       // high pass cutoff freq is in phase with low pass cutoff
+int dsp_HP_BES4(dspFilterParam_t freq, dspGainParam_t gain) {       // high pass cutoff freq is in phase with low pass cutoff
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 0.944449808226 , 0.521934581669 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 0.944449808226 , 0.521934581669 , gain);
     dsp_Filter2ndOrder(FHP2, freq / 1.05881751607  , 0.805538281842 , 1.0);
     return tmp;
 }
 
-int dsp_HP_BES4_3DB(dspFilterParam_t freq) {       // cutoff is at -3db, but not in phase with low pass
+int dsp_HP_BES4_3DB(dspFilterParam_t freq, dspGainParam_t gain) {       // cutoff is at -3db, but not in phase with low pass
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 1.43017155999  , 0.521934581669 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 1.43017155999  , 0.521934581669 , gain);
     dsp_Filter2ndOrder(FHP2, freq / 1.60335751622  , 0.805538281842 , 1.0);
     return tmp;
 }
 
-int dsp_LP_BUT4(dspFilterParam_t freq) {   // -3db cutoff
+int dsp_LP_BUT4(dspFilterParam_t freq, dspGainParam_t gain) {   // -3db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, 0.54119610 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, 0.54119610 , gain);
     dsp_Filter2ndOrder(FLP2, freq, 1.3065630 , 1.0);
     return tmp;
 }
 
-int dsp_HP_BUT4(dspFilterParam_t freq) {   // -3db cutoff
+int dsp_HP_BUT4(dspFilterParam_t freq, dspGainParam_t gain) {   // -3db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, 0.54119610 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, 0.54119610 , gain);
     dsp_Filter2ndOrder(FHP2, freq, 1.3065630 , 1.0);
     return tmp;
 }
 
-int dsp_LP_LR4(dspFilterParam_t freq) {   // -6db cutoff
+int dsp_LP_LR4(dspFilterParam_t freq, dspGainParam_t gain) {   // -6db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, M_SQRT1_2 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, M_SQRT1_2 , gain);
     dsp_Filter2ndOrder(FLP2, freq, M_SQRT1_2 , 1.0);
     return tmp;
 }
 
-int dsp_HP_LR4(dspFilterParam_t freq) {   // -6db cutoff
+int dsp_HP_LR4(dspFilterParam_t freq, dspGainParam_t gain) {   // -6db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, M_SQRT1_2 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, M_SQRT1_2 , gain);
     dsp_Filter2ndOrder(FHP2, freq, M_SQRT1_2 , 1.0);
     return tmp;
 }
 
-int dsp_LP_BES6(dspFilterParam_t freq) {
+int dsp_LP_BES6(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 0.928156550439 , 0.510317824749 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 0.928156550439 , 0.510317824749 , gain);
     dsp_Filter2ndOrder(FLP2, freq * 0.977488555538 , 0.611194546878 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq * 1.10221694805  , 1.02331395383 , 1.0);
     return tmp;
 }
 
-int dsp_LP_BES6_3DB(dspFilterParam_t freq) {
+int dsp_LP_BES6_3DB(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 1.60391912877 , 0.510317824749 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 1.60391912877 , 0.510317824749 , gain);
     dsp_Filter2ndOrder(FLP2, freq * 1.68916826762 , 0.611194546878 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq * 1.9047076123  , 1.02331395383  , 1.0);
     return tmp;
 }
 
-int dsp_HP_BES6(dspFilterParam_t freq) {
+int dsp_HP_BES6(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 0.928156550439 , 0.510317824749 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 0.928156550439 , 0.510317824749 , gain);
     dsp_Filter2ndOrder(FHP2, freq / 0.977488555538 , 0.611194546878 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq / 1.10221694805  , 1.02331395383  , 1.0);
     return tmp;
 }
 
-int dsp_HP_BES6_3DB(dspFilterParam_t freq) {
+int dsp_HP_BES6_3DB(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 1.60391912877 , 0.510317824749 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 1.60391912877 , 0.510317824749 , gain);
     dsp_Filter2ndOrder(FHP2, freq / 1.68916826762 , 0.611194546878 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq / 1.9047076123  , 1.02331395383  , 1.0);
     return tmp;
 }
 
-int dsp_LP_BUT6(dspFilterParam_t freq) {   // -3db cutoff
+int dsp_LP_BUT6(dspFilterParam_t freq, dspGainParam_t gain) {   // -3db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, 0.51763809 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, 0.51763809 , gain);
     dsp_Filter2ndOrder(FLP2, freq, M_SQRT1_2  , 1.0);
     dsp_Filter2ndOrder(FLP2, freq, 1.9318517  , 1.0);
     return tmp;
 }
 
-int dsp_HP_BUT6(dspFilterParam_t freq) {   // -3db cutoff
+int dsp_HP_BUT6(dspFilterParam_t freq, dspGainParam_t gain) {   // -3db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, 0.51763809 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, 0.51763809 , gain);
     dsp_Filter2ndOrder(FHP2, freq, M_SQRT1_2  , 1.0);
     dsp_Filter2ndOrder(FHP2, freq, 1.9318517  , 1.0);
     return tmp;
 }
 
-int dsp_LP_LR6(dspFilterParam_t freq) {   // TODO  Q ?
+int dsp_LP_LR6(dspFilterParam_t freq, dspGainParam_t gain) {   // TODO  Q ?
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, 0.5 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, 0.5 , gain);
     dsp_Filter2ndOrder(FLP2, freq, 1.0 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq, 1.0 , 1.0);
     return tmp;
 }
 
-int dsp_HP_LR6(dspFilterParam_t freq) {   // ?
+int dsp_HP_LR6(dspFilterParam_t freq, dspGainParam_t gain) {   // ?
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, 0.5 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, 0.5 , gain);
     dsp_Filter2ndOrder(FHP2, freq, 1.0 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq, 1.0 , 1.0);
     return tmp;
 }
 
-int dsp_LP_BES8(dspFilterParam_t freq) {
+int dsp_LP_BES8(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 0.920583104484 , 0.505991069397 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 0.920583104484 , 0.505991069397 , gain);
     dsp_Filter2ndOrder(FLP2, freq * 0.948341760923 , 0.559609164796 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq * 1.01102810214  , 0.710852074442 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq * 1.13294518316  , 1.22566942541 , 1.0);
     return tmp;
 }
 
-int dsp_LP_BES8_3(dspFilterParam_t freq) {
+int dsp_LP_BES8_3(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq * 1.77846591177  , 0.505991069397 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq * 1.77846591177  , 0.505991069397 , gain);
     dsp_Filter2ndOrder(FLP2, freq * 1.8320926012   , 0.559609164796 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq * 1.95319575902  , 0.710852074442 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq * 2.18872623053  , 1.22566942541  , 1.0);
     return tmp;
 }
 
-int dsp_HP_BES8(dspFilterParam_t freq) {
+int dsp_HP_BES8(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 0.920583104484 , 0.505991069397 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 0.920583104484 , 0.505991069397 , gain);
     dsp_Filter2ndOrder(FHP2, freq / 0.948341760923 , 0.559609164796 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq / 1.01102810214  , 0.710852074442 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq / 1.13294518316  , 1.22566942541  , 1.0);
     return tmp;
 }
 
-int dsp_HP_BES8_3DB(dspFilterParam_t freq) {
+int dsp_HP_BES8_3DB(dspFilterParam_t freq, dspGainParam_t gain) {
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq / 1.77846591177  , 0.505991069397 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq / 1.77846591177  , 0.505991069397 , gain);
     dsp_Filter2ndOrder(FHP2, freq / 1.8320926012   , 0.559609164796 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq / 1.95319575902  , 0.710852074442 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq / 2.18872623053  , 1.22566942541  , 1.0);
     return tmp;
 }
 
-int dsp_LP_BUT8(dspFilterParam_t freq) {   // -3db cutoff
+int dsp_LP_BUT8(dspFilterParam_t freq, dspGainParam_t gain) {   // -3db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FLP2, freq, 0.50979558 , 1.0);
+    dsp_Filter2ndOrder(FLP2, freq, 0.50979558 , gain);
     dsp_Filter2ndOrder(FLP2, freq, 0.60134489 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq, 0.89997622 , 1.0);
     dsp_Filter2ndOrder(FLP2, freq, 2.5629154  , 1.0);
     return tmp;
 }
 
-int dsp_HP_BUT8(dspFilterParam_t freq) {   // -3db cutoff
+int dsp_HP_BUT8(dspFilterParam_t freq, dspGainParam_t gain) {   // -3db cutoff
     int tmp =
-    dsp_Filter2ndOrder(FHP2, freq, 0.50979558 , 1.0);
+    dsp_Filter2ndOrder(FHP2, freq, 0.50979558 , gain);
     dsp_Filter2ndOrder(FHP2, freq, 0.60134489 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq, 0.89997622 , 1.0);
     dsp_Filter2ndOrder(FHP2, freq, 2.5629154  , 1.0);
     return tmp;
 }
 
-int dsp_LP_LR8(dspFilterParam_t freq) {   // -6db cutoff ?
+int dsp_LP_LR8(dspFilterParam_t freq, dspGainParam_t gain) {   // -6db cutoff ?
     int tmp =
-    dsp_LP_BUT4(freq);
-    dsp_LP_BUT4(freq);
+    dsp_LP_BUT4(freq, gain);
+    dsp_LP_BUT4(freq, 1.0);
     return tmp;
 }
 
-int dsp_HP_LR8(dspFilterParam_t freq) {   // -6db cutoff ?
+int dsp_HP_LR8(dspFilterParam_t freq, dspGainParam_t gain) {   // -6db cutoff ?
     int tmp =
-    dsp_HP_BUT4(freq);
-    dsp_HP_BUT4(freq);
+    dsp_HP_BUT4(freq, gain);
+    dsp_HP_BUT4(freq, 1.0);
     return tmp;
 }
 
@@ -525,46 +576,46 @@ futur Header :
 int dsp_filter(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain) {
     int tmp=0;
     switch (type) {
-    case LPBE2 : tmp = dsp_LP_BES2(freq); break;
-    case LPBE3 : tmp = dsp_LP_BES3(freq); break;
-    case LPBE4 : tmp = dsp_LP_BES4(freq); break;
-    case LPBE6 : tmp = dsp_LP_BES6(freq); break;
-    case LPBE8 : tmp = dsp_LP_BES8(freq); break;
-    case HPBE2 : tmp = dsp_HP_BES2(freq); break;
-    case HPBE3 : tmp = dsp_HP_BES3(freq); break;
-    case HPBE4 : tmp = dsp_HP_BES4(freq); break;
-    case HPBE6 : tmp = dsp_HP_BES6(freq); break;
-    case HPBE8 : tmp = dsp_HP_BES8(freq); break;
-    case LPBE3db2 : tmp = dsp_LP_BES2(freq); break;
-    case LPBE3db3 : tmp = dsp_LP_BES3(freq); break;
-    case LPBE3db4 : tmp = dsp_LP_BES4(freq); break;
-    case LPBE3db6 : tmp = dsp_LP_BES6(freq); break;
-    case LPBE3db8 : tmp = dsp_LP_BES8(freq); break;
-    case HPBE3db2 : tmp = dsp_HP_BES2(freq); break;
-    case HPBE3db3 : tmp = dsp_HP_BES3(freq); break;
-    case HPBE3db4 : tmp = dsp_HP_BES4(freq); break;
-    case HPBE3db6 : tmp = dsp_HP_BES6(freq); break;
-    case HPBE3db8 : tmp = dsp_HP_BES8(freq); break;
-    case LPBU2 : tmp = dsp_LP_BUT2(freq); break;
-    case LPBU3 : tmp = dsp_LP_BUT3(freq); break;
-    case LPBU4 : tmp = dsp_LP_BUT4(freq); break;
-    case LPBU6 : tmp = dsp_LP_BUT6(freq); break;
-    case LPBU8 : tmp = dsp_LP_BUT8(freq); break;
-    case HPBU2 : tmp = dsp_HP_BUT2(freq); break;
-    case HPBU3 : tmp = dsp_HP_BUT3(freq); break;
-    case HPBU4 : tmp = dsp_HP_BUT4(freq); break;
-    case HPBU6 : tmp = dsp_HP_BUT6(freq); break;
-    case HPBU8 : tmp = dsp_HP_BUT8(freq); break;
-    case LPLR2 : tmp = dsp_LP_LR2(freq); break;
-    case LPLR3 : tmp = dsp_LP_LR3(freq); break;
-    case LPLR4 : tmp = dsp_LP_LR4(freq); break;
-    case LPLR6 : tmp = dsp_LP_LR6(freq); break;
-    case LPLR8 : tmp = dsp_LP_LR8(freq); break;
-    case HPLR2 : tmp = dsp_HP_LR2(freq); break;
-    case HPLR3 : tmp = dsp_HP_LR3(freq); break;
-    case HPLR4 : tmp = dsp_HP_LR4(freq); break;
-    case HPLR6 : tmp = dsp_HP_LR6(freq); break;
-    case HPLR8 : tmp = dsp_HP_LR8(freq); break;
+    case LPBE2 : tmp = dsp_LP_BES2(freq, gain); break;
+    case LPBE3 : tmp = dsp_LP_BES3(freq, gain); break;
+    case LPBE4 : tmp = dsp_LP_BES4(freq, gain); break;
+    case LPBE6 : tmp = dsp_LP_BES6(freq, gain); break;
+    case LPBE8 : tmp = dsp_LP_BES8(freq, gain); break;
+    case HPBE2 : tmp = dsp_HP_BES2(freq, gain); break;
+    case HPBE3 : tmp = dsp_HP_BES3(freq, gain); break;
+    case HPBE4 : tmp = dsp_HP_BES4(freq, gain); break;
+    case HPBE6 : tmp = dsp_HP_BES6(freq, gain); break;
+    case HPBE8 : tmp = dsp_HP_BES8(freq, gain); break;
+    case LPBE3db2 : tmp = dsp_LP_BES2(freq, gain); break;
+    case LPBE3db3 : tmp = dsp_LP_BES3(freq, gain); break;
+    case LPBE3db4 : tmp = dsp_LP_BES4(freq, gain); break;
+    case LPBE3db6 : tmp = dsp_LP_BES6(freq, gain); break;
+    case LPBE3db8 : tmp = dsp_LP_BES8(freq, gain); break;
+    case HPBE3db2 : tmp = dsp_HP_BES2(freq, gain); break;
+    case HPBE3db3 : tmp = dsp_HP_BES3(freq, gain); break;
+    case HPBE3db4 : tmp = dsp_HP_BES4(freq, gain); break;
+    case HPBE3db6 : tmp = dsp_HP_BES6(freq, gain); break;
+    case HPBE3db8 : tmp = dsp_HP_BES8(freq, gain); break;
+    case LPBU2 : tmp = dsp_LP_BUT2(freq, gain); break;
+    case LPBU3 : tmp = dsp_LP_BUT3(freq, gain); break;
+    case LPBU4 : tmp = dsp_LP_BUT4(freq, gain); break;
+    case LPBU6 : tmp = dsp_LP_BUT6(freq, gain); break;
+    case LPBU8 : tmp = dsp_LP_BUT8(freq, gain); break;
+    case HPBU2 : tmp = dsp_HP_BUT2(freq, gain); break;
+    case HPBU3 : tmp = dsp_HP_BUT3(freq, gain); break;
+    case HPBU4 : tmp = dsp_HP_BUT4(freq, gain); break;
+    case HPBU6 : tmp = dsp_HP_BUT6(freq, gain); break;
+    case HPBU8 : tmp = dsp_HP_BUT8(freq, gain); break;
+    case LPLR2 : tmp = dsp_LP_LR2(freq, gain); break;
+    case LPLR3 : tmp = dsp_LP_LR3(freq, gain); break;
+    case LPLR4 : tmp = dsp_LP_LR4(freq, gain); break;
+    case LPLR6 : tmp = dsp_LP_LR6(freq, gain); break;
+    case LPLR8 : tmp = dsp_LP_LR8(freq, gain); break;
+    case HPLR2 : tmp = dsp_HP_LR2(freq, gain); break;
+    case HPLR3 : tmp = dsp_HP_LR3(freq, gain); break;
+    case HPLR4 : tmp = dsp_HP_LR4(freq, gain); break;
+    case HPLR6 : tmp = dsp_HP_LR6(freq, gain); break;
+    case HPLR8 : tmp = dsp_HP_LR8(freq, gain); break;
     case FLP2  : tmp = dsp_Filter2ndOrder(FLP2,freq,Q,gain); break;
     case FHP2  : tmp = dsp_Filter2ndOrder(FHP2,freq,Q,gain); break;
     case FLS2  : tmp = dsp_Filter2ndOrder(FLS2,freq,Q,gain); break;

@@ -1,0 +1,66 @@
+# test of a simple low pass LR4 with REW
+
+lowpass		LPBU4(25000)
+ap2			AP2(1000,1,10db)
+notch		NOTCH(1000,0.5)
+eq			PEAK(1000,1,10db)
+bp			BPQ(1000,2.0,6db)
+x			MEMORY 1
+test8		LPBE8(2000) PEAK(1000,1,0db) PEAK(2000,1,0db) PEAK(1000,1,0db) PEAK(2000,1,0db)
+
+transfer (16,24)
+transfer (16,26)
+inputgain (16,0db)
+biquad lowpass
+output 25
+
+end
+
+inputgain (16,0db)
+biquad lowpass
+saturate
+output 25
+end
+inputgain (16,0db)
+saturate
+output 26
+end
+
+volGD MEM 2
+
+input 16
+saturate volGD[0]
+
+saturatevolcheck volGD
+
+highpass 	HPLR4(400)		#linkwitz-rilley order 4th (cutoff -6db)
+peak		PEAK(235,1.2,14db)
+mem	MEMORY 1
+
+
+core b1111,0
+inputgain (16,0db)
+saturate
+output 24
+core b0100,0
+transfer (16 , 26) 
+core b1000,0
+transfer (16 , 27)
+end
+
+core 
+	transfer (16 , 24) (16,0)		#this provides fast loop back on USB channel 0
+	inputgain (16, 0db)		#load channel 1 from USB out 1
+	biquad	lowpass			#apply low pass bessel
+saturate ; output 1 ; output 25	#output result on DAC1 and to USB channel 1
+	inputgain (16, 0db)		#load channel 1 from USB out 1 (once again)
+	biquad	highpass		#apply highpass
+saturate ; output 2 ; output 26	#output result on DAC2 and to USB channel 2
+	mixer (25, 0db) (26,0db)
+	biquad peak
+saturate ; output 3 ; output 27
+inputgain (16, 6db)
+saturate ; 
+output 4 ; 
+output 28
+end
