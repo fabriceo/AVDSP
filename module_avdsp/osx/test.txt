@@ -1,15 +1,40 @@
-PARAM
-MUX 1 0.5 2 0.5 
-BIQUADS 1
-FHP2 200 0.7 1.0
-FLPBE8 100
-FEQ 100 0.3 1
-DELAYMICROS 1 100 100
 
-CORE
-LOADMUX 1
-BIQUADS 1
-DELAY 1
-STORE 1 2
+DAC		0
+AES		8
+USBOUT	16
+USBIN	24
 
-CORE
+core x3	#pureusb
+
+	input USBOUT[0]
+	output USBIN[0]	#loop back reference
+	output DAC[0]
+	
+	input USBOUT[1]
+	output DAC[1]
+
+
+core x4	#usb/aes
+
+	transfer (USBOUT[0],USBIN[0])
+	transfer (USBOUT[1],USBIN[1])
+	mixer USBOUT[0], AES[0]
+	output DAC[0]
+	output USBIN[0]
+
+	mixer USBOUT[1],AES[1]
+	output DAC[1]
+
+core x8	#pureAES
+
+
+	input AES[0]
+	output DAC[0]
+	output USBIN[0]	#for soundpresence detection
+	
+	input AES[1]
+	output DAC[1]
+	output USBIN[1]	#for soundpresence detection
+
+
+end

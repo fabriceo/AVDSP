@@ -33,7 +33,7 @@ const char * hexEnd =
 void usage() {
     fprintf(stderr,"command line options:\n");
     fprintf(stderr,"-dspprog   <libfilename> \n");
-    fprintf(stderr,"-dspbasic  <textfilename> \n");
+    fprintf(stderr,"-dsptext   <textfilename> \n");
     fprintf(stderr,"-dspformat <2..6> \n");
     fprintf(stderr,"-binfile   <filename> -hexfile <filename> -dumpfile <filename>\n");
     fprintf(stderr,"[dsprogs paramaters ...] \n");
