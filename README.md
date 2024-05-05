@@ -1,5 +1,9 @@
-# AVDSP
-Audio Virtual DSP framework multi platform
+# AVDSP - DEVELOP BRANCH
+
+This branch is now providing -dsptext selector for dspcreate utility and generates opcode which are no anymore compatible with AVDSP release 1.0 due to optimizing the solution for XMOS target CPU. It is planned to rework the master branch to ensure compatibility so that the generated opcode can be executed either on the XMOS runtime and/or with the Linux Alsa pluging ... in a next revision!
+May 5,2024
+
+## Audio Virtual DSP framework multi platform
 
 Release: 
 V1.0, May 1st 2020, tested on 
