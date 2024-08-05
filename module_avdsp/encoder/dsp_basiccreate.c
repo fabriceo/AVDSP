@@ -45,9 +45,10 @@ const char filterOrders[filterTypesNumber] = {
 
 enum keywords_e {
     _end, _param, _nop, _core, _section,
-    _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _mixer, _mixergain, _gain, _clip,
+    _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
+    _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
-    _saturate, _saturatevol, _saturategain, _saturatetpdf, _saturategaintpdf,
+    _saturate, _saturatevol, _saturategain,
     _delayone, _delayus, _delaydpus,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
     _dcblock, _biquad, _biquad8, _convol,
@@ -56,9 +57,9 @@ enum keywords_e {
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
     "end", "param", "nop", "core", "section",
-    "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "mixer","mixergain","gain","clip",
+    "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
-    "saturate", "saturatevol","saturategain", "saturatetpdf", "saturategaintpdf",
+    "saturate", "saturatevol","saturategain",
     "delayone", "delayus", "delaydpus",
     "savexmem", "loadxmem","saveymem", "loadymem",
     "dcblock", "biquad", "biquad8", "convol",
@@ -102,12 +103,13 @@ static inline int isSpaceOrTab(char ch) {
     return ( (ch == ' ' ) || ( ch == 9 ) ) ? ch : 0;
 }
 
-static inline char * skipSpaces(char * * s){
-    char * p = *s;
-    while (isSpaceOrTab(*p)) p++;
-    *s = p;
-    return p;
+static inline int isCharOfString(char ch) {
+    return ( ((ch >= 32) && (ch != 34 )) || (ch == 9) ) ? ch : 0;
 }
+
+
+static inline char * skipSpaces(char * * s);
+
 
 //check if current delimiter character is in the given string then return its value otherwise 0
 static int searchDelimiter(char * * s, char * delim) {
@@ -126,6 +128,20 @@ static int testDelimiter(char * * s, char * delim) {
     return res;
 }
 
+
+//check if current delimiter character is in the given string then return its value otherwise 0
+static int searchString(char * * s, char * * str ) {
+    char * p = skipSpaces(s);
+    if (*p == 34) {
+        p++;
+        *str = p;   //begining of string
+        int len=0;
+        while (isCharOfString(*p)) { len++; p++; }
+        if (*p == 34) *s = p+1; else *s = p;
+        return len;
+    }
+    return -1;
+}
 
 //search a possible keyword in *s and return its index otherwise -1
 //pass a table of string and a number of keywords to be screened
@@ -391,8 +407,31 @@ void clearParamSection() {
 }
 
 
+static char line[512] = ""; //buffer for one line of code
+
+static char * fgetLine() {
+    return fgets( line, 512, dspbasicInput );
+}
+
+static inline char * skipSpaces(char * * s){
+    char * p = *s;
+    loop:
+    while (isSpaceOrTab(*p)) p++;
+    if (*p == 0x5C) {
+        if (fgetLine()) {
+            p = line;
+            errPtr = p;
+            goto loop;
+        } else {
+            line[0] = 0;
+            p = line;
+        }
+    }
+    *s = p;
+    return p;
+}
+
 int dspbasicCreate(char * dspbasicName, int argc, char **argv){
-    char line[512] = ""; //buffer for one line of code
     char * nextName = dspbasicName;
     int lineNum = 0;
     int size    = 0;
@@ -434,7 +473,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int countarg = 0;
 
     //initialize dsp code with a PARAM section. this authorize
-    checkAndCreateParam();
+    //checkAndCreateParam();
     while (1) {
         if (lineNum == 0) {
             //analyse all the parameters given on the command line
@@ -444,13 +483,13 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 countarg++;
             } else lineNum = 1;
         }
-        if (lineNum) if (fgets( line, 512, dspbasicInput ) == 0) break;   //read line from file
+        if (lineNum) if ( fgetLine() == 0) break;   //read line from file
         errPtr = p = line;
         while (*p ) {
             //skip any spaces or tab
             if ( isSpaceOrTab(*p) ) { p++; continue; }
             //load a new line when finding # or cr/lf
-            if ( (*p == '#')  || (*p == 0x0A) || (*p == 0x0D) ) { p++; break; } //goto next line
+            if ( (*p == '#')  || (*p == 0x5C ) || (*p == 0x0A) || (*p == 0x0D) ) { p++; break; } //goto next line
             //expecting either a label definition or a dsp keyword, all starting by a letter
             if ( isLetter( *p ) ) {
                 errPtr = p;
@@ -459,7 +498,35 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 if (keyw > _param) clearParamSection();
                 switch(keyw) {
                 case _end:   { goto finished; break; }
-                case _param: { checkAndCreateParam(); break; }
+                case _param: {
+                    if ((res = testExpression( &p, &input )) < _error) goto error;
+                    if (res) {
+                        if (res != _valueint) { errNum = 11; goto error; }
+                        int num = input;
+                        dsp_PARAM_NUM(num);
+                        errPtr = p;
+                        switch (num) {
+                        case 200: {
+                            res = searchDelimiter( &p, "," );
+                            errPtr = p;
+                            if (res ==  0) { errNum = 30; goto error; }
+                            char * str;
+                            res = searchString( &p, &str);
+                            if (res < 0) { errNum = 34; goto error; }
+                            int code = res; int n = 1;  //first char is string length
+                            for (int i=0; i<= res; i++) {
+                                if (i < res) code |= (*str)<<(n*8);
+                                n++; str++;
+                                if ((n==4) || (i == res)) { addCode(code); code = 0; n = 0; }
+                            }
+                            errPtr = p;
+                            break;
+                        }
+                        } //switch
+                        clearParamSection();
+                    } else
+                        checkAndCreateParam();
+                    break; }
                 case _nop : {
                     dsp_NOP();
                     break; }
@@ -488,13 +555,25 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     dsp_LOAD( input);
                     break; }
                 case _outputpdf:
+                case _outputvol:
+                case _outputvolsat:
                 case _output: {
-                output_retry:
+                    int outcount;
+                    int finalIO;
+                output_retry1:
+                    outcount=0;
+                    finalIO=0;
+                output_retry2:
                     if ((res = searchExpressionRange( &p, &output , _tIO )) < _error) goto error;
-                    if (keyw == _output) dsp_STORE( output );
-                    else dsp_STORE_TPDF( output );
+                    int out = output;
+                    finalIO |= (out << (8*outcount));
                     res = searchDelimiter( &p, "," );
-                    if(res) goto output_retry;
+                    if(res && (outcount<3)) { outcount++; goto output_retry2;}
+                    if (keyw == _output) dsp_STORE( finalIO );
+                    else  if (keyw == _outputpdf) dsp_STORE_TPDF( finalIO );
+                    else  if (keyw == _outputvol) dsp_STORE_VOL( finalIO );
+                    else dsp_STORE_VOL_SAT( finalIO );
+                    if(res) goto output_retry1;
                     break; }
                 case _transfer: {
                     int transferNum=0;
@@ -516,6 +595,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     transferNum++;
                     dspLoadStore_Data(input,output);
                     if (testDelimiter( &p, "(" )) goto transfer_retry;
+                    if (searchDelimiter( &p, "," )) goto transfer_retry;
                     break; }
                 case _clrxy  : { dsp_CLRXY(); break; }
                 case _swapxy : { dsp_SWAPXY(); break; }
@@ -594,6 +674,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     }
                     inputgainNum++;
                     if (testDelimiter( &p, "(" )) goto inputgain_retry;
+                    if (searchDelimiter( &p, "," )) goto transfer_retry;
                     break; }
                 case _outputgain: {
                     res = searchDelimiter( &p, "(" );
@@ -613,21 +694,15 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 case _saturate: {
                     dsp_SAT0DB();
                     break; }
-                case _saturatetpdf: {
-                    dsp_SAT0DB_TPDF();
-                    break; }
                 case _white: {
                     dsp_WHITE();
                     break; }
                 case _saturatevol:{
-                    if ((res = searchExpressionRange( &p, &input, _tIO )) < _error) goto error;
-                    dsp_SAT0DB_VOL(input);
+                    dsp_SAT0DB_VOL();
                     break; }
-                case _saturategaintpdf:
                 case _saturategain:{
                     if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) goto error;
-                    if (keyw == _saturategain) dsp_SAT0DB_GAIN_Fixed(gain);
-                    if (keyw == _saturategaintpdf) dsp_SAT0DB_TPDF_GAIN_Fixed(gain);
+                    dsp_SAT0DB_GAIN_Fixed(gain);
                     break; }
                 case _delayone: {
                     dsp_DELAY_1(); break; }
@@ -712,7 +787,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 } //end of switch keyw
 
                 if (keyw == -1) {   //this is not a keyword so it has to be a label then
-                    if (paramsection == 0) { errNum=17; goto error; }
+                    //if (paramsection == 0) { errNum=17; goto error; }
                     labelptr_t l = searchLabel( &p );
                     errPtr = p;
                     if (l) {
@@ -730,6 +805,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     int filterNum=0, filterType;
                     errPtr = p;
                     filterType = searchKeywords( &p, filterNames, filterTypesNumber );
+                    if ( filterType >= 0 ) checkAndCreateParam();
             filter_retry:
                     if ( filterType >= 0 ) {
                         if ( filterNum == 0 ) {
@@ -829,10 +905,12 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                             l->value = memSize;
                             int memSizeInt = memSize;
                             //allocate space in the dsp code
+                            checkAndCreateParam();
                             l->address = dspMem_LocationMultiple(memSizeInt);
                             dspprintf2("label %s created with MEM adr = %d size = %f\n",l->name,l->address, l->value);
                         } else
                         if (res == 1) { //TAPS
+                            checkAndCreateParam();
                             int numTaps=0;
                             do {
                                 if ((l->labelType != _empty)&&(l->labelType != label_taps)) { errNum = 12; goto error; };
@@ -878,7 +956,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     } // not a filter
                 } //if keyw == -1
                 if (lineNum > 0) {
-                    int res = searchDelimiter( &p, ";#\n\r" );     //optional delimiter on a line
+                    int res = searchDelimiter( &p, ";#\n\r\\" );     //optional delimiter on a line
                     errPtr=p;
                     if (res ==0 ) { errNum = 13; goto error; }
                     if (res != ';') {errPtr=p; break; } //skip end of line
@@ -936,6 +1014,7 @@ error:
     case -31: fprintf(stderr,"Error: expression with operator requires equal \"=\" operator\n"); break;
     case -32: fprintf(stderr,"Error: end of line expected\n"); break;
     case -33: fprintf(stderr,"Error: taps label expected\n"); break;
+    case -34: fprintf(stderr,"Error: string expected\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",lineNum,line);

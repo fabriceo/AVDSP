@@ -9,7 +9,8 @@
 #include "dsp_encoder.h"         // enum dsp codes, typedefs and QNM definition
 #include <stdlib.h>             // only for importing exit()
 
-#define DSP_ENCODER_VERSION ((1<<8) | (0 <<4) | 2) // will be stored in the program header for further interpretation by the runtime
+//MOVED in dsp_encoder.h
+//#define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
 
 static opcode_t * dspOpcodesPtr  = 0;       // absolute adress start of the table containing the opcodes and data
 dspHeader_t* dspHeaderPtr = 0;              // point on the header containing program summary
@@ -731,10 +732,8 @@ void dsp_WHITE() {
     checkCalcTpdf();
     addSingleOpcodePrint(DSP_WHITE); }
 
-void dsp_SAT0DB_VOL(int IO){
-    checkIOmax(IO);
-    addOpcodeLengthPrint(DSP_SAT0DB_VOL);
-    addCode(IO);
+void dsp_SAT0DB_VOL(){
+    addSingleOpcodePrint(DSP_SAT0DB_VOL);
     ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
 }
 
@@ -743,40 +742,17 @@ void dsp_SAT0DB() {
     ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
 }
 
-void dsp_SAT0DB_TPDF() {
-    int addrtpdf = checkCalcTpdf();
-    int tmp = addOpcodeLengthPrint(DSP_SAT0DB_TPDF);
-    ALUformat = 0;
-    addCodeOffset(addrtpdf, tmp);
-}
 
-void dsp_SAT0DB_TPDF_GAIN_(int paramAddr, int tpdf){
-    if (tpdf) tpdf = checkCalcTpdf();
+void dsp_SAT0DB_GAIN(int paramAddr){
     ALUformat = 0;
-    int tmp;
-    if (tpdf) tmp = addOpcodeLengthPrint(DSP_SAT0DB_TPDF_GAIN);
-    else      tmp = addOpcodeLengthPrint(DSP_SAT0DB_GAIN);
-    if (tpdf) addCodeOffset(tpdf, tmp);
+    int tmp = addOpcodeLengthPrint(DSP_SAT0DB_GAIN);
     if (paramAddr) checkInParamSpace(paramAddr,1);
     addCodeOffset(paramAddr, tmp);
     setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
 }
 
-void dsp_SAT0DB_TPDF_GAIN(int paramAddr){
-    dsp_SAT0DB_TPDF_GAIN_(paramAddr,1);
-}
-
-void dsp_SAT0DB_GAIN(int paramAddr){
-    dsp_SAT0DB_TPDF_GAIN_(paramAddr,0);
-}
-
 void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain){
-    dsp_SAT0DB_TPDF_GAIN_(0,0);
-    addGainCodeQNM(gain);
-}
-
-void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain) {
-    dsp_SAT0DB_TPDF_GAIN_(0,1);
+    dsp_SAT0DB_GAIN(0);
     addGainCodeQNM(gain);
 }
 
@@ -843,23 +819,6 @@ void dsp_LOAD_GAIN_Fixed(int IO, dspGainParam_t gain) {
     addGainCodeQNM(gain);   // store the fixed gain just after the opcode
 }
 
-void dsp_STORE_GAIN(int IO, int paramAddr){
-    ALUformat = 1;
-    int tmp = addOpcodeLengthPrint(DSP_STORE_GAIN);
-    checkIOmax(IO);
-    if (IO<32) usedOutputs |= 1ULL<<IO;
-    if (IO<64) usedOutputsCore |= 1ULL<<IO;
-    if (paramAddr) checkInParamSpace(paramAddr,1);
-    addCode(IO);
-    addCodeOffset(paramAddr, tmp);
-    setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
-}
-
-void dsp_STORE_GAIN_Fixed(int IO, dspGainParam_t gain) {
-    dsp_STORE_GAIN(IO, 0);
-    addGainCodeQNM(gain);   // store the fixed gain just after the opcode
-}
-
 // load many inputs and apply a gain to them
 int dsp_LOAD_MUX(int paramAddr){
     ALUformat = 1;
@@ -898,24 +857,54 @@ void dspLoadMux_Data(int in, dspGainParam_t gain){
  *
  */
 
+static void dsp_STORE_IO(int IO) {
+    addCode(IO);
+    for (int i=0; i<4; i++) {
+        int out = IO & 0xFF;
+        checkIOmax(out);
+        if (out<32) usedOutputs |= 1ULL<<out;
+        if (out<64) usedOutputsCore |= 1ULL<<out;
+        IO >>= 8;
+        if (IO==0) break;
+    }
+}
 
 void dsp_STORE(int IO) {
-    checkIOmax(IO);
     addOpcodeLengthPrint(DSP_STORE);
-    addCode(IO);
-    if (IO<32) usedOutputs |= 1ULL<<IO;
-    if (IO<64) usedOutputsCore |= 1ULL<<IO;
+    dsp_STORE_IO(IO);
+}
+
+void dsp_STORE_VOL(int IO) {
+    addOpcodeLengthPrint(DSP_STORE_VOL);
+    dsp_STORE_IO(IO);
+}
+
+void dsp_STORE_VOL_SAT(int IO) {
+    addOpcodeLengthPrint(DSP_STORE_VOL_SAT);
+    dsp_STORE_IO(IO);
 }
 
 void dsp_STORE_TPDF(int IO) {
     int addrtpdf = checkCalcTpdf();
-    checkIOmax(IO);
-    int tmp = addOpcodeLengthPrint(DSP_STORE_TPDF);    //TODO
-    addCode(IO);
-    if (IO<32) usedOutputs |= 1ULL<<IO;
-    if (IO<64) usedOutputsCore |= 1ULL<<IO;
+    int tmp = addOpcodeLengthPrint(DSP_STORE_TPDF);
+    dsp_STORE_IO(IO);
     addCodeOffset(addrtpdf, tmp);
 }
+
+void dsp_STORE_GAIN(int IO, int paramAddr){
+    ALUformat = 1;
+    int tmp = addOpcodeLengthPrint(DSP_STORE_GAIN);
+    dsp_STORE_IO(IO);
+    if (paramAddr) checkInParamSpace(paramAddr,1);
+    addCodeOffset(paramAddr, tmp);
+    setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
+}
+
+void dsp_STORE_GAIN_Fixed(int IO, dspGainParam_t gain) {
+    dsp_STORE_GAIN(IO, 0);
+    addGainCodeQNM(gain);   // store the fixed gain just after the opcode
+}
+
 
 
 // check if we currently are below a specific opcode just generated

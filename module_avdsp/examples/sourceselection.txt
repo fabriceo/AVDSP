@@ -1,0 +1,69 @@
+# this is a typical framework to handle multiple source of stereo signal
+# store them in memory and use other cores to treat them
+
+dac		0
+aes		8
+fromUSB	16
+toUSB	24
+
+#value of the binary conditions for enabling core or section
+PureUSB		x003
+USBAES		x004
+PureAES		x008
+PureAES2	x100
+PureAES3	x200
+PureAES4	x400
+
+Stereo		MEMORY 2
+
+
+core	PureUSB
+	transfer (fromUSB[0], toUSB[0])		#this provide a reference loopback for REW
+	input fromUSB[0]
+	savememx Stereo[0]
+	input fromUSB[1]
+	savememx Stereo[1]
+
+core	USBAES
+	transfer (aes[0], toUSB[0]) (aes[1], toUSB[1]) #provide visibility on channel sound presence
+	input aes[0]
+	savememx Stereo[0]
+	input aes[1]
+	savememx Stereo[1]
+
+core	PureAES
+	transfer (aes[0], toUSB[0]) (aes[1], toUSB[1])	#provide visibility on channel sound presence
+	input aes[0]
+	savememx Stereo[0]
+	input aes[1]
+	savememx Stereo[1]
+
+core	PureAES2
+	transfer (aes[0], toUSB[0]) (aes[1], toUSB[1])	#provide visibility on channel sound presence
+	input aes[0]
+	savememx Stereo[0]
+	input aes[1]
+	savememx Stereo[1]
+	
+core	PureAES3
+	transfer (aes[0], toUSB[0]) (aes[1], toUSB[1])	#provide visibility on channel sound presence
+	input aes[0]
+	savememx Stereo[0]
+	input aes[1]
+	savememx Stereo[1]
+	
+core	PureAES4
+	transfer (aes[0], toUSB[0]) (aes[1], toUSB[1])	#provide visibility on channel sound presence
+	input aes[0]
+	savememx Stereo[0]
+	input aes[1]
+	savememx Stereo[1]
+	
+core	#treatment of sound	
+	
+	loadmemx[0]
+	output dac[0]
+	loadmemx[1]
+	output dac[1]
+	
+end

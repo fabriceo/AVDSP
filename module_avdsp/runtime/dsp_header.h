@@ -38,7 +38,7 @@
 
 // list of all DSP supported opcode as of this version. The last opcode is marked in the header
 enum dspOpcodesEnum {
-    DSP_END_OF_CODE,    // 0 this opcode value is 0 and its length is 0 as a convention
+    DSP_END_OF_CODE = 0,// this opcode value is 0 and its length is 0 as a convention
     DSP_HEADER,         // contain summary information about the program.
     DSP_PARAM,          // define an area of data (or parameters), like a sine wave or biquad coefs or any kind of data in fact
     DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and each param_num section can be accessed separately
@@ -47,12 +47,11 @@ enum dspOpcodesEnum {
     DSP_SECTION,        //conditional section.
 
 /* IO engine */
-    DSP_LOAD,           // 6 load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
+    DSP_LOAD,           // 7 load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
     DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
-
-    DSP_STORE_TPDF,     //apply a gain and store result in an output
-    DSP_STORE_GAIN,     //apply a gain and store result in an output
+    DSP_STORE_TPDF,     // apply a gain and store result in an output
+    DSP_STORE_GAIN,     // apply a gain and store result in an output
     DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. result is double precision
     DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many DSP_LOAD_GAIN. result is double precision
     DSP_MIXER,          // load all inputs with their respective gain, couples stores below opcode
@@ -66,7 +65,7 @@ enum dspOpcodesEnum {
 
 /* math engine */
 
-    DSP_CLRXY,          // 15 clear both ALU register
+    DSP_CLRXY,          // 20 clear both ALU register
     DSP_SWAPXY,         // exchange ALU X with second one "Y".
     DSP_COPYXY,         // copy ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
@@ -83,29 +82,29 @@ enum dspOpcodesEnum {
     DSP_NEGX,           // perform X = -X
     DSP_NEGY,           // perform Y = -Y
     DSP_SHIFT,          // perform shift left or right if param is negative
-    DSP_VALUEX,          // load an imediate value qnm or float
-    DSP_VALUEY,      // load an imediate int32 value without conversion
+    DSP_VALUEX,         // load an imediate value qnm or float
+    DSP_VALUEY,         // load an imediate int32 value without conversion
 
 
 /* gains */
-    DSP_GAIN,           // 38 apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
+    DSP_GAIN,           // 39 apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
     DSP_CLIP,           // check wether the sample is reaching the thresold given and maximize/minize it accordingly.
 
-    DSP_SAT0DB,         // verify boundaries -1/+1.
+    DSP_SAT0DB,         // verify boundaries -1/+1. and set a flag in case of saturation
     DSP_SAT0DB_VOL,     // apply volume and then verify boundaries -1/+1.
-    DSP_SAT0DB_TPDF,    // same + add the tpdf calculated and preformated
+    DSP_STORE_VOL,      // store the accumulator in the target location and apply digital volume
     DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries as above
-    DSP_SAT0DB_TPDF_GAIN,// apply a gain and the tpdf, then check boundaries as above
+    DSP_STORE_VOL_SAT,  // store the accumulator in the target location and apply digital volume and eventually apply saturation gain and detect extra saturation
     DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* delays */
-    DSP_DELAY_1,        // 45 equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
-    DSP_DELAY,          // 46 execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
-    DSP_DELAY_DP,       // 47 same as DSP_DELAY but 64bits (twice data space required ofcourse)
+    DSP_DELAY_1,        // 47 equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
+    DSP_DELAY,          // 48 execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
+    DSP_DELAY_DP,       // 49 same as DSP_DELAY but 64bits (twice data space required ofcourse)
 
 
 /* filters */
-    DSP_BIQUADS,        // execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
+    DSP_BIQUADS,        // 50 execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
     DSP_DCBLOCK,        // remove any DC offset. equivalent to first order high pass with noise reinjection
 
 /* specials */
@@ -123,7 +122,7 @@ enum dspOpcodesEnum {
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
-    // new code after release 1.0
+    // new code should come here below
 
     DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };

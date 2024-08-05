@@ -21,13 +21,11 @@ void dspcodesstereo() {
 
     dsp_LOAD_GAIN_Fixed(DACIN(0), 1.0);
     dsp_BIQUADS(filterHeadphones);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE(DACOUT(0));
+    dsp_STORE_TPDF(DACOUT(0));
 
     dsp_LOAD_GAIN_Fixed(DACIN(1), 1.0);
     dsp_BIQUADS(filterHeadphones);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE(DACOUT(1));
+    dsp_STORE_TPDF(DACOUT(1));
 
 }
 

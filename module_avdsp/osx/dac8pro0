@@ -51,5 +51,13 @@ usbin8	= usbin[7]
 
 ### various constants
 
+PureUSB		x03
+USBAES		x04
+PureAES		x08
+PureAES1	x10
+PureAES2	x20
+PureAES3	x40
+PureAES4	x80
+
 pi		= 3.1415926
 half	= 0.5

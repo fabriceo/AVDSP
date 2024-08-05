@@ -8,6 +8,8 @@
 #ifndef DSP_ENCODER_H_
 #define DSP_ENCODER_H_
 
+#define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
+
 #include "dsp_header.h"
 #include "dsp_filters.h"
 #include "dsp_fileaccess.h"
@@ -62,17 +64,12 @@ int  opcodeIndexMisAligned8();
  // load the ALU with the random number
  void dsp_WHITE();
  //saturate the ALU to keep value between -1..+1 and apply a volume and a potential reduction computed automatically
- void dsp_SAT0DB_VOL(int IO);
+ void dsp_SAT0DB_VOL();
  //saturate the ALU to keep value between -1..+1 and transform to s.31 format (for int64 ALU)
  void dsp_SAT0DB();
  //apply a gain before saturation
  void dsp_SAT0DB_GAIN(int paramAddr);
  void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain);
- //apply a TPDF dither before saturation
- void dsp_SAT0DB_TPDF();
- //apply a gain then a TPDF dither before saturation
- void dsp_SAT0DB_TPDF_GAIN(int paramAddr);
- void dsp_SAT0DB_TPDF_GAIN_Fixed(dspGainParam_t gain);
 
 // shit ALU left (positive) or right (negative), corresponding to multiply by 2^n or 2^-n
  void dsp_SHIFT(int bits);
@@ -94,7 +91,11 @@ int  opcodeIndexMisAligned8();
 
  // store a s.31 sample from ALU
  void dsp_STORE(int IO);
- // store a s.31 sample from ALU
+ // store a s.31 sample from ALU and apply digital volume
+ void dsp_STORE_VOL(int IO);
+ // store a s.31 sample from ALU and apply digital volume and potentail saturation gain and verify extra saturation of result
+  void dsp_STORE_VOL_SAT(int IO);
+  // store a s.31 sample from ALU
  void dsp_STORE_TPDF(int IO);
  // store a sample in s.31 and apply a gain
   void dsp_STORE_GAIN(int IO, int paramAddr);

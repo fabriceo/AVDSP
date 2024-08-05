@@ -79,7 +79,7 @@ static inline void dspmacs64_32_32_0(long long *alu, int a, int b){
 #endif
 }
 
-// used in DSP_SAT0DB, DSP_SAT0DB_TPDF, DSP_SAT0DB_GAIN, DSP_SAT0DB_TPDF_GAIN
+// used in DSP_SAT0DB, DSP_SAT0DB_GAIN
 // double precision will be saturated then converted in s.31
 static inline void dspSaturate64_031(long long *a , int mant){
 #ifdef DSP_XS2A // instructions below are only available on XS2A architecture

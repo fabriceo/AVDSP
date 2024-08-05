@@ -52,19 +52,18 @@ void crossoverLV(int lowpass, int loweq, int mideq, int in, int outlow, int outh
     dsp_BIQUADS( lowpass );        //compute lowpass filter in X
     dsp_SUBYX();                   // compute high pass in Y
     dsp_BIQUADS(loweq);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( lowattn);
-    else dsp_SAT0DB_GAIN_Fixed( lowattn);
-    dsp_STORE( USBIN(outlow) );   // feedback to computer for measurements
-    dsp_STORE( DACOUT(outlow) );
+    dsp_SAT0DB_GAIN_Fixed( lowattn);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outlow) );   // feedback to computer for measurements
+    else dsp_STORE( USBIN(outlow) );   // feedback to computer for measurements
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(outlow) );
+    else dsp_STORE( DACOUT(outlow) );
 
     dsp_SWAPXY();                 // get highpass
     dsp_BIQUADS(mideq);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( 1.0 );
-    else dsp_SAT0DB_GAIN_Fixed( 1.0 );
+    dsp_SAT0DB_GAIN_Fixed( 1.0 );
     if (delaymid>0) dsp_DELAY_FixedMicroSec(delaymid);
-    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outhigh) );    // feedback to computer for measurements
+    else dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
 
     //dsp_NEGX(); // invert phase during tests to test allignement
     dsp_STORE( DACOUT(outhigh) );
@@ -75,21 +74,21 @@ void crossoverLR2(int lowpass, int loweq, int highpass, int mideq, int in, int o
     dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
     dsp_BIQUADS(loweq);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( lowattn );
-    else dsp_SAT0DB_GAIN_Fixed( lowattn );			
-    dsp_STORE( USBIN(outlow) );
-    dsp_STORE( DACOUT(outlow));
+    dsp_SAT0DB_GAIN_Fixed( lowattn );
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outlow) );
+    else dsp_STORE( USBIN(outlow) );
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(outlow));
+    else dsp_STORE( DACOUT(outlow));
 
     dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(highpass);
     dsp_BIQUADS(mideq);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( 1.0 );
-    else dsp_SAT0DB_GAIN_Fixed( 1.0 );
+    dsp_SAT0DB_GAIN_Fixed( 1.0 );
     if (delaymid) dsp_DELAY_FixedMicroSec(delaymid);
-    dsp_STORE( USBIN(outmid) );
-    dsp_STORE( DACOUT(outmid));
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outmid) );
+    else dsp_STORE( USBIN(outmid) );
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(outmid));
+    else dsp_STORE( DACOUT(outmid));
 
 }
 

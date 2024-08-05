@@ -146,20 +146,20 @@ dsp_CORE();  // second core crossover low channel
     dsp_LOAD_X_MEM(leftmem);
     dsp_BIQUADS(lplowbq);   //compute lowpass filter
     if (dellow) dsp_DELAY_FixedMicroSec(dellow);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainlow);
-        else dsp_SAT0DB_GAIN_Fixed( gainlow);
-    dsp_STORE( USBIN(leftlow) );    //optional fedback to USB Host for measurment with REW
-    dsp_STORE( DACOUT(leftlow));
+    dsp_SAT0DB_GAIN_Fixed( gainlow);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(leftlow) );    //optional fedback to USB Host for measurment with REW
+    else dsp_STORE( USBIN(leftlow) );    //optional fedback to USB Host for measurment with REW
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(leftlow));
+    else dsp_STORE( DACOUT(leftlow));
 
     dsp_LOAD_X_MEM(rightmem);
     dsp_BIQUADS(lplowbq);   //compute lowpass filter
     if (dellow) dsp_DELAY_FixedMicroSec(dellow);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainlow);
-        else dsp_SAT0DB_GAIN_Fixed( gainlow);
-    dsp_STORE( USBIN(rightlow) );
-    dsp_STORE( DACOUT(rightlow));
+    dsp_SAT0DB_GAIN_Fixed( gainlow);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(rightlow) );
+    else dsp_STORE( USBIN(rightlow) );
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(rightlow));
+    else dsp_STORE( DACOUT(rightlow));
 
 dsp_CORE();  // third core crossover mid channel
 
@@ -167,20 +167,18 @@ dsp_CORE();  // third core crossover mid channel
     dsp_LOAD_X_MEM(leftmem);
     dsp_BIQUADS(midbq);
     if (delmid) dsp_DELAY_FixedMicroSec(delmid);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainmid);
-        else dsp_SAT0DB_GAIN_Fixed( gainmid);
+    dsp_SAT0DB_GAIN_Fixed( gainmid);
     //dsp_STORE( USBIN(leftmid) );
-    dsp_STORE( DACOUT(leftmid));
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(leftmid));
+    else dsp_STORE( DACOUT(leftmid));
 
     dsp_LOAD_X_MEM(rightmem);
     dsp_BIQUADS(midbq);
     if (delmid) dsp_DELAY_FixedMicroSec(delmid);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainmid);
-        else dsp_SAT0DB_GAIN_Fixed( gainmid);
+    dsp_SAT0DB_GAIN_Fixed( gainmid);
     //dsp_STORE( USBIN(rightmid) );
-    dsp_STORE( DACOUT(rightmid));
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(rightmid));
+    else dsp_STORE( DACOUT(rightmid));
 
 dsp_CORE();  // 4th core crossover high channel
 
@@ -188,20 +186,20 @@ dsp_CORE();  // 4th core crossover high channel
     dsp_LOAD_X_MEM(leftmem);
     dsp_BIQUADS(hphighbq);
     if (delhigh) dsp_DELAY_FixedMicroSec(delhigh);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainhigh);
-        else dsp_SAT0DB_GAIN_Fixed( gainhigh);
-    dsp_STORE( USBIN(lefthigh) );
-    dsp_STORE( DACOUT(lefthigh));
+    dsp_SAT0DB_GAIN_Fixed( gainhigh);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(lefthigh) );
+    else dsp_STORE( USBIN(lefthigh) );
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(lefthigh));
+    else dsp_STORE( DACOUT(lefthigh));
 
     dsp_LOAD_X_MEM(rightmem);
     dsp_BIQUADS(hphighbq);
     if (delhigh) dsp_DELAY_FixedMicroSec(delhigh);
-    if (dither>=0)
-        dsp_SAT0DB_TPDF_GAIN_Fixed( gainhigh);
-        else dsp_SAT0DB_GAIN_Fixed( gainhigh);
-    dsp_STORE( USBIN(lefthigh) );
-    dsp_STORE( DACOUT(lefthigh));
+    dsp_SAT0DB_GAIN_Fixed( gainhigh);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(lefthigh) );
+    else dsp_STORE( USBIN(lefthigh) );
+    if (dither>=0) dsp_STORE_TPDF( DACOUT(lefthigh));
+    else dsp_STORE( DACOUT(lefthigh));
 
     return dsp_END_OF_CODE();
 }

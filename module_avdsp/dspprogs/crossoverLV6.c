@@ -36,12 +36,12 @@ int dspProg_crossoverLV6(int fcross, int delay){
     dsp_GAIN_Fixed(1.0);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
     dsp_SUBYX();
-    dsp_SAT0DB_TPDF(); 
-    dsp_STORE( USBIN(2) );
+    dsp_SAT0DB();
+    dsp_STORE_TPDF( USBIN(2) );
     dsp_SWAPXY();
     //dsp_BIQUADS(highpass);   //compute lowpass filter
-    dsp_SAT0DB_TPDF(); 
-    dsp_STORE( USBIN(3) );
+    dsp_SAT0DB();
+    dsp_STORE_TPDF( USBIN(3) );
 
     dsp_CORE();
 
@@ -54,12 +54,12 @@ int dspProg_crossoverLV6(int fcross, int delay){
     dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0);
     dsp_COPYXY();
     dsp_BIQUADS(LPLR4);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE( USBIN(4) );
+    dsp_SAT0DB();
+    dsp_STORE_TPDF( USBIN(4) );
     dsp_SWAPXY();
     dsp_BIQUADS(HPLR4);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE( USBIN(5) );
+    dsp_SAT0DB();
+    dsp_STORE_TPDF( USBIN(5) );
 
     return dsp_END_OF_CODE();
 }

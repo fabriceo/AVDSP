@@ -67,10 +67,9 @@ const float Q = 2.0;
     dsp_ADDXY();
     dsp_STORE_X_MEM(memLPF);
     // low is ready
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
-    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+    dsp_SAT0DB_GAIN_Fixed( defaultGain);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outlow) );     // feedback to computer for measurements
+    else dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
     if (microslow>0) {
         dsp_DELAY_FixedMicroSec(microslow);
         printf("woofer (ahead of compression) will be delayed by %d us\n",microslow); }
@@ -85,10 +84,9 @@ const float Q = 2.0;
 
     dsp_BIQUADS(compEQ);
     //dsp_NEGX(); // invert phase due to cable mismatch ?
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
-    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+    dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outhigh) );    // feedback to computer for measurements
+    else dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
     if (microslow<0) {
         dsp_DELAY_FixedMicroSec(-microslow);
         printf("compression (behind woofer) will be additionally delayed by %d us\n",-microslow); }
@@ -122,10 +120,9 @@ void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int mic
     dsp_BIQUADS(lowpass);       //compute lowpass filter in X
     dsp_SUBYX();                // compute high pass in Y
 
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gain);
-    else dsp_SAT0DB_GAIN_Fixed( gain);
-    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+    dsp_SAT0DB_GAIN_Fixed( gain);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outlow) );     // feedback to computer for measurements
+    else dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
 
     if (microslow>0) {
         dsp_DELAY_FixedMicroSec(microslow);
@@ -136,10 +133,9 @@ void crossoverLV(int freq, int gd, int dither, int gain, float gaincomp, int mic
     dsp_SHIFT_FixedInt(-100);   // by default -100 means DSP_MANT
     dsp_GAIN_Fixed(gaincomp);
     dsp_BIQUADS(compEQ);
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
-    else dsp_SAT0DB_GAIN_Fixed( gain );
-    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+    dsp_SAT0DB_GAIN_Fixed( gain );
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outhigh) );    // feedback to computer for measurements
+    else dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
 
     //dsp_NEGX(); // invert phase during tests to test allignement
     dsp_STORE( DACOUT(outhigh) );
@@ -160,10 +156,9 @@ void dspSuroundEQ(int source, int dest, int gain, int dither) {
 
     dsp_LOAD_GAIN_Fixed( source, attSuround );
     dsp_BIQUADS( suroundEQ );
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
-    else dsp_SAT0DB_GAIN_Fixed( gain );
-    dsp_STORE( dest );
+    dsp_SAT0DB_GAIN_Fixed( gain );
+    if (dither>=0) dsp_STORE_TPDF( dest );
+    else dsp_STORE( dest );
 }
 
 void dspHeadphoneEQ(int source, int dest, int gain, int dither) {
@@ -178,10 +173,9 @@ void dspHeadphoneEQ(int source, int dest, int gain, int dither) {
 
     dsp_LOAD_GAIN_Fixed( source, attHeadphone );
     dsp_BIQUADS( headphoneEQ );
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
-    else dsp_SAT0DB_GAIN_Fixed( gain );
-    dsp_STORE( dest );
+    dsp_SAT0DB_GAIN_Fixed( gain );
+    if (dither>=0) dsp_STORE_TPDF( dest );
+    else dsp_STORE( dest );
 }
 
 void dspCenterEQ(int source, int dest, int gain, int dither){
@@ -216,10 +210,9 @@ void dspCenterEQ(int source, int dest, int gain, int dither){
         //dsp_DCBLOCK(10);
         dsp_BIQUADS(centerEQ);
     }
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gain );
-    else dsp_SAT0DB_GAIN_Fixed( gain );
-    dsp_STORE( dest );
+    dsp_SAT0DB_GAIN_Fixed( gain );
+    if (dither>=0) dsp_STORE_TPDF( dest );
+    else dsp_STORE( dest );
 
 }
 

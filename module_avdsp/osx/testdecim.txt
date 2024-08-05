@@ -1,0 +1,68 @@
+
+DAC		0
+AES		8
+USBOUT	16
+USBIN	24
+
+PureUSB		x03
+USBAES		x04
+PureAES		x08
+PureAES1	x10
+PureAES2	x20
+PureAES3	x40
+PureAES4	x80
+
+fc	400
+
+filt192  PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) 
+filt192_ PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1)  
+
+
+core
+
+	section PureUSB
+	transfer (16,24) (17,25)	#usb to usb (loopback)
+	
+	section USBAES
+	transfer (8,24) (9,25) 		#aes to usb
+	
+	section PureAES
+	transfer (8,24) (9,25)		#aes to usb to provide visibility on sound presence (mandatory)
+	section
+	
+	input 16
+	biquad filt192
+	output 0
+
+	input 17
+	biquad filt192
+	output 1
+
+core
+	input 16
+	biquad filt192
+	output 2
+
+	input 17
+	biquad filt192
+	output 3
+	
+core
+	input 16
+	biquad filt192_
+	output 4
+
+	input 17
+	biquad filt192_
+	output 5
+	
+core
+	input 16
+	biquad filt192
+	output 6
+
+	input 17
+	biquad filt192
+	output 7
+end
+

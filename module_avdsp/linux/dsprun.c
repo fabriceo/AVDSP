@@ -14,7 +14,7 @@
 #include "dsp_fileaccess.h" // for loading the opcodes in memory
 #include "dsp_runtime.h"
 
-#define opcodesMax 5000
+#define opcodesMax 40000
 #define nbCoreMax 8
 
 // ouput from 0 to 7, input from 8 to 15

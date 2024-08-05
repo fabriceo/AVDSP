@@ -8,7 +8,7 @@
 
 //used in both dsp_encoder.c and dsp_runtime
 const char * dspOpcodeText[DSP_MAX_OPCODE] = {
-    "DSP_END_OF_CODE",  //0
+    "DSP_END_OF_CODE",      //0
     "DSP_HEADER",
     "DSP_PARAM",
     "DSP_PARAM_NUM",
@@ -16,7 +16,7 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_CORE",
     "DSP_SECTION",
 
-    "DSP_LOAD",         //6
+    "DSP_LOAD",             //7
     "DSP_STORE",
     "DSP_LOAD_STORE",
     "DSP_STORE_TPDF",
@@ -32,7 +32,7 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
 
     "DSP_LOAD_MEM_DATA",
 
-    "DSP_CLRXY",        //15
+    "DSP_CLRXY",        //20
     "DSP_SWAPXY",
     "DSP_COPYXY",
     "DSP_COPYYX",
@@ -52,17 +52,17 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_VALUEX",
     "DSP_VALUEY",
 
-    "DSP_GAIN",     //33
+    "DSP_GAIN",     //39
     "DSP_CLIP",
 
-    "DSP_SAT0DB",   //35
+    "DSP_SAT0DB",   //41
     "DSP_SAT0DB_VOL",
-    "DSP_SAT0DB_TPDF",
+    "DSP_STORE_VOL",
     "DSP_SAT0DB_GAIN",
-    "DSP_SAT0DB_TPDF_GAIN",
+    "DSP_STORE_VOL_SAT",
     "DSP_SERIAL",
 
-    "DSP_DELAY_1",  //40
+    "DSP_DELAY_1",  //47
     "DSP_DELAY",
     "DSP_DELAY_DP",
 

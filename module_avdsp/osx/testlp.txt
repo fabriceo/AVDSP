@@ -1,0 +1,29 @@
+
+DAC		0
+AES		8
+USBOUT	16
+USBIN	24
+
+flp LPLR4(1000)
+
+core 3	#pureusb
+	transfer (USBOUT, USBIN)
+	input USBOUT[0]
+	biquad flp
+	output USBIN[1]
+	
+core 4	#usb/aes
+
+	transfer (AES, USBIN)
+	input AES[0]
+	biquad flp
+	output USBIN[1]
+
+core 8	#pureAES
+
+	transfer (AES, USBIN)
+	input AES[0]
+	biquad flp
+	output USBIN[1]
+
+end

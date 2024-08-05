@@ -8,7 +8,7 @@
 
 #include "dsp_runtime.h"
 
-#define opcodesMax 10000
+#define opcodesMax 40000
 #define inputOutputMax 32
 
 dspSample_t inputOutput[inputOutputMax];        // table containing the input an output samples treated by the dsp_engine

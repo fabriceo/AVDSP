@@ -76,8 +76,7 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
     dsp_STORE( USBIN(5) );      // show filter impulse response in REW with Scope
 
     dsp_LOAD_GAIN_Fixed( USBOUT(1) , 1.0 );
-    dsp_SAT0DB_TPDF();          // show effect of triangular dithering no noise shaping
-    dsp_STORE( USBIN(6) );      // measuring -94dBFS with no signal for 16bits dither
+    dsp_STORE_TPDF( USBIN(6) );      // measuring -94dBFS with no signal for 16bits dither
 
     dsp_LOAD_GAIN_Fixed( USBOUT(1) , 1.0);
     dsp_DITHER_NS2(nscoefs);    // noise shape the input signal with special coeficient declared above
@@ -86,7 +85,6 @@ int dspProg_test1(int dither){  // test noise, tpdf, white, dither, dither_ns2, 
 #endif
     dsp_SINE_Fixed(1000, 0.5);
     //dsp_SAT0DB();
-    //dsp_SAT0DB_TPDF();          // show effect of triangular dithering no noise shaping
     dsp_STORE( USBIN(7) );      // see shaping curve with REW FFT: -85.5dBFS for dither 16bits, +3db curve@2800hz, +12db/octave
 
     return dsp_END_OF_CODE();
@@ -112,19 +110,17 @@ int dspProg_testFloat(int dither){
     //dsp_LOAD( USBOUT(0) );
     //dsp_LOAD_GAIN_Fixed( USBOUT(0) , 1.0 );
     //dsp_CLIP_Fixed(0.25);
-    //dsp_SAT0DB_TPDF();
     dsp_SINE_Fixed(750,0.95);
     dsp_STORE( USBIN(0) );
     return dsp_END_OF_CODE();
 
     dsp_TPDF(20);
-    dsp_SAT0DB_TPDF();
-    dsp_STORE( USBIN(2) );
+    dsp_SAT0DB();
+    dsp_STORE_TPDF( USBIN(2) );
     //dsp_CLIP_Fixed(0.5);
     //dsp_VALUE_Fixed(0.03125);
     //dsp_ADDXY();
     //dsp_BIQUADS(lowpass1);
-    //dsp_SAT0DB_TPDF();
     //dsp_DITHER();
     //dsp_DITHER_NS2(nscoefs);
     //dsp_SAT0DB();

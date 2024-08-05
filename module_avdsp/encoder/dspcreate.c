@@ -14,7 +14,7 @@
 extern int minidspCreateParameters(char * xmlName);
 extern int dspbasicCreate(char * fileName, int argc, char ** argv);
 
-#define opcodesMax 10000                 // just to define a maximum, could be up to 65000 (=256kbytes)
+#define opcodesMax 40000                // just to define a maximum, could be up to 65000 (=256kbytes)
 
 #define inputOutputMax 32               // size of the future table containg samples of each IO accessible by LOAD & STORE
 
@@ -25,10 +25,11 @@ const char * hexBegin =
         "#define DSP_CODESIZE %d\n"
         "#define DSP_DATASIZE %d\n"
         "#define DSP_NUMCORES %d\n"
-        "const unsigned int __attribute__((aligned(8))) dspCodeArray[ DSP_CODESIZE ] = {\n";
+        "const long long __attribute__((aligned(8))) _dspPad8_;\n"
+        "const unsigned int dspCodeArray[ DSP_CODESIZE + DSP_DATASIZE ] = {\n";
 const char * hexEnd =
-        "};\n"
-        " unsigned int __attribute__((aligned(8))) dspDataArray[ DSP_DATASIZE ];\n\t";
+        " };\n";
+
 
 void usage() {
     fprintf(stderr,"command line options:\n");
@@ -182,7 +183,7 @@ int main(int argc, char **argv) {
     }
 
     if (size > 0) {
-        dspprintf("DSP program file successfully generated \n");
+        dspprintf("DSP program file successfully generated with encoder v%4X\n",DSP_ENCODER_VERSION);
         if (outFileType & 1) {
             dspCreateBuffer(binFileName, (int*)opcodes, size); // write bin file
             dspprintf("stored in-> %s\n",binFileName);

@@ -1,0 +1,11 @@
+
+biq		LPLR4(1000)
+
+transfer (16,24)
+
+input 16
+biquad biq
+output 0
+outputvol 25
+
+end

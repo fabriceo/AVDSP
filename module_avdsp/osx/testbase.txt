@@ -1,0 +1,18 @@
+DAC		0
+AES		8
+USBOUT	16
+USBIN	24
+
+core
+
+
+core
+
+
+core
+
+
+core
+
+
+end

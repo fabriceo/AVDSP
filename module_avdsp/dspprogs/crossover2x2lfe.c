@@ -48,16 +48,16 @@ static void crossOver2ways(int in,int outlow, int outhigh, int f, int dist, floa
     dsp_LOAD_GAIN_Fixed(in,1.0);    //load sample in s.31 and simply convert it to dual precision
     dsp_COPYXY();                   // keep a copy for the input of the high pass filter
     dsp_BIQUADS(lowpass);
-    dsp_SAT0DB_TPDF();              // convert to s.31 and add  dithering (for the purpose of the demo!)
+    dsp_SAT0DB();
     if (dist>0) dsp_DELAY(delayline);
-    dsp_STORE(outlow);
+    dsp_STORE_TPDF(outlow);
 
     dsp_SWAPXY();                   // getback sample in s.31
     dsp_BIQUADS(highpass);
     dsp_GAIN_Fixed(highgain);
-    dsp_SAT0DB_TPDF_GAIN_Fixed(highgain );  // convert to 0.31 apply gain and add 24 bits dithering
+    dsp_SAT0DB_GAIN_Fixed(highgain );  // convert to 0.31 apply gain and add 24 bits dithering
     if (dist<0) dsp_DELAY(delayline);
-    dsp_STORE(outhigh);
+    dsp_STORE_TPDF(outhigh);
 }
 
 static void LFEChannel(int mem1,int mem2, int out, int dist){

@@ -35,18 +35,18 @@ int dspProgDAC8PRODSP(int dither){
     dsp_CORE();  
 	for (int i=2; i<8; i+=2) {
         dsp_LOAD_GAIN_Fixed( USBOUT(0) , 0.0631 );  // -24db as a security
-        if (dither>=0) dsp_SAT0DB_TPDF();
-        else dsp_SAT0DB();
-        dsp_STORE( DACOUT(i) );
+        dsp_SAT0DB();
+        if (dither>=0) dsp_STORE_TPDF( DACOUT(i) );
+        else dsp_STORE( DACOUT(i) );
 	}
         	 
  // right channels
     dsp_CORE();  
 	for (int i=3; i<8; i+=2) {
         dsp_LOAD_GAIN_Fixed( USBOUT(1) , 0.0631 );
-        if (dither>=0) dsp_SAT0DB_TPDF();
-        else dsp_SAT0DB();
-        dsp_STORE( DACOUT(i) );
+        dsp_SAT0DB();
+        if (dither>=0) dsp_STORE_TPDF( DACOUT(i) );
+        else dsp_STORE( DACOUT(i) );
 	}
 
     return dsp_END_OF_CODE();
@@ -62,8 +62,8 @@ int dspProgDACSTEREO(int outs, int dither){
 
         for (int i=0; i<2; i++) {
             dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
-            dsp_SAT0DB_TPDF();
-            dsp_STORE( USBIN(i) );
+            dsp_SAT0DB();
+            dsp_STORE_TPDF( USBIN(i) );
         }
     } else {
         dsp_LOAD_STORE();   // cpu optimized version for a multiple LOAD and STORE sequence
@@ -248,8 +248,8 @@ int dspProgUsbLoopBack(int outs, int dither){
 
 	    for (int i=0; i<outs; i++) {
 	    	dsp_LOAD_GAIN_Fixed( USBOUT(i) , 1.0 );
-	    	dsp_SAT0DB_TPDF();
-	    	dsp_STORE( USBIN(i) );
+	        dsp_SAT0DB();
+	    	dsp_STORE_TPDF( USBIN(i) );
 		}
 	} else {
 		dsp_LOAD_STORE();	// cpu optimized version for a multiple LOAD and STORE sequence

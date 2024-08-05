@@ -23,7 +23,7 @@
 #include "dsp_runtime.h"
 #include <time.h>
 
-#define opcodesMax 2000 // = 8kbytes
+#define opcodesMax 40000 // = 160kbytes
 #define nbCoreMax 8
 
 // ouput from 0 to 7, input from 8 to 15
