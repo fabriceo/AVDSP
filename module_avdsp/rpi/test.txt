@@ -1,0 +1,12 @@
+g ? -3db
+
+core
+	input 16
+	gain g
+	output 0
+
+	inputgain (17,g)
+	output 1
+
+end
+
