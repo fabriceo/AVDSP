@@ -8,7 +8,7 @@ ifeq ($(uname_S), Windows)
     CFLAGS = -DWIN32
 endif
 ifeq ($(uname_S), Darwin)
-    CFLAGS = -DOSX -arch x86_64
+    CFLAGS = -DOSX
     PL = .dylib
 else
    CFLAGS = -DLINUX -std=gnu99
