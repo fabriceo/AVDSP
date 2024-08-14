@@ -23,8 +23,8 @@ int dspProgDAC8PRO(int dither){
    
 	    for (int i=0; i<8; i++) {
 	    	dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
-	    	dsp_SAT0DB_TPDF();
-	    	dsp_STORE( USBIN(i) );
+	    	dsp_SAT0DB();
+	    	dsp_STORE_TPDF( USBIN(i) );
 		}
 	} else {
 	    dsp_LOAD_STORE();	// cpu optimized version for a multiple LOAD and STORE sequence
@@ -45,8 +45,8 @@ int dspProgDACSTEREO(int outs, int dither){
 
 	    for (int i=0; i<2; i++) {
 	    	dsp_LOAD_GAIN_Fixed( ADCIN(i) , 1.0 );
-	    	dsp_SAT0DB_TPDF();
-	    	dsp_STORE( USBIN(i) );
+	    	dsp_SAT0DB();
+	    	dsp_STORE_TPDF( USBIN(i) );
 		}
 	} else {
 		dsp_LOAD_STORE();	// cpu optimized version for a multiple LOAD and STORE sequence
@@ -229,8 +229,8 @@ int dspProgUsbLoopBack(int outs, int dither){
 
 	    for (int i=0; i<outs; i++) {
 	    	dsp_LOAD_GAIN_Fixed( USBOUT(i) , 1.0 );
-	    	dsp_SAT0DB_TPDF();
-	    	dsp_STORE( USBIN(i) );
+	    	dsp_SAT0DB();
+	    	dsp_STORE_TPDF( USBIN(i) );
 		}
 	} else {
 		dsp_LOAD_STORE();	// cpu optimized version for a multiple LOAD and STORE sequence
@@ -294,10 +294,9 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
     dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(lowpass);   //compute lowpass filter
 
-    if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
-    dsp_STORE( USBIN(outlow) );
+    dsp_SAT0DB_GAIN_Fixed( defaultGain);
+    if (dither>=0) dsp_STORE_TPDF( USBIN(outlow) );
+    else dsp_STORE( USBIN(outlow) );
     if (microslow > 0) {
         dsp_DELAY_FixedMicroSec(microslow);
         printf("woofer delayed by %d us\n",microslow);
@@ -306,10 +305,10 @@ void crossoverLR6acoustic(int freq, int gd, int dither, int defaultGain, float g
 
     dsp_LOAD_X_MEM(in);
     dsp_BIQUADS(highpass);   //compute lowpass filter
+    dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
-    dsp_STORE( USBIN(outhigh) );
+        dsp_STORE_TPDF( USBIN(outhigh) );
+    else dsp_STORE( USBIN(outhigh) );
     if (microslow < 0) {
         dsp_DELAY_FixedMicroSec(-microslow);
         printf("compression driver delayed by %d us\n",-microslow); // not relevant !-)
@@ -365,10 +364,11 @@ const float Q = 2.0;
     dsp_ADDXY();
     dsp_STORE_X_MEM(memLPF);
     // low is ready
+    dsp_SAT0DB_GAIN_Fixed( defaultGain);
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
-    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+        dsp_STORE_TPDF( USBIN(outlow) );     // feedback to computer for measurements
+    else
+        dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
     if (microslow>0) {
         dsp_DELAY_FixedMicroSec(microslow);
         printf("woofer (ahead of compression) will be delayed by %d us\n",microslow); }
@@ -382,10 +382,10 @@ const float Q = 2.0;
 
     dsp_BIQUADS(compEQ);
     //dsp_NEGX(); // invert phase due to cable mismatch ?
+    dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( gaincomp * defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( gaincomp * defaultGain );
-    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+        dsp_STORE_TPDF( USBIN(outhigh) );    // feedback to computer for measurements
+    else dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
     if (microslow<0) {
         dsp_DELAY_FixedMicroSec(-microslow);
         printf("compression (behind woofer) will be additionally delayed by %d us\n",-microslow); }
@@ -418,10 +418,10 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_BIQUADS(lowpass);       //compute lowpass filter in X
     dsp_SUBYX();                // compute high pass in Y
 
+    dsp_SAT0DB_GAIN_Fixed( defaultGain);
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain);
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain);
-    dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
+        dsp_STORE_TPDF( USBIN(outlow) );     // feedback to computer for measurements
+    else dsp_STORE( USBIN(outlow) );     // feedback to computer for measurements
     if (microslow>0) {
         dsp_DELAY_FixedMicroSec(microslow);
         printf("woofer (ahead of compression) will be delayed by %d us\n",microslow); }
@@ -431,10 +431,10 @@ void crossoverLV(int freq, int gd, int dither, int defaultGain, float gaincomp, 
     dsp_SHIFT_FixedInt(-100);   // by default -100 means DSP_MANT
     dsp_GAIN_Fixed(gaincomp);
     dsp_BIQUADS(compEQ);
+    dsp_SAT0DB_GAIN_Fixed( defaultGain );
     if (dither>=0)
-         dsp_SAT0DB_TPDF_GAIN_Fixed( defaultGain );
-    else dsp_SAT0DB_GAIN_Fixed( defaultGain );
-    dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+         dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
+    else dsp_STORE( USBIN(outhigh) );    // feedback to computer for measurements
 
     //dsp_NEGX(); // invert phase during tests to test allignement
     dsp_STORE( DACOUT(outhigh) );
