@@ -22,6 +22,8 @@ param 200,"AB"
 #param 200,"USB-PC,Coax1,Coax2,Opt1,Opt2,AES,RasPI"
 param 201
 
+lr4	LPLR4(1000) LPLR4(1000)
+
 core	
 core	
 fs 500
@@ -29,11 +31,15 @@ core
 core
 
 	section PureUSB
-	transfer (16,24) (17,25)	#usb to usb
-	transfer (16,0) (17,1)		#usb to dac
+	#transfer (16,24) #(17,25)	#usb to usb
+	#transfer (16,0) (17,1)		#usb to dac
+	input 16
+	output 0,24
+	biquad lr4
+	output 1,25
 	
 	section USBAES
-	transfer (8,24) (9,25) (10,26) (11,27) (12,28) (13,29) (14,30) (15,31)		#aes to usb
+	transfer (8,24) (9,25) 		#aes to usb
 	transfer (16,0) (17,1)		#usb to dac
 	
 	section PureAES

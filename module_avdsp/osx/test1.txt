@@ -1,11 +1,10 @@
 
 biq		LPLR4(1000)
 
-transfer (16,24)
 
 input 16
-biquad biq
-output 0
-outputvol 25
+gain 5.99db
+output 0,24
+outputvol 1,25
 
 end
