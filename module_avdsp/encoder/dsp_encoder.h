@@ -8,7 +8,7 @@
 #ifndef DSP_ENCODER_H_
 #define DSP_ENCODER_H_
 
-#define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
+#define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 1) // will be stored in the program header for further interpretation by the runtime
 
 #include "dsp_header.h"
 #include "dsp_filters.h"
@@ -171,6 +171,7 @@ int  opcodeIndexMisAligned8();
  void dsp_DELAY_DP(int paramAddr);
  void dsp_DELAY_DP_FixedMicroSec(int microSec);
  void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed);
+ void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix);
 
  // used to read a predefined wave form.
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);

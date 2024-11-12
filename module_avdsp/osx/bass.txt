@@ -1,0 +1,37 @@
+
+DAC		0
+AES		8
+USBOUT	16
+USBIN	24
+
+PureUSB		x03
+USBAES		x04
+PureAES		x08
+PureAES1	x10
+PureAES2	x20
+PureAES3	x40
+PureAES4	x80
+
+fc	80
+flfe 120
+
+lplr4	LPLR4(fc) 
+hplr4	HPLR4(fc)
+ap2		AP2(fc,0.7)
+lplfe	LPLR4(flfe)
+
+core	
+
+	input	16
+	copyxy
+	output	24
+	biquad	lplfe
+	output	25
+	swapxy
+	biquad hplr4
+	delayus	600
+	output	26
+	addxy
+	output	27
+
+end

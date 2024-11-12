@@ -173,7 +173,7 @@ static inline void dspSaturateFloat0db(float *f){
     if (dspFloatIsIEE754()){
         dspALU32_t *p = (dspALU32_t *)f;
         int exp  = (p->i >> 23); // keep sign, arithmetic shift right
-        //printf("exp=%d\n",exp);
+        //dspprintf3("exp=%d\n",exp);
         if (exp >= 127) p->f = 1.0;
         else
             if ((exp<0) && (exp >=-129)) p->f =-1.0;
@@ -334,7 +334,7 @@ static inline void dspShiftDouble(double *f, int shift){
 }
 
 static inline float dspMulFloatFloat(float a, float b){
-#if defined(DSP_IEEE754_OPTIMISE) && (DSP_IEEE754_OPTIMISE & 32)
+#if defined(DSP_IEEE754_OPTIMISE) && (DSP_IEEE754_OPTIMISE & 32) && !defined(DSP_XS3A)
     if (dspFloatIsIEE754()){
         dspALU32_t A = { .f=a };
         dspALU32_t B = { .f=b };

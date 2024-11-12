@@ -1275,6 +1275,22 @@ void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed){
     dsp_DELAY_DP_FixedMicroSec(mm * 1000.0 / speed);
 }
 
+void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix) {
+    dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY_FB_MIX);
+    if (dspFormat < DSP_FORMAT_FLOAT) {   // integer alu. Using q31 format.
+        addCode(DSP_QM32(source,31));
+        addCode(DSP_QM32(fb,31));
+        addCode(DSP_QM32(delayed,31));
+        addCode(DSP_QM32(mix,31));
+    } else {
+        addFloat(source);
+        addFloat(fb);
+        addFloat(delayed);
+        addFloat(mix);
+    }
+}
+
+
 //DSP_DATA_TABLE
 
 void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size){
@@ -1368,7 +1384,6 @@ int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGain
 int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2){
 
     int tmp = paramAligned8();    // this enforce that coefficient are alligned 8, so 6 words per biquads and per frequency
-    //b0 /= 16.0; b1 /= 16.0; b2 /= 16.0;
     calcMaxParamValue(b0);
     calcMaxParamValue(b1);
     calcMaxParamValue(b2);
@@ -1382,12 +1397,14 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
         addCode(DSP_QM32(b2,DSP_MANTBQ));
         addCode(DSP_QM32(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration/noise shapping
         addCode(DSP_QM32(a2,DSP_MANTBQ));
+        //addCode(DSP_MANTBQ);    //including the MANTBQ value within the filters so that the asm routine can saturate and extract properly
     } else {
         addFloat(b0);
         addFloat(b1);
         addFloat(b2);
         addFloat(a1 - 1.0); // to make things easier, even float model is using mantissa reintegration
         addFloat(a2);
+        //addFloat(1.0);      //for compatibility with int version
     }
     return tmp;
 }

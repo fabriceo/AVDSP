@@ -1,10 +1,18 @@
 
-biq		LPLR4(1000)
+
+delay 	100		#100
+fb		30%		#30%
+mix		50%		#50%
 
 
-input 16
-gain 5.99db
-output 0,24
-outputvol 1,25
+core
 
+	input 16
+	output 24
+#	delayusfbmix delay*1000, 1-fb, fb, 1-mix, mix
+	output 0
+	input 17
+	delayusfbmix delay*1000,  1-fb, fb, 1-mix, mix
+	output 1,25
+	
 end

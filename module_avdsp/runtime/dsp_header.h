@@ -122,9 +122,11 @@ enum dspOpcodesEnum {
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
-    // new code should come here below
+    DSP_DELAY_FB_MIX,
 
-    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
+    // new opcodes should come here below
+
+    DSP_MAX_OPCODE      // 66 latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };
 
 extern const char * dspOpcodeText[DSP_MAX_OPCODE];  //defined in dsp_header.c
@@ -215,8 +217,8 @@ typedef struct dspHeader_s {    // 11 words
 /* 5 */     int   version;      // version of the encoder used MAJOR, MINOR,BUGFIX
 /* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 0 for float encoding (recomended)
 /*   */     unsigned short   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
-/* 7 */     int   freqMin;          // minimum frequency possible for this program, in raw format eg 44100
-/* 8 */     int   freqMax;          // maximum frequency possible for this program, in raw format eg 192000
+/* 7 */     int   freqMin;          // minimum frequency possible for this program
+/* 8 */     int   freqMax;          // maximum frequency possible for this program
 /* 9 */     unsigned usedInputs;    // bit mapping of all used inputs  (max 32 in this version)
 /* 10 */    unsigned usedOutputs;   // bit mapping of all used outputs (max 32 in this version)
 /* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)

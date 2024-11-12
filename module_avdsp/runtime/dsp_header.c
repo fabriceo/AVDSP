@@ -82,6 +82,7 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_SQRTX",
     "DSP_RMS",
     "DSP_FIR",
+    "DSP_DELAY_FB_MIX",
 };
 
 

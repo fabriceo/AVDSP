@@ -49,7 +49,7 @@ enum keywords_e {
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
     _saturate, _saturatevol, _saturategain,
-    _delayone, _delayus, _delaydpus,
+    _delayone, _delayus, _delaydpus, _delayusfbmix,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
     _dcblock, _biquad, _biquad8, _convol,
     _tpdf, _white, _sine,_square,_dirac,
@@ -60,7 +60,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
-    "delayone", "delayus", "delaydpus",
+    "delayone", "delayus", "delaydpus", "delayusfbmix",
     "savexmem", "loadxmem","saveymem", "loadymem",
     "dcblock", "biquad", "biquad8", "convol",
     "tpdf", "white", "sine","square","dirac",
@@ -69,9 +69,10 @@ static const char * dspKeywords[dspKeywordsNumber] = {
 #define paramKeywordsNumber 2
 static const char * paramKeywords[paramKeywordsNumber] = { "MEMORY","TAPS" };
 
-enum   tvalue_e { _tIO, _tfreq, _tgain,_tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _ttaps, _tnone };
-double valueMin[_tnone] = {  0,    10, -8,    0,  0 ,  1, -32, 8,   1  };
-double valueMax[_tnone] = { 31, 40000, +8, 1000, 20 , 16,  32, 31, -1 };
+enum   tvalue_e           { _tIO, _tfreq, _tgain,_tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _ttaps, _tpercent, _tnone };
+double valueMin[_tnone] = {    0,     10,     -8,      0,        0 ,     1,     -32,      8,      1,         0  };
+double valueMax[_tnone] = {   31,  40000,     +8, 10000000,     20 ,    16,      32,     31,     -1,         1  };
+
 double errMin=0.0, errMax=0.0;
 
 static inline int isNumber(char ch){
@@ -251,6 +252,10 @@ static int searchValue(char * * s, double * value, int enableDB) {
             if (*p =='.') { state |= 2; p++; }
         }
         if (state) {
+            if ( (base==10) && (p[0]=='%') ) {
+                *value = result * sign / 100.0;
+                *s = p+1;
+                return _value; }
             if ( (p[0]=='d')||(p[0]=='D'))
                 if ((p[1]=='b')||(p[1]=='B')) {
                     //check if authorized
@@ -712,6 +717,27 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) goto error;
                     if (keyw == _delaydpus)  dsp_DELAY_DP_FixedMicroSec( delay );
                     else dsp_DELAY_FixedMicroSec( delay );
+                    break; }
+                case _delayusfbmix: {
+                    double source,feed,delayed,mix;
+                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) goto error;
+                    res = searchDelimiter( &p, "," );
+                    errPtr = p;
+                    if (res ==  0) { errNum = 30; goto error; }
+                    if ((res = searchExpressionRange( &p, &source, _tpercent )) < _error) goto error;
+                    res = searchDelimiter( &p, "," );
+                    errPtr = p;
+                    if (res ==  0) { errNum = 30; goto error; }
+                    if ((res = searchExpressionRange( &p, &feed, _tpercent )) < _error) goto error;
+                    res = searchDelimiter( &p, "," );
+                    errPtr = p;
+                    if (res ==  0) { errNum = 30; goto error; }
+                    if ((res = searchExpressionRange( &p, &delayed, _tpercent )) < _error) goto error;
+                    res = searchDelimiter( &p, "," );
+                    errPtr = p;
+                    if (res ==  0) { errNum = 30; goto error; }
+                    if ((res = searchExpressionRange( &p, &mix, _tpercent )) < _error) goto error;
+                    dsp_DELAY_FB_MIX_FixedMicroSec( delay, source, feed, delayed, mix );
                     break; }
                 case _loadxmem:
                 case _savexmem:

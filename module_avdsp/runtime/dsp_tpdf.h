@@ -51,16 +51,16 @@ static inline uint32_t xoshiro128p(uint32_t *s32) {
 
 
 // prepare the tpdf structure according to requested dithering.
-// check request with exisitng global value before creating new data
+// check request with existing global value before creating new data
 static inline int dspTpdfPrepare(tpdf_t * current, tpdf_t * local, int dith){
     if (dith == 0) dith = dspTpdfDefaultDither;
     if (dith != current->dither){
         local->dither = dith;
-        local->mask = (-1 << (32-dith));        // 32bits version
+        local->mask = (-1LL << (32-dith));        // 32bits version
 #if DSP_ALU_INT
         local->mask64 = local->mask;            // this will sign-extend therefore fill the MSB with 1s
-        local->mask64 <<= DSP_MANT_FLEX;
-        int bits = DSP_MANT_FLEX - dith + 1;    // number of shifts required : +5 for 24bit and dsp_mant = 28
+        local->mask64 <<= (DSP_MANT_FLEX*2-31);
+        int bits = DSP_MANT_FLEX*2 - 30 - dith;    // number of shifts required : +5 for 24bit and dsp_mant = 28
 #ifdef DSP_XS1
         // preparing a factor to be used with the fast "maccs" instruction instead of using long long shift left
         if (bits >= 0) {
@@ -99,15 +99,15 @@ static inline void dspTpdfInit(int seed, int defaultDither){
 }
 
 
+const unsigned dspTpdfPoly = 0xEDB88320;   //0xEB31D82E seems better
 
-static inline dspALU_t dspTpdfCalc(){
+static inline dspALU_t dspTpdfCalc(){ asm volatile("#dspTpdfCalc:");
 #ifdef DSP_XS1
     unsigned  rnd1 = dspTpdfRandom;
     // sugested in xmos application note, here : https://xcore.github.io/doc_tips_and_tricks/pseudo-random-numbers.html
-    const unsigned poly = 0xEDB88320;
-    asm ("crc32 %0,%1,%2":"+r"(rnd1):"r"(-1),"r"(poly));
+    asm ("crc32 %0,%1,%2":"+r"(rnd1):"r"(-1),"r"(dspTpdfPoly));
     unsigned  rnd2 = rnd1;
-    asm ("crc32 %0,%1,%2":"+r"(rnd2):"r"(-1),"r"(poly));
+    asm ("crc32 %0,%1,%2":"+r"(rnd2):"r"(-1),"r"(dspTpdfPoly));
     dspTpdfRandom = rnd2;
     // better to use unsigned on XS2A due to instruction set for shr able to run on dual lane vs ashr single lane
     int rnd = ( rnd1 >> 1 ) - ( rnd2 >> 1 ); // same as (rnd1>>1)+(rnd2>>1) on signed int (verified :)

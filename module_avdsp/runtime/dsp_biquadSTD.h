@@ -15,7 +15,7 @@ dspALU_t dsp_calc_biquads_short( dspALU_t ALU, dspParam_t * coefPtr, dspALU_SP_t
 
 #if (DSP_FORMAT == DSP_FORMAT_INT64)
 
-#if defined( DSP_XS2A )     // specific for xmos xs2 architecture
+#if defined( DSP_XS2A )      // specific for xmos xs2 or xs3 architecture
 // fast biquad assembly routine inspired from https://github.com/xmos/lib_dsp/blob/master/lib_dsp/src/dsp_biquad.S
 // value for DSP_MANTBQ is duplicated INSIDE the assembly file and must be updated according to DSP_MANTBQ in dsp_header.h
 extern long long dsp_biquads_xs2(dspSample_t xn, dspParam_t * coefPtr, dspALU_SP_t * dataPtr, int num);
@@ -30,6 +30,7 @@ static inline void checkbiquadsat(dspALU64_t * alu){
     else
     if (alu->lh.hi <= satneg) alu->i = - ((long long)(satpos) << 32);
 }
+
 // inspired from https://dsp.stackexchange.com/questions/21792/best-implementation-of-a-real-time-fixed-point-iir-filter-with-constant-coeffic
 dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspALU_SP_t * dataPtr, short num, const int mantbq, int skip) {
     //xn >>= mantbq;  done in the caller
@@ -72,8 +73,7 @@ dspALU_t dsp_calc_biquads_int( dspALU_t xn, dspParam_t * coefPtr, dspALU_SP_t * 
         (*dataPtr++) = xn;              // store yn => yn-1. yn will also be used as Xn for the next loop cycle
         dataPtr++;
     }
-    //return xn;    prefer returning scaled value
-    return ALU.i;                     // the result is then scaled with the biquad precision (28) that was removed before the call
+    return ALU.i;                     // here the result is multiplied with the biquad precision (28) that was removed before the call
 }
 #endif //defined( DSP_XS2A )
 

@@ -12,6 +12,9 @@ PureAES2	x20
 PureAES3	x40
 PureAES4	x80
 
+feed	= 15%
+mix		= 20%
+
 fc	400
 
 filt192 PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) PEAK(1000,1) #PEAK(1000,1) 
@@ -55,4 +58,5 @@ core
 
 
 end
+
 
