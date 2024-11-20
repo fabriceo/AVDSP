@@ -245,7 +245,7 @@ int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspG
 
 int dsp_Filter1stOrder(int type, dspFilterParam_t freq, dspGainParam_t gain){
     int coefPtr = 0;
-    dspFilterParam_t a1, a2, b0, b1, b2;
+    dspFilterParam_t a1=0, a2=0, b0=0, b1=0, b2=0;
     sectionBiquadCoeficientsBegin();
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         dspFilterParam_t fs = dspConvertFrequencyFromIndex(f);
