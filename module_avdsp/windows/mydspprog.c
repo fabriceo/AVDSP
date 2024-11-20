@@ -536,7 +536,7 @@ dsp_CORE();
 int dspProg(int argc,char **argv){
    int prog = 0;
    int dither = -1; // no dithering by default
-   int outs;
+   int outs = 0;
    int fx = 800;
    int gd = 0;
    float gaincomp = 0.35;

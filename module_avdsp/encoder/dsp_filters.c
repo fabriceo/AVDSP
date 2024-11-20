@@ -91,11 +91,10 @@ void dspFilter2ndOrder( int type,
         dspFilterParam_t * a2
  )
 {
-    dspFilterParam_t a0, w0, cw0, sw0, tw2, alpha;
+    dspFilterParam_t a0, w0, cw0, sw0, alpha;
     w0 = M_PI * 2.0 * freq / fs;
     cw0 = cos(w0);
     sw0 = sin(w0);
-    tw2 = tan(w0/2.0);
     if (Q != 0.0) alpha = sw0 / 2.0 / Q; else alpha = 1;
     a0 = (1.0 + alpha);
     *a1 = -(-2.0 * cw0) / a0;       // sign is changed to accomodate convention
@@ -224,7 +223,7 @@ int dsp_FilterLT(dspFilterParam_t f0, dspFilterParam_t Q0, dspFilterParam_t fp, 
 
 int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain){
     int coefPtr = 0;
-    dspFilterParam_t a1, a2, b0, b1, b2;
+    dspFilterParam_t a1=0, a2=0, b0=0, b1=0, b2=0;
     sectionBiquadCoeficientsBegin();
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         dspFilterParam_t fs = dspConvertFrequencyFromIndex(f);
