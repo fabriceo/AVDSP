@@ -582,25 +582,26 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     break; }
                 case _transfer: {
                     int transferNum=0;
-                transfer_retry:
-                    res = searchDelimiter( &p, "(" );
-                    errPtr = p;
-                    if (res ==  0) { errNum = -28; goto error; }
-                    if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) goto error;
-                    errPtr = p;
-                    res = searchDelimiter( &p, "," );
-                    errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &output, _tIO )) < _error) goto error;
-                    res = searchDelimiter( &p, ")" );
-                    errPtr = p;
-                    if (res ==  0) { errNum = 29; goto error; }
+                    do {
+                        res = searchDelimiter( &p, "(" );
+                        errPtr = p;
+                        if (res ==  0) { errNum = -28; goto error; }
+                        if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) goto error;
+                        errPtr = p;
+                        res = searchDelimiter( &p, "," );
+                        errPtr = p;
+                        if (res ==  0) { errNum = 30; goto error; }
+                        if ((res = searchExpressionRange( &p, &output, _tIO )) < _error) goto error;
+                        res = searchDelimiter( &p, ")" );
+                        errPtr = p;
+                        if (res ==  0) { errNum = 29; goto error; }
 
-                    if (transferNum == 0) dsp_LOAD_STORE();
-                    transferNum++;
-                    dspLoadStore_Data(input,output);
-                    if (testDelimiter( &p, "(" )) goto transfer_retry;
-                    if (searchDelimiter( &p, "," )) goto transfer_retry;
+                        if (transferNum == 0) dsp_LOAD_STORE();
+                        transferNum++;
+                        dspLoadStore_Data(input,output);
+                        if (testDelimiter( &p, "(" )) continue;
+                        if (searchDelimiter( &p, "," )) continue;
+                    } while (0);
                     break; }
                 case _clrxy  : { dsp_CLRXY(); break; }
                 case _swapxy : { dsp_SWAPXY(); break; }
@@ -679,7 +680,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     }
                     inputgainNum++;
                     if (testDelimiter( &p, "(" )) goto inputgain_retry;
-                    if (searchDelimiter( &p, "," )) goto transfer_retry;
+                    if (searchDelimiter( &p, "," )) goto inputgain_retry;
                     break; }
                 case _outputgain: {
                     res = searchDelimiter( &p, "(" );

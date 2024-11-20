@@ -281,7 +281,7 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
 #define DSP_QMSCALE(x,m,b) ( ((b)>=33) ? (long long)((double)(x)*(1LL<<(m))) : (int)((double)(x)*(1L<<(m))) )
 #define DSP_QMBMIN(x,m,b) ( ( (-(x)) >  ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MINNEG(b) : DSP_QMSCALE(x,m,b) )
 #define DSP_QMBMAX(x,m,b) ( (   (x)  >= ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MAXPOS(b) : DSP_QMBMIN(x,m,b)  )
-#define DSP_QMB(x,m,b) ( ( ((m)>=(b))||((b)>64)||((m)<1) ) ? (1/((m)-(m))) : DSP_QMBMAX(x,m,b) )
+#define DSP_QMB(x,m,b) ( (1/(1-( ((m)>=(b))||((b)>64)||((m)<1) ) ) ) ? DSP_QMBMAX(x,m,b) : 0 )
 
 #define DSP_QNM(x,n,m) DSP_QMB(x,m,n+m) //convert to m bit mantissa and n bit integer part including sign bit
 #define DSP_QM32(x,m)  DSP_QMB(x,m,32)  //convert to 32bits int with mantissa "m"
