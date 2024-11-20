@@ -244,7 +244,7 @@ int dspProgUsbLoopBack(int outs, int dither){
 int dspProgTest(){
 
         dsp_PARAM();
-        int testFir = dspFir_Impulses();
+        /* int testFir = */ dspFir_Impulses();
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);   //44k
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);
         dspFir_ImpulseFile("../dspprogs/fir3.txt",3);
