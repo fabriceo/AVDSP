@@ -1009,6 +1009,13 @@ int  dspValue_Default(float value){
 }
 
 
+void dsp_INTEGRATOR(){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_INTEGRATOR);
+    addDataSpaceAligned8(2);    // 2 words for supporting 64bits alu
+}
+
+
 void dsp_DELAY_1(){
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_DELAY_1);
@@ -1189,7 +1196,7 @@ int dspMem_Location() {
 static void dsp_DELAY_(int paramAddr, int opcode){
     checkInParamSpace(paramAddr, 1);
     int tmp = addOpcodeLengthPrint(opcode);
-    int size = opcodePtr(paramAddr)->s16.high;  // get max delay line in samples
+    int size = opcodePtr(paramAddr)->i32;       // get max delay line in samples
     addCode(size);                              // store the max size of the delay line for runtime to check due to user potential changes
     if (opcode == DSP_DELAY_DP)
          addDataSpaceMisAligned8(size*2+1);      // now we can request the data space
@@ -1209,13 +1216,12 @@ void dsp_DELAY_DP(int paramAddr){
 }
 
 // genertae one word code combining the default uS value in LSB and with the max value in MSB
-static int dspDelay_MicroSec(unsigned short maxus, unsigned short us){
+static int dspDelay_MicroSec(int maxus, int us){
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
     checkFinishedParamSection();
     signed long long maxSamples = (((signed long long)maxus * dspConvertFrequencyFromIndex(dspMaxSamplingFreq) + 500000)) / 1000000;
-    if (maxSamples > 16000) dspFatalError("delay too large.");  // arbitrary value in this code version TODO
-    //dspprintf("DELAY maxus = %d, maxsamples = %lld, value = %dus\n",maxus,maxSamples,us);
-    return addOpcodeValue(maxSamples, us);   // temporary storage of the maxsamples and us in a single word
+    addCode(us);    //changed from short to int.  runtime to be verified
+    return addCode(maxSamples);
 }
 
 int dspDelay_MicroSec_Max(int maxus){
@@ -1246,7 +1252,7 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
         dspDelayFactor*705600, dspDelayFactor*768000
 };
 
-static void dsp_DELAY_FixedMicroSec_(unsigned short microSec, int opcode){
+static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     int DP = 1;
     if (opcode == DSP_DELAY_DP) { DP = 2; ALUformat = 1; } else ALUformat = 0;
     addOpcodeLengthPrint(opcode);
@@ -1254,7 +1260,13 @@ static void dsp_DELAY_FixedMicroSec_(unsigned short microSec, int opcode){
     unsigned long long maxSamples_ = (delayLineFactor * microSec);
     maxSamples_ >>= 32;
     unsigned maxSamples = maxSamples_;
-    dspprintf2("DELAY %d -> MAXSAMPLE = %d\n",microSec,maxSamples);
+    delayLineFactor = dspTableDelayFactor[dspMinSamplingFreq];
+    unsigned long long minSamples_ = (delayLineFactor * microSec);
+    minSamples_ >>= 32;
+    unsigned minSamples = minSamples_;
+    int fshi = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
+    int fslo = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
+    dspprintf2("    DELAY %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
     addCode(microSec);  // store the expected delay in uSec
     if (DP == 1 ) addDataSpace(1 + maxSamples); // request data space (including index) and store the pointer
     else addDataSpaceMisAligned8(1 + maxSamples*2);
@@ -1289,6 +1301,52 @@ void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float 
         addFloat(mix);
     }
 }
+
+
+void dsp_CIC_FixedMicroSec(int microSec){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_CICUS);
+    unsigned long long delayLineFactor = dspTableDelayFactor[dspMaxSamplingFreq];
+    unsigned long long maxSamples_ = (delayLineFactor * (unsigned)microSec);
+    maxSamples_ >>= 32;
+    unsigned maxSamples = maxSamples_;
+    delayLineFactor = dspTableDelayFactor[dspMinSamplingFreq];
+    unsigned long long minSamples_ = (delayLineFactor * microSec);
+    minSamples_ >>= 32;
+    if (minSamples_<2) dspFatalError("minimum 2 samples required");
+    int fs = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
+    dspprintf2("    CIC FILTER %dus -> %d samples @%d -> %.0fus\n",microSec,maxSamples,fs,(float)maxSamples / (float)fs * 1000000.0);
+    addCode(microSec);  // store the expected delay in uSec
+    addDataSpaceMisAligned8(1 + (maxSamples+1)*2);
+    for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
+        // generate list of divider according to number of samples depending on fs
+        delayLineFactor = dspTableDelayFactor[f];
+        unsigned long long samples = (delayLineFactor * (unsigned)microSec);
+        samples >>= 32;
+        float coef = samples;
+        coef = 2.0 / coef;
+        if (dspFormat < DSP_FORMAT_FLOAT)   // integer alu. Using q31 format.
+            addCode(DSP_QM32(coef,31));
+        else
+            addFloat(coef);
+    }
+}
+
+void dsp_CIC_N(int maxSamples){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_CICN);
+    if (maxSamples<2) dspFatalError("minimum 2 samples required");
+    addCode(maxSamples);
+    addDataSpaceMisAligned8(1 + (maxSamples+1)*2);
+    // generate coef according to maxSamples
+    float coef = maxSamples;
+    coef = 2.0 / coef;
+    if (dspFormat < DSP_FORMAT_FLOAT)   // integer alu. Using q31 format.
+        addCode(DSP_QM32(coef,31));
+    else
+        addFloat(coef);
+}
+
 
 
 //DSP_DATA_TABLE

@@ -156,6 +156,7 @@ int  opcodeIndexMisAligned8();
  void dsp_VALUEY(int paramAddr);
  int  dspValue_Default(float value);
 
+ void dsp_INTEGRATOR();
  // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);
  void dsp_DELAY_1();
@@ -172,6 +173,8 @@ int  opcodeIndexMisAligned8();
  void dsp_DELAY_DP_FixedMicroSec(int microSec);
  void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed);
  void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix);
+ void dsp_CIC_FixedMicroSec(int microSec);
+ void dsp_CIC_N(int maxSamples);
 
  // used to read a predefined wave form.
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);

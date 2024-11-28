@@ -83,6 +83,9 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_RMS",
     "DSP_FIR",
     "DSP_DELAY_FB_MIX",
+    "DSP_INTEGRATOR",
+    "DSP_CICUS",
+    "DSP_CICN"
 };
 
 

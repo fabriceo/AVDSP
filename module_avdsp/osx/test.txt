@@ -31,6 +31,16 @@ core
 core	
 fs 500
 core	
+
+	input 16
+	output 24
+	integrator
+	output 25
+	input 16
+	movingavgus 200
+	delayus 100
+	output 26
+	
 core
 
 	section PureUSB

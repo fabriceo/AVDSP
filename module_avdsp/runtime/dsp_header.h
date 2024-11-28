@@ -47,7 +47,7 @@ enum dspOpcodesEnum {
     DSP_SECTION,        //conditional section.
 
 /* IO engine */
-    DSP_LOAD,           // 7 load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
+    DSP_LOAD = 7,       //load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
     DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
     DSP_STORE_TPDF,     // apply a gain and store result in an output
@@ -65,7 +65,7 @@ enum dspOpcodesEnum {
 
 /* math engine */
 
-    DSP_CLRXY,          // 20 clear both ALU register
+    DSP_CLRXY = 20,     //clear both ALU register
     DSP_SWAPXY,         // exchange ALU X with second one "Y".
     DSP_COPYXY,         // copy ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
@@ -87,7 +87,7 @@ enum dspOpcodesEnum {
 
 
 /* gains */
-    DSP_GAIN,           // 39 apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
+    DSP_GAIN = 39,      // apply a fixed gain (qnm or float) on the ALU , if a ALU was a sample s.31 then it becomes s4.59
     DSP_CLIP,           // check wether the sample is reaching the thresold given and maximize/minize it accordingly.
 
     DSP_SAT0DB,         // verify boundaries -1/+1. and set a flag in case of saturation
@@ -98,7 +98,7 @@ enum dspOpcodesEnum {
     DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* delays */
-    DSP_DELAY_1,        // 47 equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
+    DSP_DELAY_1 = 47,   // equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
     DSP_DELAY,          // 48 execute a delay line (32 bits ONLY). to be used just before a DSP_STORE for example.
     DSP_DELAY_DP,       // 49 same as DSP_DELAY but 64bits (twice data space required ofcourse)
 
@@ -123,6 +123,9 @@ enum dspOpcodesEnum {
     DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
     DSP_DELAY_FB_MIX,
+    DSP_INTEGRATOR,
+    DSP_CICUS,
+    DSP_CICN,
 
     // new opcodes should come here below
 
@@ -278,10 +281,10 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
 
 #define DSP_MAXPOS(b) ( ((b)>=64) ?   9223372036854775807LL      : ((1UL << (b-1))-1) )
 #define DSP_MINNEG(b) ( ((b)>=64) ? (-9223372036854775807LL-1LL) :  (1UL << (b-1))    )
-#define DSP_QMSCALE(x,m,b) ( ((b)>=33) ? (long long)((double)(x)*(1LL<<(m))) : (int)((double)(x)*(1L<<(m))) )
+#define DSP_QMSCALE(x,m,b) ( ((b)>=32) ? (long long)((double)(x)*(1LL<<(m))) : (int)((double)(x)*(1LL<<(m))) )
 #define DSP_QMBMIN(x,m,b) ( ( (-(x)) >  ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MINNEG(b) : DSP_QMSCALE(x,m,b) )
 #define DSP_QMBMAX(x,m,b) ( (   (x)  >= ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MAXPOS(b) : DSP_QMBMIN(x,m,b)  )
-#define DSP_QMB(x,m,b) ( (1/(1-( ((m)>=(b))||((b)>64)||((m)<1) ) ) ) ? DSP_QMBMAX(x,m,b) : 0 )
+#define DSP_QMB(x,m,b) ( (1/(1-( ((m)>(b))||((b)>64)||((m)<1) ) ) ) ? DSP_QMBMAX(x,m,b) : 0 )
 
 #define DSP_QNM(x,n,m) DSP_QMB(x,m,n+m) //convert to m bit mantissa and n bit integer part including sign bit
 #define DSP_QM32(x,m)  DSP_QMB(x,m,32)  //convert to 32bits int with mantissa "m"

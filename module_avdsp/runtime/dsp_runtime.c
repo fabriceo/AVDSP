@@ -99,6 +99,7 @@ opcode_t * dspFindCoreBegin(opcode_t * ptr){
         first=0;
     }
     return ptr;
+
 }
 
 
@@ -174,7 +175,8 @@ static int dspSamplingFreq;
 static int dspMinSamplingFreq;
 static int dspMaxSamplingFreq;
 static int dspNumSamplingFreq;
-static int dspSamplingFreqIndex;
+
+int dspSamplingFreqIndex;   //global
 
 
 static void dspChangeFormat(opcode_t * ptr, int newFormat);
@@ -204,7 +206,6 @@ int dspRuntimeReset(const int fs,
         dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
     if ((freqIndex < dspMinSamplingFreq) || (freqIndex > dspMaxSamplingFreq)) {
          dspprintf("ERROR : sampling freq not compatible with encoded dsp program.\n"); return -2; }
-
     dspSamplingFreq     = freqIndex;
     dspSamplingFreqIndex= freqIndex - dspMinSamplingFreq;  // relative index of the sampling freq vs the encoded min freq
     dspBiquadFreqOffset = 5+6*dspSamplingFreqIndex; // skip also the 1+1+3 first words
@@ -396,6 +397,20 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
                     dspChangeThisData(cptr++, oldFormat ?31:0, newFormat?31:0);
             }
         } break;
+        case DSP_CICUS: {
+            if ( ((oldFormat==0) && (newFormat!=0)) || ((oldFormat!=0) && (newFormat==0)) ){
+                cptr+=2;    //skip time and dataptr
+                for (int i=0; i< dspNumSamplingFreq; i++)
+                    dspChangeThisData(cptr++, oldFormat?31:0, newFormat?31:0);
+            }
+        } break;
+        case DSP_CICN: {
+            if ( ((oldFormat==0) && (newFormat!=0)) || ((oldFormat!=0) && (newFormat==0)) ){
+                cptr+=2;    //skip time and dataptr
+                //only 1 coef q31 to change
+                dspChangeThisData(cptr++, oldFormat?32:0, newFormat?32:0);
+            }
+        } break;
 
         } // switch
 
@@ -448,6 +463,10 @@ void dspResetFiltersStateData(){
             int * p = dspRuntimeDataPtr+ptr[1].i32;
             p[0] = 0; p[1] = 0; p[2] = 0;
             break; }
+        case DSP_INTEGRATOR: {
+            int * p = dspRuntimeDataPtr+ptr[1].i32;
+            p[0] = 0;   //clear sum
+            break;}
         }
         ptr += skip;
     }
@@ -904,7 +923,7 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
                 nSamples = dspmulu32_32_32(maxSize, dspDelayLineFactor);    // microSec was stored in maxSize by design for DELAY_Fixed
             } else {
                 int * microSecPtr = (int*)(ptr+offset);   // where is stored the delay
-                unsigned short microSec = *microSecPtr;   // read microsec (16bits=short)
+                int microSec = *microSecPtr;   // read microsec
                 nSamples = dspmulu32_32_32(microSec, dspDelayLineFactor);
                 if (nSamples > maxSize) nSamples = maxSize; // security check as the host aplication may have put an higher data...
             }
@@ -1430,6 +1449,11 @@ int DSP_RUNTIME_FORMAT(dspRuntime)( opcode_t * ptr,         // pointer on the co
             }
 
             break; }
+
+        case DSP_INTEGRATOR : break;    //TODO
+        case DSP_CICUS : break;    //TODO
+        case DSP_CICN : break;    //TODO
+
         } // end of switch (opcode)
 
         if (ALUptr) { //when using in single opcode mode

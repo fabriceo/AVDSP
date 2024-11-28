@@ -53,6 +53,7 @@ enum keywords_e {
     _savexmem, _loadxmem,  _saveymem, _loadymem,
     _dcblock, _biquad, _biquad8, _convol,
     _tpdf, _white, _sine,_square,_dirac,
+    _integrator, _cicus, _cicn,
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
@@ -64,6 +65,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "savexmem", "loadxmem","saveymem", "loadymem",
     "dcblock", "biquad", "biquad8", "convol",
     "tpdf", "white", "sine","square","dirac",
+    "integrator","movingavgus","movingavgn",
 };
 
 #define paramKeywordsNumber 2
@@ -172,7 +174,8 @@ enum label_type_e {
 typedef struct label_s {
     struct label_s *   next;
     enum label_type_e labelType; //store the type of label
-    double       value;          //value when labelType = 1;
+    int          lenght;            //store length of label
+    double       value;          //value when labelType < 4
     int          address;        //adress of the filter bank in the dspcode or MEM location
     char         name[1];        //labelname will be extended during malloc : KEEP it at bottom of structure
 } label_t;
@@ -189,6 +192,7 @@ static labelptr_t appendNewLabel(char * * s) {
     int len = 0;
     while ( isAlphanum(*p) ) { p++; len++; }
     labelptr_t l = malloc(sizeof(label_t)+len); //todo potential error...
+    l->lenght = len;
     l->next = NULL;
     l->labelType = _empty;
     if (firstLabel) { lastLabel->next = l; lastLabel = l; }
@@ -205,7 +209,7 @@ static label_t * searchLabel(char * *s){
     char * p = skipSpaces(s);
     for (labelptr_t l = firstLabel; l ; l=l->next) {
         if ( p == strstr( p, l->name ) ) {
-            int len = strlen( l->name );
+            int len = l->lenght;
             if ( isAlphanum( p[len]) ) continue; //not yet
             *s = &p[len];
             return l;
@@ -213,6 +217,40 @@ static label_t * searchLabel(char * *s){
     }
     return NULL;
 }
+
+//search any label in "line" and replace them with their numerical value.
+//assuming line is long enough to hold replaced strings
+static void replaceLabels(char * line) {
+    labelptr_t l = firstLabel;
+    char buf[512];
+    while (l) {
+        int len = l->lenght;
+        //prepare buf for comparaison with [label]
+        buf[0] = '[';
+        memcpy(&buf[1],l->name,len);
+        buf[len+1]=']';
+        buf[len+2]=0;
+        //search occurence
+        char * p = strstr( line, buf );
+        if (p) {
+            //found one, replace it
+            int size = len+2; //to include '[]'
+            char * after = &p[size]; //after points just after ]
+            int lenafter = strlen( after ) + 1; //compute remainings characters in the line, including last 0
+            int lval = l->value;
+            double lvalue = lval;
+            if (l->value == lvalue) sprintf(buf, "%d",lval);
+            else sprintf(buf, "%f",l->value);
+            int lenbuf = strlen( buf );
+            //eventually adjust bin space
+            if (size != lenbuf) memmove(&p[lenbuf],after,lenafter); //resize to fit requirement
+            memcpy(p,buf,lenbuf);
+            continue; //retry with same label, in case of double occurence ...
+        }
+        l=l->next;
+    }
+}
+
 
 static void freeAllLabels(){
     labelptr_t l = firstLabel;
@@ -412,17 +450,28 @@ void clearParamSection() {
 }
 
 
-static char line[512] = ""; //buffer for one line of code
-
-static char * fgetLine() {
-    return fgets( line, 512, dspbasicInput );
+static void fatalError(); //prototype as it is located at botom of this file
+static void fatalErrorNum(int num){
+    errNum = num;
+    fatalError();
 }
+
+
+static char line[512] = ""; //buffer for one line of code
+static int lineNum;
+static char * fgetLine() {
+    return fgets( line, sizeof(line), dspbasicInput );
+}
+
 
 static inline char * skipSpaces(char * * s){
     char * p = *s;
     loop:
     while (isSpaceOrTab(*p)) p++;
-    if (*p == 0x5C) {
+    if (*p == 0x5C) { // backslash"\"
+        p++;
+        while (isSpaceOrTab(*p)) p++;
+        if ((*p == 0) || (*p == '#') || (*p == 0x0A) || (*p == 0x0D)) { } else fatalErrorNum(32);
         if (fgetLine()) {
             p = line;
             errPtr = p;
@@ -436,11 +485,12 @@ static inline char * skipSpaces(char * * s){
     return p;
 }
 
+
+
 int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     char * nextName = dspbasicName;
-    int lineNum = 0;
     int size    = 0;
-
+    lineNum = 0;
     while (nextName && (*nextName)) {
 
     dspbasicName = nextName;
@@ -477,8 +527,6 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     char * p;   //pointer on the character to analyse
     int countarg = 0;
 
-    //initialize dsp code with a PARAM section. this authorize
-    //checkAndCreateParam();
     while (1) {
         if (lineNum == 0) {
             //analyse all the parameters given on the command line
@@ -488,13 +536,29 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 countarg++;
             } else lineNum = 1;
         }
-        if (lineNum) if ( fgetLine() == 0) break;   //read line from file
+        if (lineNum) {
+            if ( fgetLine() == 0) break;   //read line from file
+            lineNum++;
+        }
         errPtr = p = line;
+        //main loop to analyse the line
         while (*p ) {
             //skip any spaces or tab
             if ( isSpaceOrTab(*p) ) { p++; continue; }
+            //check special case '#-' as a prefix for printable comments
+            if ( (p[0] == '#') && (p[1] == '-') ) {
+                char *s = &p[2];
+                replaceLabels(s);
+                while (*s) {
+                    if ((*s == 0x0A)||(*s == 0x0D)) {
+                        *s = 0; s = &p[2];
+                        fprintf(stderr,"%s\n",s);
+                        break; }
+                    s++; }
+                break;
+            }
             //load a new line when finding # or cr/lf
-            if ( (*p == '#')  || (*p == 0x5C ) || (*p == 0x0A) || (*p == 0x0D) ) { p++; break; } //goto next line
+            if ( (*p == '#')  || (*p == 0x5C ) || (*p == 0x0A) || (*p == 0x0D) ) break; //goto next line
             //expecting either a label definition or a dsp keyword, all starting by a letter
             if ( isLetter( *p ) ) {
                 errPtr = p;
@@ -504,9 +568,9 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 switch(keyw) {
                 case _end:   { goto finished; break; }
                 case _param: {
-                    if ((res = testExpression( &p, &input )) < _error) goto error;
+                    if ((res = testExpression( &p, &input )) < _error) fatalError();
                     if (res) {
-                        if (res != _valueint) { errNum = 11; goto error; }
+                        if (res != _valueint) fatalErrorNum(11);
                         int num = input;
                         dsp_PARAM_NUM(num);
                         errPtr = p;
@@ -514,10 +578,10 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                         case 200: {
                             res = searchDelimiter( &p, "," );
                             errPtr = p;
-                            if (res ==  0) { errNum = 30; goto error; }
+                            if (res ==  0) fatalErrorNum(30);
                             char * str;
                             res = searchString( &p, &str);
-                            if (res < 0) { errNum = 34; goto error; }
+                            if (res < 0) fatalErrorNum(34);
                             int code = res; int n = 1;  //first char is string length
                             for (int i=0; i<= res; i++) {
                                 if (i < res) code |= (*str)<<(n*8);
@@ -539,24 +603,24 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 case _core:  {
                     unsigned progAny1 = 0xFFFFFFFF;
                     unsigned progOnly0 = 0;
-                    if ((res = testExpression( &p, &input )) < _error) goto error;
+                    if ((res = testExpression( &p, &input )) < _error) fatalError();
                     if (res) {
-                        if (res != _valueint) { errNum = 11; goto error; }
+                        if (res != _valueint) fatalErrorNum(11);
                         progAny1 = input;
                     }
                     errPtr = p;
                     res = searchDelimiter( &p, "," );
                     errPtr = p;
                     if (res) {
-                        if ((res = searchExpression( &p, &input )) < _error) goto error;
-                        if (res != _valueint) { errNum = 11; goto error; }
+                        if ((res = searchExpression( &p, &input )) < _error) fatalError();
+                        if (res != _valueint) fatalErrorNum(11);
                         progOnly0 = input;
                     }
                     if (keyw == _core)    dsp_CORE_Prog(progAny1,progOnly0);
                     if (keyw == _section) dsp_SECTION(progAny1,progOnly0);
                     break; }
                 case _input: {
-                    if ((res = searchExpressionRange( &p, &input, _tIO  )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &input, _tIO  )) < _error) fatalError();
                     dsp_LOAD( input);
                     break; }
                 case _outputpdf:
@@ -565,43 +629,46 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 case _output: {
                     int outcount;
                     int finalIO;
-                output_retry1:
-                    outcount=0;
-                    finalIO=0;
-                output_retry2:
-                    if ((res = searchExpressionRange( &p, &output , _tIO )) < _error) goto error;
-                    int out = output;
-                    finalIO |= (out << (8*outcount));
-                    res = searchDelimiter( &p, "," );
-                    if(res && (outcount<3)) { outcount++; goto output_retry2;}
-                    if (keyw == _output) dsp_STORE( finalIO );
-                    else  if (keyw == _outputpdf) dsp_STORE_TPDF( finalIO );
-                    else  if (keyw == _outputvol) dsp_STORE_VOL( finalIO );
-                    else dsp_STORE_VOL_SAT( finalIO );
-                    if(res) goto output_retry1;
+                    do {
+                        outcount=0;
+                        finalIO=0;
+                        do {
+                            if ((res = searchExpressionRange( &p, &output , _tIO )) < _error) fatalError();
+                            int out = output;   //convert to integer
+                            finalIO |= (out << (8*outcount));
+                            outcount++;
+                            res = searchDelimiter( &p, "," );
+                            errPtr = p;
+                        } while ( res && (outcount<4) );
+                        if (keyw == _output) dsp_STORE( finalIO );
+                        else  if (keyw == _outputpdf) dsp_STORE_TPDF( finalIO );
+                        else  if (keyw == _outputvol) dsp_STORE_VOL( finalIO );
+                        else dsp_STORE_VOL_SAT( finalIO );
+                    } while(res);
                     break; }
                 case _transfer: {
                     int transferNum=0;
                     do {
+                        errPtr = p;
                         res = searchDelimiter( &p, "(" );
                         errPtr = p;
-                        if (res ==  0) { errNum = -28; goto error; }
-                        if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) goto error;
+                        if (res ==  0) fatalErrorNum(28);
+                        if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) fatalError();
                         errPtr = p;
                         res = searchDelimiter( &p, "," );
                         errPtr = p;
-                        if (res ==  0) { errNum = 30; goto error; }
-                        if ((res = searchExpressionRange( &p, &output, _tIO )) < _error) goto error;
+                        if (res ==  0) fatalErrorNum(30);
+                        if ((res = searchExpressionRange( &p, &output, _tIO )) < _error) fatalError();
                         res = searchDelimiter( &p, ")" );
                         errPtr = p;
-                        if (res ==  0) { errNum = 29; goto error; }
+                        if (res ==  0) fatalErrorNum(29);
 
                         if (transferNum == 0) dsp_LOAD_STORE();
                         transferNum++;
                         dspLoadStore_Data(input,output);
-                        if (testDelimiter( &p, "(" )) continue;
-                        if (searchDelimiter( &p, "," )) continue;
-                    } while (0);
+                        if ((res = testDelimiter( &p, "(" ))) continue;
+                        res = searchDelimiter( &p, "," );
+                    } while (res);
                     break; }
                 case _clrxy  : { dsp_CLRXY(); break; }
                 case _swapxy : { dsp_SWAPXY(); break; }
@@ -617,85 +684,74 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 case _divyx  : { dsp_DIVYX(); break; }
                 case _avgxy  : { dsp_AVGXY(); break; }
                 case _avgyx  : { dsp_AVGYX(); break; }
-                case _negx   : { dsp_NEGX(); break; }
-                case _negy   : { dsp_NEGY();break; }
+                case _negx   : { dsp_NEGX();  break; }
+                case _negy   : { dsp_NEGY();  break; }
                 case _shift  : {
-                    if ((res = searchExpressionRange( &p, &input, _tshift  )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &input, _tshift  )) < _error) fatalError();
                     dsp_SHIFT_FixedInt( input);
                     break; }
                 case _valuex : {
                     double result;
-                    if ((res = searchExpression( &p, &result)) < _error) goto error;
+                    if ((res = searchExpression( &p, &result)) < _error) fatalError();
                     dsp_VALUEX_Fixed(result);
                     break; }
                 case _valuey : {
                     double result;
-                    if ((res = searchExpression( &p, &result)) < _error) goto error;
+                    if ((res = searchExpression( &p, &result)) < _error) fatalError();
                     dsp_VALUEY_Fixed(result);
                     break; }
                 case _gain : {
                     double result;
-                    if ((res = searchExpression( &p, &result)) < _error) goto error;
+                    if ((res = searchExpression( &p, &result)) < _error) fatalError();
                     dsp_GAIN_Fixed(result);
                     break; }
                 case _clip : {
                     double result;
-                    if ((res = searchExpression( &p, &result)) < _error) goto error;
+                    if ((res = searchExpression( &p, &result)) < _error) fatalError();
                     dsp_CLIP_Fixed(result);
                     break; }
 
                 case _mixer: {
                     int mixerNum = 0;
-                mixer_rety:
-                    if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) goto error;
-                    if(mixerNum == 0) dsp_MIXER();
-                    dspMixer_Data(input, 1.0);
-                    mixerNum++;
-                    res = searchDelimiter( &p, "," );
-                    errPtr = p;
-                    if (res > 0) goto mixer_rety;
+                    do {
+                        if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) fatalError();
+                        if(mixerNum == 0) dsp_MIXER();
+                        dspMixer_Data(input, 1.0);
+                        mixerNum++;
+                        res = searchDelimiter( &p, "," );
+                        errPtr = p;
+                    } while (res);
                     break; }
                 case _mixergain:
-                case _inputgain: {
-                    int inputgainNum=0;
-                inputgain_retry:
-                    res = searchDelimiter( &p, "(" );
-                    errPtr = p;
-                    if (res ==  0) { errNum = -28; goto error; }
-                    if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) goto error;
-                    res = searchDelimiter( &p, "," );
-                    errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) goto error;
-                    errPtr = p;
-                    res = searchDelimiter( &p, ")" );
-                    errPtr = p;
-                    if (res ==  0) { errNum = 19; goto error; }
-                    if (keyw == _inputgain) {
-                        dsp_LOAD_GAIN_Fixed( input, gain );
-                        break;
-                    } else { // _mixer
-                        if(inputgainNum == 0) dsp_MIXER();
-                        dspMixer_Data(input, gain);
-                    }
-                    inputgainNum++;
-                    if (testDelimiter( &p, "(" )) goto inputgain_retry;
-                    if (searchDelimiter( &p, "," )) goto inputgain_retry;
-                    break; }
+                case _inputgain:
                 case _outputgain: {
-                    res = searchDelimiter( &p, "(" );
-                    errPtr = p;
-                    if (res ==  0) { errNum = -28; goto error; }
-                    if ((res = searchExpressionRange( &p, &output , _tIO )) < _error) goto error;
-                    res = searchDelimiter( &p, "," );
-                    errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) goto error;
-                    errPtr = p;
-                    res = searchDelimiter( &p, ")" );
-                    errPtr = p;
-                    if (res ==  0) { errNum = 19; goto error; }
-                    dsp_STORE_GAIN_Fixed( output, gain );
+                    int inputgainNum=0;
+                    do {
+                        errPtr = p;
+                        res = searchDelimiter( &p, "(" );
+                        errPtr = p;
+                        if (res ==  0) fatalErrorNum(28);
+                        if ((res = searchExpressionRange( &p, &input , _tIO )) < _error) fatalError();
+                        res = searchDelimiter( &p, "," );
+                        errPtr = p;
+                        if (res ==  0) fatalErrorNum(30);
+                        if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) fatalError();
+                        errPtr = p;
+                        res = searchDelimiter( &p, ")" );
+                        errPtr = p;
+                        if (res ==  0) fatalErrorNum(19);
+                        if (keyw == _inputgain) {
+                            dsp_LOAD_GAIN_Fixed( input, gain );
+                            break; }
+                        if (keyw == _outputgain) {
+                            dsp_STORE_GAIN_Fixed( input, gain );
+                            break; }
+                        if (inputgainNum == 0) dsp_MIXER();
+                        dspMixer_Data(input, gain);
+                        inputgainNum++;
+                        if ((res = testDelimiter( &p, "(" ))) continue;
+                        res = searchDelimiter( &p, "," );
+                    } while(res);
                     break; }
                 case _saturate: {
                     dsp_SAT0DB();
@@ -707,37 +763,36 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     dsp_SAT0DB_VOL();
                     break; }
                 case _saturategain:{
-                    if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) fatalError();
                     dsp_SAT0DB_GAIN_Fixed(gain);
                     break; }
                 case _delayone: {
                     dsp_DELAY_1(); break; }
                 case _delaydpus:
                 case _delayus: {
-                    //if (saturated == 0)   { errNum = 8; goto error; }
-                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) fatalError();
                     if (keyw == _delaydpus)  dsp_DELAY_DP_FixedMicroSec( delay );
                     else dsp_DELAY_FixedMicroSec( delay );
                     break; }
                 case _delayusfbmix: {
                     double source,feed,delayed,mix;
-                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) fatalError();
                     res = searchDelimiter( &p, "," );
                     errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &source, _tpercent )) < _error) goto error;
+                    if (res ==  0) fatalErrorNum(30);
+                    if ((res = searchExpressionRange( &p, &source, _tpercent )) < _error) fatalError();
                     res = searchDelimiter( &p, "," );
                     errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &feed, _tpercent )) < _error) goto error;
+                    if (res ==  0) fatalErrorNum(30);
+                    if ((res = searchExpressionRange( &p, &feed, _tpercent )) < _error) fatalError();
                     res = searchDelimiter( &p, "," );
                     errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &delayed, _tpercent )) < _error) goto error;
+                    if (res ==  0) fatalErrorNum(30);
+                    if ((res = searchExpressionRange( &p, &delayed, _tpercent )) < _error) fatalError();
                     res = searchDelimiter( &p, "," );
                     errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &mix, _tpercent )) < _error) goto error;
+                    if (res ==  0) fatalErrorNum(30);
+                    if ((res = searchExpressionRange( &p, &mix, _tpercent )) < _error) fatalError();
                     dsp_DELAY_FB_MIX_FixedMicroSec( delay, source, feed, delayed, mix );
                     break; }
                 case _loadxmem:
@@ -745,30 +800,30 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 case _loadymem:
                 case _saveymem:{
                     labelptr_t l = searchLabel( &p );
-                    if ((l==NULL)||(l->labelType != label_memory)) { errNum = 10; goto error; }
+                    if ((l==NULL)||(l->labelType != label_memory)) fatalErrorNum(10);
                     int bracket = searchDelimiter( &p, "[");
-                    if ((res = testExpression( &p, &input )) < _error) goto error;
+                    if ((res = testExpression( &p, &input )) < _error) fatalError();
                     if (res == _empty) {
-                        if (l->value > 1.0) { errNum =2; goto error; }
+                        if (l->value > 1.0) fatalErrorNum(2);
                         else input = 0.0;
-                    } else if (res != _valueint) { errNum = 11; goto error; }
-                    if (outOfRange( input, 0.0, l->value-1.0 )) goto error;
+                    } else if (res != _valueint) fatalErrorNum(11);
+                    if (outOfRange( input, 0.0, l->value-1.0 )) fatalError();
                     if (bracket)
-                        if (0 == searchDelimiter( &p, "]")) { errNum=26; goto error; }
+                        if (0 == searchDelimiter( &p, "]")) fatalErrorNum(26);
                     if       (keyw == _savexmem) dsp_STORE_X_MEM( l->address + input*2.0 );
                     else  if (keyw == _saveymem) dsp_STORE_Y_MEM( l->address + input*2.0 );
                     else  if (keyw == _loadxmem) dsp_LOAD_X_MEM( l->address + input*2.0 );
                     else  if (keyw == _loadymem) dsp_LOAD_Y_MEM( l->address + input*2.0 );
                     break; }
                 case _dcblock: {
-                    if ((res = searchExpressionRange( &p, &freq, _tfreq )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &freq, _tfreq )) < _error) fatalError();
                     dsp_DCBLOCK( freq );
                     break; }
                 case _biquad8:
                 case _biquad: {
                     labelptr_t l = searchLabel( &p );
-                    if (l == NULL) { errNum = 3; goto error; }
-                    if (l->labelType != label_filter) { errNum = 4; goto error; }
+                    if (l == NULL) fatalErrorNum(3);
+                    if (l->labelType != label_filter) fatalErrorNum(4);
                     dsp_BIQUADS( l->address );
                     break; }
                 case _convol: {
@@ -776,8 +831,8 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     do {
                         errPtr = p;
                         labelptr_t l = searchLabel( &p );
-                        if (l == NULL) { errNum = 33; goto error; }
-                        if (l->labelType != label_taps) { errNum = 33; goto error; }
+                        if (l == NULL) fatalErrorNum(33);
+                        if (l->labelType != label_taps) fatalErrorNum(33);
                         if (numFilt == 0) ; //generate opcode
                         else ; // generates taps adresses
                         numFilt++;
@@ -785,8 +840,18 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                         res = searchDelimiter( &p, ",");
                     } while(res);
                     break; }
+                case _integrator: {
+                    dsp_INTEGRATOR(); break; }
+                case _cicus: {
+                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) fatalError();
+                    dsp_CIC_FixedMicroSec( delay );
+                    break; }
+                case _cicn: {
+                    if ((res = searchExpressionRange( &p, &delay, _tdelay )) < _error) fatalError();
+                    dsp_CIC_N( delay );
+                    break; }
                 case _tpdf: {
-                    if ((res = searchExpressionRange( &p, &tpdf, _ttpdf )) < _error) goto error;
+                    if ((res = searchExpressionRange( &p, &tpdf, _ttpdf )) < _error) fatalError();
                     dsp_TPDF(tpdf);
                     break; }
                 case _sine:
@@ -794,16 +859,16 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 case _dirac: {
                     res = searchDelimiter( &p, "(" );
                     errPtr = p;
-                    if (res ==  0) { errNum = 28; goto error; }
-                    if ((res = searchExpressionRange( &p, &freq, _tfreq )) < _error) goto error;
+                    if (res ==  0) fatalErrorNum(28);
+                    if ((res = searchExpressionRange( &p, &freq, _tfreq )) < _error) fatalError();
                     res = searchDelimiter( &p, "," );
                     errPtr = p;
-                    if (res ==  0) { errNum = 30; goto error; }
-                    if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) goto error;
+                    if (res ==  0) fatalErrorNum(30);
+                    if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) fatalError();
                     errPtr = p;
                     res = searchDelimiter( &p, ")" );
                     errPtr = p;
-                    if (res ==  0) { errNum = 29; goto error; }
+                    if (res ==  0) fatalErrorNum(29);
 
                     switch(keyw) {
                     case _sine:     dsp_SINE_Fixed(freq,gain); break;
@@ -814,13 +879,13 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                 } //end of switch keyw
 
                 if (keyw == -1) {   //this is not a keyword so it has to be a label then
-                    //if (paramsection == 0) { errNum=17; goto error; }
+                    //if (paramsection == 0) { errNum=17; fatalErrorNum(); }
                     labelptr_t l = searchLabel( &p );
                     errPtr = p;
                     if (l) {
                         //label found, verify if user wants to overload label definition (?)
                         res = searchDelimiter( &p, "?" );
-                        if (res == 0) { errNum = 12; goto error; }
+                        if (res == 0) fatalErrorNum(12);
                         //yes overloading
                         errPtr = p;
                     } else {
@@ -837,7 +902,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                     if ( filterType >= 0 ) {
                         if ( filterNum == 0 ) {
                             //this new label is followed by a filter name for the first time
-                            if ((l->labelType != _empty)&&(l->labelType != label_filter)) { errNum = 12; goto error; };
+                            if ((l->labelType != _empty)&&(l->labelType != label_filter)) fatalErrorNum(12);
                             l->labelType = label_filter;
                             l->address = dspBiquad_Sections_Flexible();
                         }
@@ -845,53 +910,53 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                         errPtr = p;
                         res = searchDelimiter( &p, "(" );
                         errPtr = p;
-                        if (res ==  0) { errNum = 19; goto error; }
+                        if (res ==  0) fatalErrorNum(19);
                         //read filter cutoff frequency
-                        if ((res = testExpression( &p, &freq )) < _error) goto error;
-                        if (res == _empty) { errNum = 14; goto error; }
-                        if (res == _valuedb) { errNum = 25; goto error; }
+                        if ((res = testExpression( &p, &freq )) < _error) fatalError();
+                        if (res == _empty) fatalErrorNum(14);
+                        if (res == _valuedb) fatalErrorNum(25);
                         errPtr = p;
-                        if (outOfRange( freq, valueMin[_tfreq], valueMax[_tfreq])) goto error;
+                        if (outOfRange( freq, valueMin[_tfreq], valueMax[_tfreq])) fatalError();
                         //read filter Q only for generic second order filters
                         gain = 1.0;  //default value
                         filterQ = 1.0; //default value
                         if (filterType >= 46) {
                             res = searchDelimiter( &p, "," );
                             errPtr = p;
-                            if (res ==  0) { errNum = 21; goto error; }
-                            if ((res = testExpression( &p, &filterQ )) < _error) goto error;
-                            if (res ==  _empty) { errNum = 15; goto error; }
+                            if (res ==  0) fatalErrorNum(21);
+                            if ((res = testExpression( &p, &filterQ )) < _error) fatalError();
+                            if (res ==  _empty) fatalErrorNum(15);
                             errPtr = p;
-                            if (outOfRange( filterQ, valueMin[_tfilterQ], valueMax[_tfilterQ] )) goto error;
+                            if (outOfRange( filterQ, valueMin[_tfilterQ], valueMax[_tfilterQ] )) fatalError();
                             if (filterType == 55) { //FLT
                                 res = searchDelimiter( &p, "," );
                                 errPtr = p;
-                                if (res ==  0) { errNum = 21; goto error; }
+                                if (res ==  0) fatalErrorNum(21);
                                 //read frequency fp & qp
-                                if ((res = testExpression( &p, &freqLT )) < _error) goto error;
-                                if (res == _empty) { errNum = 14; goto error; }
-                                if (res == _valuedb) { errNum = 25; goto error; }
+                                if ((res = testExpression( &p, &freqLT )) < _error) fatalError();
+                                if (res == _empty) fatalErrorNum(14);
+                                if (res == _valuedb) fatalErrorNum(25);
                                 errPtr = p;
-                                if (outOfRange( freqLT, valueMin[_tfreq], valueMax[_tfreq])) goto error;
+                                if (outOfRange( freqLT, valueMin[_tfreq], valueMax[_tfreq])) fatalError();
                                 //read filter Q
                                 res = searchDelimiter( &p, "," );
                                 errPtr = p;
-                                if (res ==  0) { errNum = 21; goto error; }
-                                if ((res = testExpression( &p, &filterQLT )) < _error) goto error;
-                                if (res ==  _empty) { errNum = 15; goto error; }
+                                if (res ==  0) fatalErrorNum(21);
+                                if ((res = testExpression( &p, &filterQLT )) < _error) fatalError();
+                                if (res ==  _empty) fatalErrorNum(15);
                                 errPtr = p;
-                                if (outOfRange( filterQLT, valueMin[_tfilterQ], valueMax[_tfilterQ] )) goto error;
+                                if (outOfRange( filterQLT, valueMin[_tfilterQ], valueMax[_tfilterQ] )) fatalError();
                             }
                         }
                         //read filter gain
                         res = searchDelimiter( &p, "," );
                         errPtr = p;
                         if (res>0)
-                            if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) goto error;
+                            if ((res = searchExpressionRange( &p, &gain, _tgain )) < _error) fatalError();
                         errPtr = p;
                         res = searchDelimiter( &p, ")" );
                         errPtr = p;
-                        if (res ==  0) { errNum = 20; goto error; }
+                        if (res ==  0) fatalErrorNum(20);
                         if (filterType == 55) {
                             dspprintf2("filter %s LT with F0=%f, Q0=%f, Fp=%f, Qp=%f, G=%f\n",l->name,freq,filterQ,freqLT,filterQLT,gain);
                             //add filter characteristics in the dsp code (param section)
@@ -911,14 +976,14 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                         if (filterType >= 0) goto filter_retry;
                         errPtr = p;
                         res = testDelimiter( &p, "#\n\r");
-                        if ( res == 0) {errNum = -32; goto error; }
+                        if ( res == 0) fatalErrorNum(32);
                         else continue;
                     } else {
                         //not a filter
                         res = searchKeywords( &p, paramKeywords, paramKeywordsNumber );
                         if (res == 0 ) {
                             // MEM keyword recognized
-                            if ((l->labelType != _empty)&&(l->labelType != label_memory)) { errNum = 12; goto error; };
+                            if ((l->labelType != _empty)&&(l->labelType != label_memory)) fatalErrorNum(12);
                             l->labelType = label_memory;
                             errPtr = p;
                             //accept a potential MEM size parameter as an integer
@@ -926,26 +991,26 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                             res = searchValue( &p, &memSize, 0 );
                             if (res) {
                                 // check if it is an integer value
-                                if (res != _valueint) { errNum = 11; goto error; }
-                                if (outOfRange( memSize, valueMin[_tmem], valueMax[_tmem] )) goto error;
+                                if (res != _valueint) fatalErrorNum(11);
+                                if (outOfRange( memSize, valueMin[_tmem], valueMax[_tmem] )) fatalError();
                             }
                             l->value = memSize;
                             int memSizeInt = memSize;
                             //allocate space in the dsp code
                             checkAndCreateParam();
                             l->address = dspMem_LocationMultiple(memSizeInt);
-                            dspprintf2("label %s created with MEM adr = %d size = %f\n",l->name,l->address, l->value);
+                            dspprintf2("label %s MEM adr = %d, size = %d\n",l->name,l->address, (int)l->value);
                         } else
                         if (res == 1) { //TAPS
                             checkAndCreateParam();
                             int numTaps=0;
                             do {
-                                if ((l->labelType != _empty)&&(l->labelType != label_taps)) { errNum = 12; goto error; };
+                                if ((l->labelType != _empty)&&(l->labelType != label_taps)) fatalErrorNum(12);
                                 l->labelType = label_taps;
                                 errPtr = p;
                                 //accept a potential MEM size parameter as an integer
                                 double tap = 0.0;
-                                if ((res = searchExpressionRange( &p, &tap, _ttaps )) < _error) goto error;
+                                if ((res = searchExpressionRange( &p, &tap, _ttaps )) < _error) fatalError();
                                 numTaps++;
                                 errPtr = p;
                                 res = searchDelimiter( &p, "," );
@@ -963,34 +1028,41 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
                             double temp;
                             if (res) {
                                 //value or label authorized after an "="
-                                if ((res = searchExpression( &p, &temp )) < _error) goto error;
+                                if ((res = searchExpression( &p, &temp )) < _error) fatalError();
                                 errPtr = p;
                                 old = _empty;  //clear previous definition if any
                             } else {
                                 char * prevp = p;
                                 res = searchValue( &p, &temp, 1 );  //otherwise only numerical
                                 errPtr = p;
-                                if (res == _empty)  { errNum = 7; goto error; }
-                                if (testDelimiter( &p, "+-*/")) { errPtr= prevp; errNum = 31; goto error; }
+                                if (res == _empty)  fatalErrorNum(7);
+                                if (testDelimiter( &p, "+-*/")) { errPtr= prevp; fatalErrorNum(31); }
                             }
                             if (old == _empty) {
                                 l->value = temp;
                                 l->labelType = res;
-                                dspprintf2("label %s type %d created with value %f\n",l->name,l->labelType, l->value);
+                                int lval = l->value;
+                                double lvalue = lval;
+                                if (lvalue == l->value) {
+                                    dspprintf2("label type %d %s = %d\n",l->labelType,l->name, lval);
+                                } else {
+                                    dspprintf2("label type %d %s = %f\n",l->labelType,l->name, l->value);
+                                }
                             } else
-                                dspprintf2("label %s type %d already set with value %f\n",l->name,l->labelType, l->value);
+                                dspprintf2("label type %d %s already set with value %f\n",l->labelType,l->name, l->value);
                         } // expression value
                     } // not a filter
                 } //if keyw == -1
                 if (lineNum > 0) {
-                    int res = searchDelimiter( &p, ";#\n\r\\" );     //optional delimiter on a line
+                    if (testDelimiter( &p, "#")) continue;
+                    int res = searchDelimiter( &p, ";\n\r\\" );     //optional delimiter on a line
                     errPtr=p;
-                    if (res ==0 ) { errNum = 13; goto error; }
+                    if (res ==0 ) fatalErrorNum(13);
                     if (res != ';') {errPtr=p; break; } //skip end of line
                 }
             } else {
                 //a strange caracter is encountered
-                errPtr=p; errNum=6; goto error;  }
+                errPtr=p; fatalErrorNum(6);  }
         } // while(*p)
     } //while (1)
 finished:
@@ -1004,8 +1076,9 @@ finished:
 
     freeAllLabels();
     return size;
+}
 
-error:
+void fatalError(){
     if (errNum > 0) errNum = - errNum;
     switch (errNum) {
     case -1:  fprintf(stderr,"Error: numerical value expected\n"); break;
@@ -1044,14 +1117,13 @@ error:
     case -34: fprintf(stderr,"Error: string expected\n"); break;
     default: break;
     }
-    fprintf(stderr,"l%d: %s",lineNum,line);
-    fprintf(stderr,"l%d: ",lineNum);
+    fprintf(stderr,"l%d: %s",lineNum-1,line);
+    fprintf(stderr,"l%d: ",lineNum-1);
     char *q = line;
-    skipSpaces(&errPtr);
+    while (isSpaceOrTab(*errPtr)) errPtr++;
     while (q != errPtr) { fprintf(stderr,"%c",(*q==9 ? *q : ' ')); q++; }
     fprintf(stderr,"^\n");
     freeAllLabels();
     fclose(dspbasicInput);
-    return -errNum;
+    exit(errNum);
 }
-
