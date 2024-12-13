@@ -1711,7 +1711,7 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_SINE);
     int fmin = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
-    checkInRange(freq, 20, fmin/4);
+    checkInRange(freq, 20, fmin/2);
     addDataSpaceAligned8(4);    //data space for computing xn and yn each in 64bits
     addGainCodeQNM(gain);       //initial value for yn (cosine) or when xn == 0
     for (int f=dspMinSamplingFreq; f<=dspMaxSamplingFreq; f++){

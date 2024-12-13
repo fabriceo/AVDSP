@@ -1,30 +1,24 @@
 #-### basic.txt ###
 
-nn	40
-us	838
-
-
-lr4	LPLR4(15000)
-rewin 23
+lp		LPLR4(1000) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db)
 
 core
-	tpdf	20
-	transfer (16,rewin[1])
-	input 16
-	movingavgus us
-	movingavgus us/2
-	copyxy
-	output rewin[2]
-	
-	input 16
-	delayus us*1.5*50%
-	subxy
-	output rewin[3]
-	addxy
-	output rewin[4]
-	
-	input 16
-	biquad lr4
-	output rewin[5]
-	
+	transfer (16,24)
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+core
+
+core
+
+core
+
 end
+	
