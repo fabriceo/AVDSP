@@ -1,24 +1,31 @@
 #-### basic.txt ###
 
-lp		LPLR4(1000) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db) PEAK(1000,0db)
-
-core
-	transfer (16,24)
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
-	nop
+eq	PEAK(1000,1,-3db)
 core
 
-core
+	transfer (16,24) 
 
 core
+	input 16
+	biquad eq
+	delayus 200
+	output 25
 
+end
+
+core
+	transfer (16,24) (16,24) (16,24) (16,24) 
+end
+core
+	transfer (16,24) (16,24) (16,24) (16,24) 
+end
+core
+	transfer (16,24) (16,24) (16,24) (16,24) 
+
+core
+	transfer (16,24) (16,24) (16,24) (16,24) 
+
+core
+	transfer (16,24) (16,24) (16,24) (16,24) 
 end
 	
