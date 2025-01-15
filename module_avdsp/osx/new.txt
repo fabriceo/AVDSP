@@ -1,0 +1,55 @@
+
+
+att_rel		DRCIN		100m, 100m
+drc1		DRCIN		100m, 100m, -3db, 0.5, 0.1
+
+
+peak1		DRCOUT
+rms1		DRCOUT
+
+drc1out		DRCOUT
+
+thedel		VALUEINT	100
+
+zz			MEMORY
+
+tile
+thegain		VALUE		3db
+core
+	input 16
+	envpeak	att_rel, peak1
+	
+	input 17
+	envrms   att_rel, rms1
+	input 16	
+	gain thegain
+
+
+	limiterpeak drc1, drc1out
+	output 24
+	
+	input 19
+	gain drc1out
+	output 25
+	
+	delayus thedel, 1000
+
+tile
+thevol		VALUE		0db, 0db
+
+	inputgain (16,-3db)
+	input 16
+	gain thevol
+	delayus thedel, 1000
+	outputgain (24,-4db) 
+	
+	outputvol 22
+	
+tile
+lo		LPLR4(100)
+lowp	FILTER	LPLR4(100) PEAK(100,1) PEAK(100,1)
+hip		FILTER	HPLR4(100) PEAK(100,1) PEAK(100,1)
+core
+	biquad hip
+	expmovingavg 0.1
+end

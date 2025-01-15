@@ -10,7 +10,7 @@
 
 #define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 1) // will be stored in the program header for further interpretation by the runtime
 
-#include "dsp_header.h"
+#include "../runtime/dsp_header.h"  //expected in the runtime folder at same level as encoder folder
 #include "dsp_filters.h"
 #include "dsp_fileaccess.h"
 
@@ -21,20 +21,27 @@ extern dspHeader_t* dspHeaderPtr;
 void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
 
+void dspSymbolCreateTable();
+void dspSymbolAdd(dspSymbol_t * s);
+int  dspSymbolEndOfTable();
+
 void dsp_dumpParameter(int addr, int size, char * name);
 void dsp_dumpParameterNum(int addr, int size, char * name, int num);
 
 void setSerialHash(unsigned hash);
 int  addCode(int code);
 int  addFloat(float value);
+int  addFloat_or_QNM(float value, int M);
 int  opcodeIndex();
-int  opcodeIndexAligned8();
-int  opcodeIndexMisAligned8();
-
+int addOpcodeValue(int code, int value);
+int  addGainCodeQNM(dspGainParam_t gain);
  int  dsp_END_OF_CODE();
+ int  dsp_TILE();
+ int  dsp_TILE_num();   //return current number of the dsptile
  void dsp_NOP();
- void dsp_CORE();
- void dsp_CORE_Prog(unsigned progAny1, unsigned progAny0);
+ int  dsp_CORE();
+ int  dsg_CORE_num();   //return current number of the dspcore
+ int  dsp_CORE_Prog(unsigned progAny1, unsigned progAny0);
  void dsp_SECTION(unsigned progAny1, unsigned progAny0);
  void dsp_SERIAL(unsigned hash);
 
@@ -159,7 +166,8 @@ int  opcodeIndexMisAligned8();
  void dsp_INTEGRATOR();
  // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);
- void dsp_DELAY_1();
+ void dsp_DELAY_max(int paramAddr, int max);
+  void dsp_DELAY_1();
  // used to define the delay , in a PARAM or PARAMNUM section
  int  dspDelay_MicroSec_Max(int maxus);
  int  dspDelay_MicroSec_Max_Default(int maxus, int us);
@@ -170,17 +178,20 @@ int  opcodeIndexMisAligned8();
  void dsp_DELAY_FixedMilliMeter(int mm,float speed);
 
  void dsp_DELAY_DP(int paramAddr);
+ void dsp_DELAY_DP_max(int paramAddr, int max);
  void dsp_DELAY_DP_FixedMicroSec(int microSec);
  void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed);
  void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix);
  void dsp_CIC_FixedMicroSec(int microSec);
  void dsp_CIC_N(int maxSamples);
+ void dsp_EXPMA(float alpha);
 
  // used to read a predefined wave form.
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);
 
 // calculate cascaded biquads
  int dsp_BIQUADS(int paramAddr);
+ int dsp_BIQUADS_FS(int paramAddr);
  //define the list of biquad within a PARAM structure
  //each filters to be declared below. Number is the number of biquad cell (1storder = 2ndOrder = 1cell)
  // negative number is used

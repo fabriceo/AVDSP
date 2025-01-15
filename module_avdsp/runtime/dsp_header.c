@@ -85,7 +85,21 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_DELAY_FB_MIX",
     "DSP_INTEGRATOR",
     "DSP_CICUS",
-    "DSP_CICN"
+    "DSP_CICN",
+    "DSP_EXPMA",
+    "DSP_BIQUAD_FS",
+    "DSP_BIQUAD_FS_FAST",
+    "DSP_BIQUAD_FS_FAST8",
+    "DSP_SEND",
+    "DSP_RECEIVE",
+    "DSP_DRC_ENV_PEAK",
+    "DSP_DRC_ENV_RMS",
+    "DSP_DRC_LIM_PEAK",
+    "DSP_DRC_LIM_RMS",
+    "DSP_DRC_LIM_PEAK_CLIP",
+    "DSP_DRC_COMPRESSOR",
+    "DSP_DRC_EXPANDER",
+    "DSP_DRC_NOISE_GATE",
 };
 
 

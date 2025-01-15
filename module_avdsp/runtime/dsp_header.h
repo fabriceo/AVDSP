@@ -120,12 +120,26 @@ enum dspOpcodesEnum {
     DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
     DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
-    DSP_FIR,             // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
+    DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
     DSP_DELAY_FB_MIX,
     DSP_INTEGRATOR,
     DSP_CICUS,
     DSP_CICN,
+    DSP_EXPMA,
+    DSP_BIQUADS_FS,     //accept cascaded biquads parameters. single raw of coefficicients expected to be computed at each fs change
+    DSP_BIQUADS_FS_FAST,    //same, using VPU capabilities, increasing THD+N at lowfrequency and high sampling rate
+    DSP_BIQUADS_FS_FAST8,   //same using specific VPU capability to handle 8 biquad section as fast as possible
+    DSP_SEND,           //send data to other tiles
+    DSP_RECEIVE,        //receive data from other tiles
+    DSP_DRC_ENV_PEAK,   //compute peak enveloppe, given an attack+release alpha coeficient
+    DSP_DRC_ENV_RMS,    //compute rms enveloppe, , given an attack+release alpha coeficient
+    DSP_DRC_LIM_PEAK,   //gain limiter based on peak enveloppe
+    DSP_DRC_LIM_RMS,    //gain limiter based on rms enveloppe
+    DSP_DRC_LIM_PEAK_CLIP,  //gain limiter based on peak enveloppe, and hard clipping anyway
+    DSP_DRC_COMPRESSOR, // compressor based on rms enveloppe, with threshold, gain and slope
+    DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
+    DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
 
     // new opcodes should come here below
 
@@ -210,7 +224,7 @@ typedef union opcode_u {
 } opcode_t;
 
 
-//used at the very begining of the dsp program to store basic information
+//used at the very begining of the tile dsp program to store basic information
 typedef struct dspHeader_s {    // 11 words
 /* 0 */     opcode_t head;      // marker
 /* 1 */     int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 8bytes
@@ -225,8 +239,26 @@ typedef struct dspHeader_s {    // 11 words
 /* 9 */     unsigned usedInputs;    // bit mapping of all used inputs  (max 32 in this version)
 /* 10 */    unsigned usedOutputs;   // bit mapping of all used outputs (max 32 in this version)
 /* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
-        } dspHeader_t;
+//extension as of january 12th 2025 to support multi tile dsp programs. each tile is starting with a new header
+/* 12 */    unsigned tableInputs[8];   //256bits to describe all inputs used in this tile
+/* 20 */    unsigned tableOutputs[8];  //256bits to describe all output used in this tile
+/* 28 */    unsigned tileNum;       //number of the tile (0..7) only 8 supported here
+/* 29 */    unsigned symbolPos;     //position of the symbols table
+} dspHeader_t;
 
+typedef struct dspSymbol_s {
+    unsigned address;
+    char type;
+    char tileNum;
+    char tileUsed;
+    char length;
+#ifdef __XC__
+    char * unsafe name;
+#else
+    char * name;
+#endif
+    char name_[1];  //asciiz extended by malloc. Keep at the ned of the structure!
+} dspSymbol_t;
 
 //this function is declared inline and not stored in dsp_header.c
 //just for compatibility with XMOS XC compiler (due to unsafe pointers)...
@@ -247,7 +279,7 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
                 (code != DSP_HEADER) &&
                 (code != DSP_NOP) &&
                 (code != DSP_PARAM) &&
-                (code != DSP_PARAM_NUM) ) *numCore = 1;
+                (code != DSP_PARAM_NUM) )  *numCore = 1;
         *sum += ptr->u32;
         p += skip;
         if (p > maxcode) { dspprintf("BUGG in memory : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // fatal issue
@@ -272,6 +304,14 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
 #define DSP_MANTBQ 28
 #endif
 
+// this defines the precision for the accumulator when runtime is using DSP_FORMAT_INTxx
+// suggested format is 8.56 for parameters, gain and filters coeficients.
+// for INT32, DSP_MANT2 is maximum 31 by design
+// minimum is 16 by design
+// remark for XS2/XS3 architecture, this value MUST be modified also in the assembly file as it is not passed as parameter
+#ifndef DSP_MANT2
+#define DSP_MANT2 56
+#endif
 
 // convert a float/double number to a fixed point integer with a mantissa of "m" bit
 // eg : if mant = 28, the value 0.5 will be coded as 0x08000000 = 2^27
@@ -281,10 +321,10 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
 
 #define DSP_MAXPOS(b) ( ((b)>=64) ?   9223372036854775807LL      : ((1UL << (b-1))-1) )
 #define DSP_MINNEG(b) ( ((b)>=64) ? (-9223372036854775807LL-1LL) :  (1UL << (b-1))    )
-#define DSP_QMSCALE(x,m,b) ( ((b)>=32) ? (long long)((double)(x)*(1LL<<(m))) : (int)((double)(x)*(1LL<<(m))) )
+#define DSP_QMSCALE(x,m,b) ( ((b)>=33) ? (long long)((double)(x)*(1LL<<(m))) : (int)((double)(x)*(1LL<<(m))) )
 #define DSP_QMBMIN(x,m,b) ( ( (-(x)) >  ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MINNEG(b) : DSP_QMSCALE(x,m,b) )
 #define DSP_QMBMAX(x,m,b) ( (   (x)  >= ( 1ULL << ( (b)-(m)-1) ) ) ? DSP_MAXPOS(b) : DSP_QMBMIN(x,m,b)  )
-#define DSP_QMB(x,m,b) ( (1/(1-( ((m)>(b))||((b)>64)||((m)<1) ) ) ) ? DSP_QMBMAX(x,m,b) : 0 )
+#define DSP_QMB(x,m,b) ( (1/(1-( ((m)>=(b))||((b)>64)||((m)<1) ) ) ) ? DSP_QMBMAX(x,m,b) : 0 )
 
 #define DSP_QNM(x,n,m) DSP_QMB(x,m,n+m) //convert to m bit mantissa and n bit integer part including sign bit
 #define DSP_QM32(x,m)  DSP_QMB(x,m,32)  //convert to 32bits int with mantissa "m"
