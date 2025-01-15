@@ -540,7 +540,6 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     char * nextName = dspbasicName;
     int size    = 0;
     lineNum = 0;
-    int numCore = 1;
     while (nextName && (*nextName)) {
 
     dspbasicName = nextName;
