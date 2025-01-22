@@ -43,7 +43,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPMANT, _DSPFLOAT,
+    _DSPFSMIN, _DSPFSMAX, _DSPMANT, _DSPFLOAT, _DSPIOMAX,
     _end, _include, _param, _nop, _core, _section,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -59,7 +59,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPMANT","DSPFLOAT",
+    "DSPFSMIN","DSPFSMAX","DSPMANT","DSPFLOAT","DSPIOMAX",
     "end", "include", "param", "nop", "core", "section",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -591,7 +591,6 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     lineNum = lineNumArray;
     *lineNum = 0;
     char * nextName = dspbasicName;
-    //merge ok now
     int size = 0;
     int numCore = 1;
     if (numCore) {} //just to please compiler
@@ -716,6 +715,11 @@ nextline:
                     res = dsp_FORMAT(0);
                 }
                 fatalErrorNumIf(46, res == 0 );
+                break; }
+            case _DSPIOMAX : {
+                double value = 0;
+                if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                outOfRangeError(value,2,256);
                 break; }
             case _end:   { 
                 if (fileNum==0) goto finished; 

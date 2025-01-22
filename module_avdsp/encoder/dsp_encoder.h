@@ -23,6 +23,7 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
 int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
 int  dsp_FORMAT(int format);
+int  dsp_IOMAX(int iomax);
 void dspSymbolCreateTable();
 void dspSymbolAdd(dspSymbol_t * s);
 int  dspSymbolEndOfTable();
