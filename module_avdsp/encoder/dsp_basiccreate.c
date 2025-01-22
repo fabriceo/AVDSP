@@ -87,9 +87,11 @@ enum paramkeywords_e {
 static const char * paramKeywords[paramKeywordsNumber] = {
         "MEMORY","TAPS","VALUE","VALUEINT","DRCIN","DRCOUT","FILTER","FILTER8" };
 
-enum   tvalue_e           { _tIO, _tfreq, _tvalue32,_tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tdrc_attack, _tnone };
-double valueMin[_tnone] = {    0,     10,        -8,     -128,-0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     16,        0.001 };
-double valueMax[_tnone] = {   31,  40000,        +8,     +128, 0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,        4.0  };
+enum { dspIOmaximum = 31};
+
+enum   tvalue_e           { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tdrc_attack, _tnone };
+double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     16,        0.001 };
+double valueMax[_tnone] = {   dspIOmaximum-1,  40000,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,        4.0  };
 
 
 int numTile = 0;    //current tile number
