@@ -20,7 +20,9 @@ extern dspHeader_t* dspHeaderPtr;
 //prototypes from dsp_encoder.c
 void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
-
+int  dsp_FSMIN(int freq);
+int  dsp_FSMAX(int freq);
+int  dsp_FORMAT(int format);
 void dspSymbolCreateTable();
 void dspSymbolAdd(dspSymbol_t * s);
 int  dspSymbolEndOfTable();
@@ -33,8 +35,9 @@ int  addCode(int code);
 int  addFloat(float value);
 int  addFloat_or_QNM(float value, int M);
 int  opcodeIndex();
-int addOpcodeValue(int code, int value);
+int  addOpcodeValue(int code, int value);
 int  addGainCodeQNM(dspGainParam_t gain);
+int  addGainCodeQ31(dspGainParam_t gain);
  int  dsp_END_OF_CODE();
  int  dsp_TILE();
  int  dsp_TILE_num();   //return current number of the dsptile
