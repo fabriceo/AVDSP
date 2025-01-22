@@ -8,7 +8,7 @@
 #ifndef DSP_FILTERS_H_
 #define DSP_FILTERS_H_
 
-#include "dsp_header.h"
+#include "../runtime/dsp_header.h"
 #include <math.h>
 
 enum filterTypes {

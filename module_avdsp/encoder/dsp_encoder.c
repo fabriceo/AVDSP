@@ -14,11 +14,11 @@
 
 static opcode_t * dspOpcodesPtr  = 0;       // absolute adress start of the table containing the opcodes and data
 static opcode_t * symbolStart    = 0;
-dspHeader_t* dspHeaderPtr = 0;              // point on the header containing program summary
+dspHeader_t* dspHeaderPtr        = 0;       // point on the header containing program summary
 static int dspOpcodesMax         = 0;       // max allowed size of this table (in words)
-
+static int symbolNumber          = 0;       //number of symbol added
 volatile static int dspOpcodeIndex = 0;     // point on the next available opcode position in the opcode table
-
+static int firstOpcodeIndex      =  0;      // point just after the FIRST dsp_HEADER
 static int lastTileNum           =  0;      //incremented each time a dsp_TILE() is called
 static int firstTileIndex        =  0;      //point just after the veryfirst header
 static int firstTileParamSize    =  0;      //size of all common paramters to be duplicated in each further tiles
@@ -56,12 +56,12 @@ static int dspFormat;                       // dynamic management of the differe
 static int dspMant;                         // dynamic value of the DSP_MANT. initialize in encoderinit
 static int dspIOmax;                        // max number of IO that can be used with Load & Store (to avoid out of boundaries vs samples table)
 static int numberFrequencies;               // number of covered frequencies (mainly used in BIQUADS and FIR)
-static float maxParamValue      = 0.0;
+static float maxParamValue      = 0.0;      // to hold the maximum value pushed as encoded parameter
 
 
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
-
+const int dspIOmaximum = 256;
 
 void dspprintfFatalError(){
     dspprintf("FATAL ERROR : ");
@@ -378,6 +378,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
 
     addOpcodeUnknownLength(DSP_HEADER);
     opcodeIndexAdd(sizeof(dspHeader_t)/sizeof(int) - 1);
+    if (firstOpcodeIndex==0) firstOpcodeIndex = opcodeIndex();
     dspHeaderPtr->totalLength = 0;
     dspHeaderPtr->dataSize  = 0;
     dspHeaderPtr->checkSum  = 0;
@@ -401,7 +402,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
 // type is eiter one of the DSP_FORMAT_XX or 0 for float or N for INT64 with DSP_MANT = N
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO) {
 
-    if (maxIO>32) dspFatalError("dspEncoderInit supports maximum 32 IO.");
+    if (maxIO>=dspIOmaximum) dspFatalError("dspEncoderInit too much IO.");
     dspOpcodesMax       = max;
     dspEncoderFormat(format);
     dspMinSamplingFreq  = minFreq;
@@ -409,16 +410,51 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
     numberFrequencies   = maxFreq - minFreq +1;
     dspIOmax            = maxIO;
     maxOpcodeValue      =  0;
+    firstOpcodeIndex    =  0;
     lastTileNum         =  0;
     firstTileIndex      =  0;
     firstTileParamSize  =  0;
     symbolStart         =  0;
+    symbolNumber        =  0;
 
     dspHeaderInit( opcodeTable );
 
-
 }
 
+int dsp_FSMIN(int freq){
+    if (firstOpcodeIndex != opcodeIndex()) return 0;
+    dspMinSamplingFreq = freq;
+    dspHeaderPtr->freqMin   = dspMinSamplingFreq;
+    numberFrequencies = dspMaxSamplingFreq - dspMinSamplingFreq +1;
+    return 1;
+}
+
+int dsp_FSMAX(int freq){
+    if (firstOpcodeIndex != opcodeIndex()) return 0;
+    dspMaxSamplingFreq = freq;
+    dspHeaderPtr->freqMax   = dspMaxSamplingFreq;
+    numberFrequencies = dspMaxSamplingFreq - dspMinSamplingFreq +1;
+    return 1;
+}
+
+int dsp_FORMAT(int format) {
+    if (firstOpcodeIndex != opcodeIndex()) return 0;
+    dspEncoderFormat(format);
+    if (dspFormat < DSP_FORMAT_FLOAT)
+         dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
+    else
+         dspHeaderPtr->format = 0;  // simplified format to describe float encoded parameters
+    return 1;
+}
+
+int dsp_IOMAX(int iomax) {
+    iomax += 31;
+    iomax &= ~31;
+    if (firstOpcodeIndex != opcodeIndex()) return 0;
+    if (iomax>=dspIOmaximum) dspFatalError("IO max out of range.");
+    dspIOmax = iomax;
+    return 1;
+}
 
 // search one PARAM or PARAM_NUM area covering the address provided as a parameter
 int findInParamSpace(int addrParam) {
@@ -613,8 +649,7 @@ int dspHeaderDone(){
 }
 void dspSymbolCreateTable() {
     if (symbolStart) dspFatalError("symbol table already created");
-    dspprintf2("EXTERN SYMBOLS TABLE\n")
-    dspprintf2("tile, usedin, address, type, len, name\n");
+    symbolNumber        = 0;
     dspOpcodesPtr       = &dspOpcodesPtr[dspOpcodeIndex];
     dspOpcodeIndex      = 0;
     symbolStart = opcodeIndexPtr();
@@ -624,7 +659,17 @@ void dspSymbolCreateTable() {
 
 void dspSymbolAdd(dspSymbol_t * s){
     if (symbolStart == 0) dspFatalError("symbol table was not initiated upfront");
-    if (s->address) dspprintf2("%4d    %4X    %5d    %2d  %3d  %s\n",s->tileNum, s->tileUsed, s->address, s->type, s->length, s->name);
+    #if defined(DSP_PRINTF) && ( DSP_PRINTF < 3 )
+    if (s->address) 
+    #endif
+    {
+        if (symbolNumber == 0) {
+            dspprintf2("EXTERN SYMBOLS TABLE\n")
+            dspprintf2("tile, usedin, address, type, len, name\n");
+            symbolNumber = 1;
+        }
+        dspprintf2("%4d    %4X    %5d    %2d  %3d  %s\n",s->tileNum, s->tileUsed, s->address, s->type, s->length, s->name);
+    }
     addCode(s->address);
     unsigned f = s->type | (s->tileNum << 8) | (s->tileUsed << 16) | (s->length << 24);
     addCode(f);
@@ -734,11 +779,21 @@ static void calcMaxParamValue(float val){
 int addGainCodeQNM(dspGainParam_t gain){
     calcMaxParamValue(gain);
     if (dspFormat < DSP_FORMAT_FLOAT) {
-        float max = 1 << (31 - dspMant);
+        float max = 1ULL << (31 - dspMant);
         float min = -max;
-        if ((gain>=max) || (gain<min))
-            dspprintf(">>>> WARNING : float parameter doent fit in integer format chosen (%d.%d).\n",31-dspMant,dspMant);
+        if ((gain >= max) || (gain < min))
+            dspprintf(">>>> WARNING : float parameter does not fit in integer format chosen (%d.%d).\n",31-dspMant,dspMant);
         return addCode(dspQM32( gain, dspMant));
+    } else
+        return addFloat(gain);
+}
+
+int addGainCodeQ31(dspGainParam_t gain){
+    calcMaxParamValue(gain);
+    if (dspFormat < DSP_FORMAT_FLOAT) {
+        if ((gain > 1.0) || (gain < -1.0))
+            dspprintf(">>>> WARNING : float parameter does not fit in 31 bit mantissa.\n");
+        return addCode(dspQM32( gain, 31));
     } else
         return addFloat(gain);
 }
@@ -1440,17 +1495,10 @@ void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed){
 
 void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix) {
     dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY_FB_MIX);
-    if (dspFormat < DSP_FORMAT_FLOAT) {   // integer alu. Using q31 format.
-        addCode(dspQM32(source,31));
-        addCode(dspQM32(fb,31));
-        addCode(dspQM32(delayed,31));
-        addCode(dspQM32(mix,31));
-    } else {
-        addFloat(source);
-        addFloat(fb);
-        addFloat(delayed);
-        addFloat(mix);
-    }
+    addGainCodeQ31(source);
+    addGainCodeQ31(fb);
+    addGainCodeQ31(delayed);
+    addGainCodeQ31(mix);
 }
 
 
@@ -1476,10 +1524,7 @@ void dsp_CIC_FixedMicroSec(int microSec){
         samples >>= 32;
         float coef = samples;
         coef = 2.0 / coef;
-        if (dspFormat < DSP_FORMAT_FLOAT)   // integer alu. Using q31 format.
-            addCode(dspQM32(coef,31));
-        else
-            addFloat(coef);
+        addGainCodeQ31(coef);
     }
 }
 
@@ -1492,20 +1537,14 @@ void dsp_CIC_N(int maxSamples){
     // generate coef according to maxSamples
     float coef = maxSamples;
     coef = 2.0 / coef;
-    if (dspFormat < DSP_FORMAT_FLOAT)   // integer alu. Using q31 format.
-        addCode(dspQM32(coef,31));
-    else
-        addFloat(coef);
+    addGainCodeQ31(coef);
 }
 
 void dsp_EXPMA(float alpha) {
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_EXPMA);
     addDataSpaceAligned8(2);            //book a 64bit location
-    if (dspFormat < DSP_FORMAT_FLOAT)   // integer alu. Using q31 format.
-        addCode(dspQM32(alpha,31));
-    else
-        addFloat(alpha);
+    addGainCodeQ31(alpha);
 }
 
 
@@ -1531,7 +1570,7 @@ int dspGenerator_Sine(int samples){
     dspprintf3("dspGenerator : 2.PI sinewave in %d values\n",samples);
     for (int i=0; i<samples; i++) {
         double x = sin((2.0*M_PI * (double)i)/(double)samples);
-        addCode(dspQM32(x,31)); }
+        addGainCodeQ31(x); }
     printFromCurrentIndex();
     return tmp;
 }
@@ -1617,22 +1656,11 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
     calcMaxParamValue(a1-1.0);
     calcMaxParamValue(a2);
 
-    if (dspFormat < DSP_FORMAT_FLOAT) {   // integer alu
-
-        addCode(dspQM32(b0,DSP_MANTBQ));
-        addCode(dspQM32(b1,DSP_MANTBQ));
-        addCode(dspQM32(b2,DSP_MANTBQ));
-        addCode(dspQM32(a1-1.0,DSP_MANTBQ)); // concept of mantissa reintegration/noise shapping
-        addCode(dspQM32(a2,DSP_MANTBQ));
-        //addCode(DSP_MANTBQ);    //including the MANTBQ value within the filters so that the asm routine can saturate and extract properly
-    } else {
-        addFloat(b0);
-        addFloat(b1);
-        addFloat(b2);
-        addFloat(a1 - 1.0); // to make things easier, even float model is using mantissa reintegration
-        addFloat(a2);
-        //addFloat(1.0);      //for compatibility with int version
-    }
+    addGainCodeQNM(b0);
+    addGainCodeQNM(b1);
+    addGainCodeQNM(b2);
+    addGainCodeQNM(a1 - 1.0); // to make things easier, even float model is using mantissa reintegration
+    addGainCodeQNM(a2);
     return tmp;
 }
 
