@@ -194,7 +194,7 @@ void dspFilterLT(
 
 // from dsp_encoder.c
 extern int  addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2);
-extern int  addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspGainParam_t gain);
+extern int  addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspFilterParam_t freq2, dspFilterParam_t Q2, dspGainParam_t gain);
 extern void sectionBiquadCoeficientsBegin();
 extern void sectionBiquadCoeficientsEnd();
 
@@ -207,7 +207,7 @@ int dsp_FilterLT(dspFilterParam_t f0, dspFilterParam_t Q0, dspFilterParam_t fp, 
         dspFilterLT(fs, f0, Q0, fp, Qp, gain, &b0, &b1, &b2, &a1, &a2);
 
         if (coefPtr==0) {
-            coefPtr =  addFilterParams(FLT, f0, Q0, gain);
+            coefPtr =  addFilterParams(FLT, f0, Q0, fp, Qp, gain);
             dspprintf2("FILTER f0 = %f, Q0 = %f, fp = %f, Qp = %f, G = %f\n", f0, Q0, fp, Qp, gain);
             dspprintf3(" b0 = %f, ",b0);
             dspprintf3(" b1 = %f,",b1);
@@ -230,7 +230,7 @@ int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspG
         dspFilter2ndOrder(type, fs, freq, Q, gain, &b0, &b1, &b2, &a1, &a2);
 
         if (coefPtr==0) {
-            coefPtr =  addFilterParams(type, freq, Q, gain);
+            coefPtr =  addFilterParams(type, freq, Q, 0,0, gain);
             dspprintf2("FILTER f = %f, Q = %f, G = %f\n", freq, Q, gain);
             dspprintf3(" b0 = %f, ",b0);
             dspprintf3(" b1 = %f,",b1);
@@ -252,7 +252,7 @@ int dsp_Filter1stOrder(int type, dspFilterParam_t freq, dspGainParam_t gain){
         dspFilter1stOrder(type, fs, freq, gain, &b0, &b1, &b2, &a1, &a2);
 
         if (coefPtr==0) {
-            coefPtr =  addFilterParams(type, freq, 0.0, gain);
+            coefPtr =  addFilterParams(type, freq, 0.0, 0,0,gain);
             dspprintf2("FILTER f = %f, G = %f\n", freq, gain);
             dspprintf3(" b0 = %f, ",b0);
             dspprintf3(" b1 = %f,",b1);
@@ -277,7 +277,7 @@ int dsp_Hilbert(int stages, dspFilterParam_t transition, dspGainParam_t phase){
             if (coefPtr == 0)
                 dspprintf3("HILBERT stage = %d, transition = %f, fs=%f\n", stages,transition, fs);
             if (f == dspMinSamplingFreq) {
-                coefPtr =  addFilterParams(FHILB, 1000, transition, 1.0 );
+                coefPtr =  addFilterParams(FHILB, 1000, transition, 0,0,1.0 );
                 dspprintf3("c%d = %f\n",d, coefs[d]);
             }                   // xn       xn-1   xn-2    yn-1   yn-2
             addBiquadCoeficients( coefs[d], 0.0,   -1.0,   0.0,   coefs[d] );

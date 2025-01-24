@@ -8,7 +8,7 @@
 #ifndef DSP_ENCODER_H_
 #define DSP_ENCODER_H_
 
-#define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 1) // will be stored in the program header for further interpretation by the runtime
+#define DSP_ENCODER_VERSION ((1<<8) | (2 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
 
 #include "../runtime/dsp_header.h"  //expected in the runtime folder at same level as encoder folder
 #include "dsp_filters.h"
@@ -17,6 +17,7 @@
 //create a program strucutre with below functions.
 
 extern dspHeader_t* dspHeaderPtr;
+extern char * dspOutFileName;
 //prototypes from dsp_encoder.c
 void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
@@ -24,6 +25,10 @@ int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
 int  dsp_FORMAT(int format);
 int  dsp_IOMAX(int iomax);
+int  dsp_DYNFS(int val);
+void dspoutFilters3(int type, int order, float freq,float Q,float gain, const char * name);
+void dspoutFilters5(int type, int order, float freq,float Q, float freq2,float Q2,float gain, const char * name);
+extern char * dspOutLabelName;
 void dspSymbolCreateTable();
 void dspSymbolAdd(dspSymbol_t * s);
 int  dspSymbolEndOfTable();
@@ -35,6 +40,7 @@ void setSerialHash(unsigned hash);
 int  addCode(int code);
 int  addFloat(float value);
 int  addFloat_or_QNM(float value, int M);
+opcode_t * opcodePtr(int index);
 int  opcodeIndex();
 int  addOpcodeValue(int code, int value);
 int  addGainCodeQNM(dspGainParam_t gain);

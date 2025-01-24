@@ -14,7 +14,10 @@ static FILE* dspFile = NULL;
 FILE* dspFileDump = NULL;
 char* dspFileName;
 long   dspFileSize;
-char* dspFileNameDump;
+
+FILE * dspOutFile;
+char * dspFileNameDump;
+char * dspOutFileName = "avdspout.cpp";
 
 int dumpFileIsOpen(){
     return (dspFileDump != NULL);
@@ -36,6 +39,32 @@ int dumpFileInit(char * name){
             return dumpFileCreate();
     return 0;
 }
+
+int dspOutFileIsOpen(){
+    return (dspOutFile != NULL);
+}
+int dspOutFileCreate(){
+    if (dspOutFileName == NULL) return -1;
+    if (dspOutFileName[0] == 0) return -1;
+    if (dspOutFile) return 0;
+    dspOutFile = fopen( dspOutFileName, "w" );
+    if (dspOutFile == NULL) return -1;
+    return 0;
+}
+
+void dspOutFileClose(){
+    if (dspOutFile) fclose(dspOutFile);
+}
+
+int dspOutFileInit(char * name, char * header){
+    dspOutFileName = name;
+    dspOutFile = NULL;
+    int res =  dspOutFileCreate();
+    if (res == 0 ) dspout("%s\n",header);
+    return res;
+}
+
+
 
 int dspfileIsOpen(){
     if( dspFile == NULL ) {

@@ -11,11 +11,13 @@
 #include <stdio.h>
 
 extern char* dspFileName;
-extern long   dspFileSize;
+extern long  dspFileSize;
 extern char* dspFileNameDump;
 extern FILE* dspFileDump;
 #define dumpprintf(...) fprintf(dspFileDump, __VA_ARGS__)
-
+extern FILE * dspOutFile;
+extern char * dspOutFileName;
+#define dspout(...) do { if (dspOutFile) fprintf(dspOutFile,__VA_ARGS__); } while(0)
 
 // open a file for reading, either in binary "rb" or text "r"
 extern int dspfopenRead(char * mode);
@@ -44,6 +46,10 @@ extern int  dumpFileIsOpen();
 extern int  dumpFileCreate();
 extern void dumpFileClose();
 extern int  dumpFileInit(char * name);
-
+ 
+extern int  dspOutFileIsOpen();
+extern int  dspOutFileCreate();
+extern void dspOutFileClose();
+extern int  dspOutFileInit(char * name, char * header);
 
 #endif /* DSP_FILEACCESS_H_ */

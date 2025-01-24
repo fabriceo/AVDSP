@@ -43,7 +43,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPMANT, _DSPFLOAT, _DSPIOMAX,
+    _DSPFSMIN, _DSPFSMAX, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPDYNFS,
     _end, _include, _param, _nop, _core, _section,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -59,7 +59,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPMANT","DSPFLOAT","DSPIOMAX",
+    "DSPFSMIN","DSPFSMAX","DSPMANT","DSPFLOAT","DSPIOMAX","DSPDYNFS",
     "end", "include", "param", "nop", "core", "section",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -87,16 +87,16 @@ enum paramkeywords_e {
 static const char * paramKeywords[paramKeywordsNumber] = {
         "MEMORY","TAPS","VALUE","VALUEINT","DRCIN","DRCOUT","FILTER","FILTER8" };
 
-enum { dspIOmaximum = 31};
+enum { dspIOmaximum = 32};
 
-enum   tvalue_e           { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tdrc_attack, _tnone };
-double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     16,        0.001 };
-double valueMax[_tnone] = {   dspIOmaximum-1,  40000,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,        4.0  };
+enum   tvalue_e                  { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tdrc_attack, _tnone };
+static double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     16,        0.001 };
+static double valueMax[_tnone] = {   dspIOmaximum-1,  40000,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,        4.0   };
 
 
-int numTile = 0;    //current tile number
+int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
 
-double errMin=0.0, errMax=0.0;
+static double errMin=0.0, errMax=0.0;
 
 //points on previous set of character where an error is detected
 static char * errPtr;
@@ -109,10 +109,9 @@ static void fatalErrorNumIf(int num, int cond);
 
 
 //max 3 include files level (4 open in total)
-const int maxIncludedFiles = 4;         
+static const int maxIncludedFiles = 4;         
 static FILE* dspInputArray[maxIncludedFiles]; 
 static FILE* * dspInput = dspInputArray;
-
 
 static inline int isNumber(char ch){
     return ( (ch >= '0' ) && ( ch <= '9' ) ) ? ch : 0;
@@ -147,15 +146,24 @@ static inline int isCharOfString(char ch) {
     return ( ((ch >= 32) && (ch != '\"' )) || (ch == 9) ) ? ch : 0;
 }
 
+//test End of Line charachters
 static inline int isCharEOL(char ch) {
     return (((ch == 0) || (ch == '#') || (ch == 0x0A) || (ch == 0x0D)) ? (ch?ch:1) : 0);
 }
 
+//basic function to move pointer forward, bypassing all spaces and tabs
+static inline char * skipSpacesBasic(char * * s) {
+    char * p = *s;
+    while (isSpaceOrTab(*p)) p++;
+    *s = p;
+    return p;
+}
 
-static inline char * skipSpaces(char * * s);
+//prototype
+static inline char * skipSpaces(char * * s);    
 
 
-//check if current delimiter character is in the given string then return its value otherwise 0
+//check if current delimiter character is in the given list then return its value otherwise 0
 static int searchDelimiter(char * * s, char * delim) {
     char * p = skipSpaces(s);
     int len = strlen(delim);
@@ -166,17 +174,52 @@ static int searchDelimiter(char * * s, char * delim) {
     return 0;
 }
 
+//search the next character compatible with one of the list of delimiter provided, then point after, otherwise return 0
+static int goAfterDelimiter(char * * s, char * delim) {
+    char * p = *s;
+    int len = strlen(delim);
+    while (*p) {
+        for (int i=0; i< len; i++)
+            if (p[0] == delim[i]) {
+                //found one
+                errPtr = p;
+                *s = p+1;
+                return p[0];
+            }
+        p++;
+    }
+    return 0;
+}
+    
+ 
+//test the next character against the given list of delimiter and return its value
 static int testDelimiter(char * * s, char * delim) {
     int res = searchDelimiter( s , delim);
     if (res) (*s)--;
     return res;
 }
 
+//expect one of the given delimiter otherwise raise an error
 static void getDelimiterError(char * * s, char delim, int err) {
     char * p = skipSpaces(s); 
     fatalErrorNumIf(err, *p != delim );
     errPtr = p+1;
     *s = p+1;
+}
+
+//expect an end of line (typically after include "file") otherwise raise error 32
+static void getEOLError(char * * s) {
+    skipSpacesBasic( s );
+    if ( (**s == '\\') || (0 == searchDelimiter( s, "#\r\n\01" )) ) fatalErrorNum(32);
+}
+
+//expect an end of line or a ; typically between two instructions, otherwise raise error 13
+static void getSeparatorEOLError(char * * s) {
+    if (searchDelimiter( s, ";" )) {
+        while (searchDelimiter( s, ";" ));
+        return;
+    }
+    if (0 == testDelimiter( s, "#\r\n\01" )) fatalErrorNum(13);
 }
 
 //check if current delimiter character is in the given string then return its value otherwise 0
@@ -246,6 +289,7 @@ typedef label_t * labelptr_t;
 
 //contains pointer on the list of labels created
 static labelptr_t firstLabel = NULL, lastLabel = NULL;
+char * lastLabelName = "";
 
 //add a new label in the list and return its allocated pointer.
 //character pointer expected to point on label and then moved after label.
@@ -263,6 +307,7 @@ static labelptr_t appendNewLabel(char * * s) {
     for (i=0, p=*s; i<len; i++) l->s.name_[i] = *(p++);
     l->s.name_[len] = 0;
     l->s.name = l->s.name_; //set pointer
+    lastLabelName = l->s.name;
     l->value = 0;
     l->s.address = 0;
     l->numValues = 0;
@@ -279,11 +324,15 @@ static label_t * findLabel(char * p) {
             int len = l->s.length;
             if ( isAlphanum( p[len]) ) continue; //not yet
             //check tile, either 0, either current
-            if ( (l->s.tileNum == 0) || (l->s.tileNum == dsp_TILE_num()) ) return l;
+            if ( (l->s.tileNum == 0) || (l->s.tileNum == dsp_TILE_num()) ) {
+                lastLabelName = l->s.name;
+                return l;
+            }
         }
     }
     return NULL;
 }
+
 //search a possible label in *s then returns its pointer otherwise 0
 static label_t * searchLabel(char * *s){
     char * p = skipSpaces(s);
@@ -300,39 +349,6 @@ void usedLabelInTile(label_t * l) {
     if (l) l->s.tileUsed |= (1UL<<dsp_TILE_num());
 }
 
-//search any label in "line" and replace them with their numerical value.
-//assuming line is long enough to hold replaced strings
-static void replaceLabels(char * line) {
-    labelptr_t l = firstLabel;
-    char buf[512];
-    while (l) {
-        int len = l->s.length;
-        //prepare buf for comparaison with [label]
-        buf[0] = '[';
-        memcpy(&buf[1],l->s.name,len);
-        buf[len+1]=']';
-        buf[len+2]=0;
-        //search occurence
-        char * p = strstr( line, buf );
-        if (p) {
-            //found one, replace it
-            int size = len+2; //to include '[]'
-            char * after = &p[size]; //after points just after ]
-            int lenafter = strlen( after ) + 1; //compute remainings characters in the line, including last 0
-            int lval = l->value;
-            double lvalue = lval;
-            if (l->value == lvalue) sprintf(buf, "%d",lval);
-            else sprintf(buf, "%f",l->value);
-            int lenbuf = strlen( buf );
-            //eventually adjust bin space
-            if (size != lenbuf) memmove(&p[lenbuf],after,lenafter); //resize to fit requirement
-            memcpy(p,buf,lenbuf);
-            continue; //retry with same label, in case of double occurence ...
-        }
-        l=l->next;
-    }
-}
-
 
 static void freeAllLabels(){
     labelptr_t l = firstLabel;
@@ -341,6 +357,7 @@ static void freeAllLabels(){
         free(l);
         l = next;
     }
+    lastLabelName = "";
 }
 
 
@@ -362,17 +379,19 @@ static int searchValue(char * * s, double * value, int enableDB) {
     int state = 0;
     double mantisse = 1.0, sign = 1.0, base = 10.0, result = 0.0;
     char * p = skipSpaces(s);
-    while (*p && (*p != '#')) {
+    char* begin = p;
+    errPtr = p;
+    while (*p) {
         if (state == 0) {
             //sign authorized only at the begining
             if ( (*p) == '-') { sign = -sign; p++; continue; }
             if ( (*p) == '+') { p++; continue; }
             if ( isSpaceOrTab(*p) ) { p++; continue; }
-            if ( ((*p) == 'b') || ((*p) == 'x') || ((*p) == 'b') ) {
+            if ( ((*p) == 'b') || ((*p) == 'x') || ((*p) == 'o') ) {
                 //potential labels are prioritized
                 char * pos = p;
                 labelptr_t l = searchLabel(&pos);
-                if (l) return _empty;
+                if (l) { *s = begin; return _empty; }
             }
             if ( (*p) == 'b') { base=2;  p++;state |= 1; continue; }
             if ( (*p) == 'x') { base=16; p++;state |= 1; continue; }
@@ -380,42 +399,37 @@ static int searchValue(char * * s, double * value, int enableDB) {
         }
         if (state == 1) {
             //point authorised only after at least one digit
-            if (*p =='.') { state |= 2; p++; }
+            if (*p =='.') { state |= 2; p++; continue; }
         }
         if (state) {
-            if ( (base==10) && (p[0]=='%') ) {
-                *value = result * sign / 100.0;
-                *s = p+1;
-                return _value; }
-            if ( (base==10) && (p[0]=='m') ) {
-                *value = result * sign / 1000.0;
-                *s = p+1;
-                return _value; }
-            if ( (p[0]=='d')||(p[0]=='D'))
-                if ((p[1]=='b')||(p[1]=='B')) {
-                    //check if authorized
-                    if ((enableDB == 0)||(base != 10.0)) {
-                        *s = p; //should return a specific error
-                        return _empty; }
-                    *value = pow( 10, result * sign / 20.0 );
-                    *s = p+2;
-                    return _valuedb; } //decibel
+            if ( (base==10) && ((p[0]=='%')||(p[0]=='m')) ) {
+                *value = result * sign / ((p[0]=='%')? 100.0 : 1000.0);
+                *s = &p[1];
+                return _value; 
+            }
+            if ( ((p[0]=='d')||(p[0]=='D')) && ((p[1]=='b')||(p[1]=='B'))) {
+                //check if authorized
+                if ((enableDB == 0)||(base != 10.0)) fatalErrorNum(25);
+                *value = pow( 10, result * sign / 20.0 );
+                *s = &p[2];
+                return _valuedb; 
+            } //decibel
         }
         if ( ((base==8.0)  && isNumber(  *p ) && (*p<'8')) ||
              ((base==10.0) && isNumber(  *p )) ||
              ((base==16.0) && isHexaNum( *p )) ||
              ((base==2.0)  && isBinary(  *p ) ) ) {
-            state |= 1;
+            state |= 1; //number description started
             if (state & 2) mantisse /= 10.0;
             else result *= base;
             int num;
-            if ((base == 16.0) && isLetter(*p)) num = (*p & 7)+9;
-            else num = *p - '0';
+            if ((base == 16.0) && isLetter(*p)) num = (p[0] & 7)+9;
+            else num = p[0] - '0';
             result += num * mantisse;
-            p++;
+            p++; continue;
         } else break;  //unknown character
     } // while
-    if (state) {
+    if (state) { //number started?
         *s = p;
         result *= sign; *value = result;
         int integer = result; double check = integer;
@@ -426,31 +440,50 @@ static int searchValue(char * * s, double * value, int enableDB) {
 }
 
 
-//search for a direct numerical value, or a label of type value
+//search for a direct numerical value, or a label of type value eventually with an index [x] or .x
 static int testExpression(char * * s, double * value){
+    const int depthMax = 4;
+    static int depth=0;
+    int modeDB=0;
     double sum = 0.0, mul = 0.0, temp;
-    int prevop = 0, modeDB = 0;
+    int prevop = 0;
     int res;
+    //if (depth == 0) modeDB = 0;
     skipSpaces ( s );
     do {
-        //get a numerical value. postfix db authorized only if first or already activated
-        res = searchValue( s, &temp, (prevop == 0) || modeDB );
+        if (searchDelimiter( s, "(")) {
+            //recursive!
+            if (depth < depthMax) depth++; else fatalErrorNum(48);
+            res = testExpression(s, &temp);
+            if (res == _empty) fatalErrorNum(2);
+            getDelimiterError( s, ')', 29);
+            depth--;
+        } else {
+            //get a numerical value. postfix db authorized only if first one or if already detected
+            res = searchValue( s, &temp, (prevop == 0) || modeDB );
+        }
         if (res == 0) {
             if ( isLetter( **s ) ) {
                 labelptr_t l = searchLabel(s);
-                if (l == NULL) return errNum = -2;  //numericalValueOrLabelExpected
-                if( l->s.type >= label_filter ) return errNum = -27;
+                if (l == NULL) fatalErrorNum(-2);  //numericalValueOrLabelExpected
+                if( l->s.type > _valueint ) fatalErrorNum(27);
                 temp = l->value;
                 //test an optional index
                 int bracket = searchDelimiter( s, "[.");
                 if ((res=bracket)) {
-                    if( l->s.type != _valueint ) return errNum = -11;
+                    if( l->s.type != _valueint ) fatalErrorNum(11);
                     double index;
                     char * e = *s;
-                    res = searchValue( s, &index, 0);
+                    if (bracket == '.') res = searchValue( s, &index, 0);
+                    else {
+                        if (depth < depthMax) depth++; else fatalErrorNum(48);
+                        res = testExpression(s, &index); //recursive!
+                        depth--;
+                    }
                     //check for an integer
-                    if (res != _valueint) { errPtr = e; return errNum = -11;}
-                    if ((index<0)||(index>255)) { errPtr = e; errMin=0; errMax=255; return errNum = -5; }
+                    if (res != _valueint) { errPtr = e; fatalErrorNum(11);}
+                    if ((index<0)||(index>255)) { 
+                        errPtr = e; errMin=0; errMax=256; fatalErrorNum(5); }
                     temp += index;
                     if (bracket == '[') getDelimiterError( s, ']', 26);
                 } 
@@ -460,29 +493,31 @@ static int testExpression(char * * s, double * value){
         if (res) {
             if (res == _valuedb) {
                 if (prevop == 0) modeDB = 1;
-                else if (modeDB == 0) return errNum = -25;
+                else if (modeDB == 0) fatalErrorNum(25);
             } else {
-                if (modeDB) return errNum = -25;
+                if (modeDB) fatalErrorNum(25);
             }
             //test potential operators
             res = searchDelimiter( s, "+-*/");
+            //dspprintf("tmp %f, prevop %c, op %c\n",temp,prevop?prevop:'_',res?res:'_');
             switch (res) {
             case 0: //fall through
-            case '-' : case '+' : {
+            case '-' : case '+' : { 
                 if (modeDB) {
                     switch (prevop) {
                     case 0 : sum = temp; break;
                     case '+': sum *= temp; break;
                     case '-': sum /= temp; break;}
-                } else switch (prevop) {
+                } else 
+                    switch (prevop) {   //4*3+5*2
                     case 0 : //fall through
                     case '+': sum += temp; break;
                     case '-': sum -= temp; break;
-                    case '*': mul *= temp; sum += mul; break;
-                    case '/': mul /= temp; sum += mul; break;}
+                    case '*': mul *= temp; sum += mul; mul = 0; break;
+                    case '/': mul /= temp; sum += mul; mul = 0; break;}
                 break; }
             case '*': case '/': {
-                if (modeDB) return errNum = -25;
+                if (modeDB) fatalErrorNum(25);
                 switch (prevop) {
                 case 0:
                 case '+': sum += mul ; mul =  temp; break;
@@ -493,9 +528,10 @@ static int testExpression(char * * s, double * value){
             }
             //check if last delimiter was an operator
             if (res) prevop = res;
+            //dspprintf("sum %f, mul %f, temp %f, prevop %c\n",sum,mul,temp,prevop?prevop:'_');
         } else {
             //no more value, check if an operator was pending
-            if (prevop) return errNum = -18;
+            if (prevop) fatalErrorNum(18);
             else return _empty;
         }
     } while(res);
@@ -514,31 +550,52 @@ static int outOfRange(double x,double Min,double Max){
 }
 
 static void outOfRangeError(double x,double Min,double Max){
-    if (outOfRange(x, Min, Max) < _error) fatalError();
+    if (outOfRange(x, Min, Max) <= _error) fatalError();
 }
 
+//expect an expression, otherwise error. Return result type (value, valuedb, valueint)
 static int searchExpression(char * * s, double * value){
-    int res = testExpression( s , value );
-    if (res == 0 ) return errNum = -2;
-    return res;
-}
-
-static int searchExpressionRange(char * * s, double * value, int range){
-    int res = searchExpression( s , value );
-    if (res <= 0) return res;
-    if (range != _tnone) { 
-        if ((res != _valueint) && 
-            ((range == _tIO) || (range = _tmem)|| (range = _ttpdf)|| (range = _tint32)|| (range = _tdelay)|| (range = _tshift))) return errNum = 11;
-        if( outOfRange( *value, valueMin[range], valueMax[range])) return errNum;
-    }
+    int res;
+    res = testExpression( s , value );
+    if (res == _empty ) fatalErrorNum(2);
     return res;
 }
 
 static int searchExpressionRangeError(char * * s, double * value, int range){
-    int res;
-    if ((res = searchExpressionRange(s, value, range)) < _error) fatalError();
+    int res = searchExpression( s , value );
+    if (range != _tnone) { 
+        if ((res != _valueint) && 
+            ((range == _tIO) || (range == _tmem)|| (range == _ttpdf)|| (range == _tint32)|| (range == _tshift))) fatalErrorNum(11);
+        outOfRangeError( *value, valueMin[range], valueMax[range]);
+    }
     return res;
 }
+
+static void replaceExpressions( char * * s) {
+    char buf[20];
+    int res;
+    while ((res = goAfterDelimiter(s, "["))) {
+        double value = 0;
+        char * begin = *s -1;  //begining of the experssion just after []
+        res = searchExpression(s, &value);
+        getDelimiterError( s, ']', 26);
+        char * end = *s;     //point on the ]
+        int lenafter = strlen( end ) + 1; //compute remainings characters in the line, including last 0
+        unsigned long long delta = (end - begin); 
+        unsigned size = delta; 
+        int lenbuf;
+        if      (res == _valueint)  lenbuf = sprintf(buf, "%d",(int)value);
+        else if (res == _value)     lenbuf = sprintf(buf, "%f",value);
+        else if (res == _valuedb)   lenbuf = sprintf(buf, "%fdb",20*log10(value));
+        else                        lenbuf = sprintf(buf, "???");
+        //dspprintf("begin %c, end %c, len %d, size %d, lenbuf %d\n",begin[0],end[0],lenafter,size,lenbuf);
+        //eventually adjust bin space (dest, source, size)
+        if (size != lenbuf) memmove(&begin[lenbuf],end,lenafter); //resize to fit requirement
+        memcpy(begin,buf,lenbuf);
+        *s = &begin[lenbuf];
+    }
+}
+
 
 static int paramSection = 0;
 
@@ -561,31 +618,28 @@ static char * fgetLine() {
     return fgets( line, sizeof(line), *dspInput );
 }
 
-
-static inline char * skipSpaces(char * * s){
-    char * p = *s;
-    while(1) {
-        while (isSpaceOrTab(*p)) p++;
-        if (*p == 0x5C) { // backslash"\"
-            p++;
-            while (isSpaceOrTab(*p)) p++;
-            fatalErrorNumIf(32, isCharEOL(*p)==0 );
-            if (fgetLine()) {
-                p = line;
-                continue;   //while 1
-            } 
-            line[0] = 0;
-            p = line;
-            break;          //leave while loop
-        } else
-            break;
+static char * skipSpaces(char * * s){
+    while (1) {
+        skipSpacesBasic( s );
+        if(**s != '\\') break;
+        (*s)++;
+        skipSpacesBasic( s );
+        errPtr = *s;
+        if (isCharEOL(**s)==0) fatalErrorNum(32);
+        if (fgetLine()) {
+            *s = line;
+            continue;   //while 1
+        } 
+        line[0] = 0;
+        *s = line;
     }
-    errPtr = p;     //error position points on active character (non space)
-    *s = p;
-    return p;
+    errPtr = *s;     //error position points on active character (non space)
+    return *s;
 }
 
-
+char * dspoutheader = "//welcome to cplusplus\n\n" \
+                      "#include \"avdspinclude.hpp\"\n\n";
+char * dspoutfilename = "avdspout.cpp";
 
 int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int fileNum = 0;    //depth for included files
@@ -596,6 +650,9 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int size = 0;
     int numCore = 1;
     if (numCore) {} //just to please compiler
+    int dspModeDynamic = 0;
+
+    dspOutFileInit(dspoutfilename,dspoutheader);
     while (nextName && (*nextName)) {
 
     dspbasicName = nextName;
@@ -667,11 +724,10 @@ nextline:
             else errPtr = p;
             //check special case '#-' as a prefix for printable comments
             if ( (p[0] == '#') && (p[1] == '-') ) {
-                char *s = &p[2];
-                replaceLabels(s);
-                while (*s) 
-                    if ((*s == 0x0A)||(*s == 0x0D)) *s = 0; else s++; 
-                fprintf(stderr,"%s\n",&p[2]);
+                p += 2;
+                char * line = p;
+                replaceExpressions( &p );
+                fprintf(stderr,"%s\n",line);
                 break; // next line
             }
  
@@ -688,7 +744,7 @@ nextline:
                 static int minFreq = -1;
                 static int maxFreq = -1;
                 double freq = 0;
-                if ((res = searchExpression( &p, &freq )) < _error) fatalError();
+                searchExpression( &p, &freq );
                 int index = dspConvertFrequencyToIndex(freq);
                 fatalErrorNumIf(44, index >= FMAXpos );
                 if (keyw == _DSPFSMIN) {
@@ -713,16 +769,39 @@ nextline:
                     searchExpressionRangeError( &p, &mant, _tmant );
                     mantissa = mant;
                     res = dsp_FORMAT(mantissa);
+                    valueMax[_tvalue32] = 1ULL<<(31-mantissa);
+                    valueMin[_tvalue32] = -valueMax[_tvalue32];
+                    valueMax[_tvalue64] = 1ULL<<(63-2*mantissa);
+                    valueMin[_tvalue64] = -valueMax[_tvalue32];
                 } else {
                     res = dsp_FORMAT(0);
+                    valueMax[_tvalue32] =  128.0;
+                    valueMin[_tvalue32] = -128.0;
+                    valueMax[_tvalue64] =  128.0;
+                    valueMin[_tvalue64] = -128.0;
                 }
                 fatalErrorNumIf(46, res == 0 );
                 break; }
             case _DSPIOMAX : {
                 double value = 0;
                 if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
-                outOfRangeError(value,2,256);
+                outOfRangeError(value,8,256);
+                int val = value;
+                if (val != value) val = 1;
+                if (val & 7) fatalErrorNum(47);
+                res = dsp_IOMAX(value);
+                valueMax[_tIO] = value;
+                fatalErrorNumIf(45, res == 0 );
                 break; }
+            case _DSPDYNFS : {  //allow biquad filter to be calculated when FS is changed and not staticaly
+                double value = 0;
+                if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                outOfRangeError(value,0,1);
+                res = dsp_DYNFS(value);
+                fatalErrorNumIf(45, res == 0 );
+                dspModeDynamic = value;
+                break; }
+
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
@@ -734,11 +813,12 @@ nextline:
                 dspprintf2("back to previous file, line %d\n",*lineNum);
                 goto nextline;
                 break; }
+
             case _include : {
                 if (fileNum >= (maxIncludedFiles-1)) fatalErrorNum(43);
                 char * str;
-                if ((res = searchString( &p, &str)) < _error) fatalErrorNum(42);
-                if ((res = testDelimiter( &p, "#\n\r\01")) == 0) fatalErrorNum(32);
+                if (searchString( &p, &str) <= _error) fatalErrorNum(42);
+                getEOLError(&p);
                 fileNum ++;
                 lineNum++;
                 dspInput++;
@@ -746,8 +826,9 @@ nextline:
                 nextName = str;
                 goto nextfile;  //restart by opening the next file name
                 break; }
+
             case _param: {
-                if ((res = testExpression( &p, &input )) < _error) fatalError();
+                res = testExpression( &p, &input );
                 if (res) {
                     if (res != _valueint) fatalErrorNum(11);
                     int num = input;
@@ -756,7 +837,7 @@ nextline:
                     case 200: {
                         getDelimiterError( &p, ',' , 30);
                         char * str;
-                        if ((res = searchString( &p, &str)) < _error) fatalErrorNum(34);
+                        if ((res = searchString( &p, &str)) <= _error) fatalErrorNum(34);
                         int code = res; int n = 1;  //first char is string length
                         for (int i=0; i<= res; i++) {
                             if (i < res) code |= (*str)<<(n*8);
@@ -769,53 +850,80 @@ nextline:
                 } else
                     checkAndCreateParam();
                 break; }
-            case _nop : {
-                dsp_NOP();
-                break; }
+
+            case _nop : { dsp_NOP(); break; }
+
             case _section:
             case _core:  {
                 unsigned progAny1 = 0xFFFFFFFF;
                 unsigned progOnly0 = 0;
-                if ((res = testExpression( &p, &input )) < _error) fatalError();
+                res = testExpression( &p, &input );
                 if (res) {
                     if (res != _valueint) fatalErrorNum(11);
                     progAny1 = input;
+                    res = searchDelimiter( &p, "," );
+                    if (res) {
+                        res = searchExpression( &p, &input );
+                        if (res != _valueint) fatalErrorNum(11);
+                        progOnly0 = input;
+                    }
                 }
-                res = searchDelimiter( &p, "," );
-                if (res) {
-                    if ((res = searchExpression( &p, &input )) < _error) fatalError();
-                    if (res != _valueint) fatalErrorNum(11);
-                    progOnly0 = input;
-                }
-                if (keyw == _core)    numCore = dsp_CORE_Prog(progAny1,progOnly0);
+                if (keyw == _core) {
+                    numCore = dsp_CORE_Prog(progAny1,progOnly0);
+                }    
                 if (keyw == _section) dsp_SECTION(progAny1,progOnly0);
                 break; }
-            case _tile : {  //expect a number between 0..7
+
+            case _tile : {  
                 numTile = dsp_TILE();
                 if (numTile>1) clearParamSection();
                 outOfRangeError( numTile, valueMin[_ttile], valueMax[_ttile]);
-            break; }
+                break; }
+
             case _send: //falltrough to _receive
             case _receive: {    //syntax send channel : io,io ...
-                //todo
-
-            break; }
-            case _input: {
-                searchExpressionRangeError( &p, &input, _tIO  );
-                dsp_LOAD( input);
-                break; }
-            case _outputpdf:
-            case _outputvol:
-            case _outputvolsat:
-            case _output: {
-                int outcount;
-                int finalIO;
+                double tile=0;
+                searchExpressionRangeError(&p, &tile, _ttile);
+                getDelimiterError(&p, ',',30);
+                int index = addCode(0); //placeholder for opcode+skip
+                opcode_t * ptr = opcodePtr(index);
+                unsigned int outcount;
+                unsigned int finalIO;
                 do {
                     outcount=0;
                     finalIO=0;
                     do {
                         searchExpressionRangeError( &p, &output , _tIO );
-                        int out = output;   //convert to integer
+                        unsigned int out = output;   //convert to integer
+                        finalIO |= (out << (8*outcount));
+                        outcount++;
+                        res = searchDelimiter( &p, "," );
+                    } while ( res && (outcount<4) );
+                    addCode(finalIO);                
+                } while(res);
+                index = opcodeIndex() - index;
+                //TODO, update skip value according to total numbers
+                ptr->op.opcode = (keyw==_send) ? DSP_SEND : DSP_RECEIVE;
+                ptr->op.skip   = index;
+            break; }
+
+            case _input: {
+                searchExpressionRangeError( &p, &input, _tIO  );
+                dsp_LOAD( input);
+                break; }
+
+            case _outputpdf:
+            case _outputvol:
+            case _outputvolsat:
+            case _output: {
+                unsigned int outcount;
+                unsigned int finalIO;
+                do {
+                    outcount=0;
+                    finalIO=0;
+                    do {
+                        searchExpressionRangeError( &p, &output , _tIO );
+                        unsigned int out = output;   //convert to integer
                         finalIO |= (out << (8*outcount));
                         outcount++;
                         res = searchDelimiter( &p, "," );
@@ -826,6 +934,7 @@ nextline:
                     else dsp_STORE_VOL_SAT( finalIO );
                 } while(res);
                 break; }
+
             case _transfer: {
                 int transferNum=0;
                 do {
@@ -841,6 +950,7 @@ nextline:
                     res = searchDelimiter( &p, "," );
                 } while (res);
                 break; }
+
             case _clrxy  : { dsp_CLRXY(); break; }
             case _swapxy : { dsp_SWAPXY(); break; }
             case _copyxy : { dsp_COPYXY(); break; }
@@ -861,18 +971,21 @@ nextline:
                 searchExpressionRangeError( &p, &input, _tshift  );
                 dsp_SHIFT_FixedInt( input);
                 break; }
+
             case _valuex : {
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
                 dsp_VALUEX_Fixed(result);
                 break; }
+
             case _valuey : {
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
                 dsp_VALUEY_Fixed(result);
                 break; }
+
             case _gain : {
-                char * oldp = p;
+                char * oldp = skipSpaces( &p);
                 labelptr_t l = searchLabel( &p );
                 if ((l) && ((l->s.type == label_drcout) || (l->s.type == label_value))) {
                     dsp_GAIN( l->s.address + ( (l->s.type == label_drcout) ? 1 : 0 ) );
@@ -884,6 +997,7 @@ nextline:
                     dsp_GAIN_Fixed(result);
                 }
                 break; }
+
             case _clip : {
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
@@ -894,7 +1008,7 @@ nextline:
                 do {
                     searchExpressionRangeError( &p, &input , _tIO );
                     if(mixerNum == 0) dsp_MIXER();
-                    dspMixer_Data(input, 1.0);
+                    dspMixer_Data(input, 1.0);  // default gain 1.0
                     mixerNum++;
                     res = searchDelimiter( &p, "," );
                 } while (res);
@@ -939,7 +1053,7 @@ nextline:
                 dsp_DELAY_1(); break; }
             case _delaydpus:
             case _delayus: {
-                char * oldp = p;
+                char * oldp = skipSpaces( &p);
                 labelptr_t l = searchLabel( &p );
                 if (l && (l->s.type == label_valueint)) {
                     usedLabelInTile(l);
@@ -978,7 +1092,7 @@ nextline:
                 usedLabelInTile(l);
                 int bracket = searchDelimiter( &p, "[.");
                 if (bracket) {
-                    if ((res = testExpression( &p, &input )) < _error) fatalError();
+                    res = testExpression( &p, &input );
                     if (res == _empty) {
                         if (l->value > 1.0) fatalErrorNum(2);
                     } else if (res != _valueint) fatalErrorNum(11);
@@ -997,10 +1111,11 @@ nextline:
             case _biquad8:
             case _biquad: {
                 labelptr_t l = searchLabel( &p );
-                if (l == NULL) fatalErrorNum(3);
+                if (l == NULL) { lastLabelName = ""; fatalErrorNum(3); }
                 if ( (l->s.type != label_filter)&&(l->s.type != label_filters)&&(l->s.type != label_filter8) ) fatalErrorNum(3);
                 usedLabelInTile(l);
-                if (l->s.type == label_filter) dsp_BIQUADS( l->s.address );
+                dspOutLabelName = l->s.name;
+                if ((l->s.type == label_filter)&&(dspModeDynamic==0)) dsp_BIQUADS( l->s.address );
                 else dsp_BIQUADS_FS( l->s.address );
                 break; }
             case _convol: {
@@ -1073,39 +1188,42 @@ nextline:
                 if ((drcout == NULL) || (drcout->s.type != label_drcout)) fatalErrorNum(37);
                 usedLabelInTile(drcout);
                 break; }
+
 //end of dsp keywords
-            case -1: { //this is not a keyword so it has to be a label then
+            case -1: { //this is not a keyword so it must be a label then
+                if (searchKeywords( &p, paramKeywords, paramKeywordsNumber )>=0) fatalErrorNum(49);
+                if (searchKeywords( &p, filterNames, filterTypesNumber )>=0) fatalErrorNum(49);
                 labelptr_t l = searchLabel( &p );
-                res = searchDelimiter( &p, "?" );
                 if (l) {
-                    //label found, verify if user wants to overload label definition (?)
-                    if (res == 0) fatalErrorNum(12);
+                    //label found, make sure user wants to overload label definition (?)
+                    //only for numerical labels
+                    if (l->s.type>_valueint) fatalErrorNum(12);
+                    getDelimiterError( &p, '?', 12 );
                     //yes overloading accepted
                 } else {
                     //label unknown. add it to the list
                     l = appendNewLabel( &p );
+                    //eventually accept ? for numerical lables
+                    if (l->s.type <= _valueint) searchDelimiter( &p, "?" );   
                 }
                 int filterNum=0, filterType=0, filterkeyw = 0;
         filter_entry:
                 filterType = searchKeywords( &p, filterNames, filterTypesNumber );
                 if ( filterType >= 0 ) checkAndCreateParam();
         filter_retry:
+                if (filterkeyw==0) { }
                 if ( filterType >= 0 ) {
                     if ( filterNum == 0 ) {
-                        if (filterkeyw == 0) {
-                            //this new label is followed by a filter name for the first time
-                            if ((l->s.type != _empty)&&(l->s.type != label_filter)) fatalErrorNum(12);
-                            l->s.type = label_filter;
-                            l->s.address = dspBiquad_Sections_Flexible();
-                        } else {
-                            addOpcodeValue(DSP_BIQUADS_FS,1); //numsection place older
-                            addCode(0); //
-                        }
+                        //this new label is followed by a filter name for the first time
+                        if ((l->s.type != _empty)&&(l->s.type != label_filter)) fatalErrorNum(12);
+                        l->s.type = label_filter;
+                        dspOutLabelName = l->s.name;
+                        l->s.address = dspBiquad_Sections_Flexible();
                     }
                     filterNum++;
                     getDelimiterError( &p, '(', 19 );
                     //read filter cutoff frequency
-                    if ((res = testExpression( &p, &freq )) < _error) fatalError();
+                    res = testExpression( &p, &freq );
                     if (res == _empty) fatalErrorNum(14);
                     if (res == _valuedb) fatalErrorNum(25);
                     outOfRangeError( freq, valueMin[_tfreq], valueMax[_tfreq]);
@@ -1114,19 +1232,19 @@ nextline:
                     filterQ = 1.0; //default value
                     if (filterType >= 46) {
                         getDelimiterError( &p, ',', 21 );
-                        if ((res = testExpression( &p, &filterQ )) < _error) fatalError();
+                        res = testExpression( &p, &filterQ );
                         if (res ==  _empty) fatalErrorNum(15);
                         outOfRangeError( filterQ, valueMin[_tfilterQ], valueMax[_tfilterQ] );
                         if (filterType == 55) { //FLT
                             getDelimiterError( &p, ',', 21 );
                             //read frequency fp & qp
-                            if ((res = testExpression( &p, &freqLT )) < _error) fatalError();
+                            res = testExpression( &p, &freqLT );
                             if (res == _empty) fatalErrorNum(14);
                             if (res == _valuedb) fatalErrorNum(25);
                             outOfRangeError( freqLT, valueMin[_tfreq], valueMax[_tfreq]);
                             //read filter Q
                             getDelimiterError( &p, ',', 21 );
-                            if ((res = testExpression( &p, &filterQLT )) < _error) fatalError();
+                            res = testExpression( &p, &filterQLT );
                             if (res ==  _empty) fatalErrorNum(15);
                             outOfRangeError( filterQLT, valueMin[_tfilterQ], valueMax[_tfilterQ] );
                         }
@@ -1138,23 +1256,18 @@ nextline:
                     getDelimiterError( &p, ')', 20 );
                     if (filterType == 55) {
                         //add filter characteristics in the dsp code (param section)
-                        if (filterkeyw == 0) {
-                            dspprintf2("filter %s LT with F0=%f, Q0=%f, Fp=%f, Qp=%f, G=%f\n",l->s.name,freq,filterQ,freqLT,filterQLT,gain);
-                            dsp_FilterLT( freq, filterQ, freqLT, filterQLT, gain );
-                        } else
-                        { addCode(0); addCode(0); addCode(0); addCode(0); addCode(0); addCode(0);}
+                        dspprintf2("filter %s LT with F0=%f, Q0=%f, Fp=%f, Qp=%f, G=%f\n",l->s.name,freq,filterQ,freqLT,filterQLT,gain);
+                        dsp_FilterLT( freq, filterQ, freqLT, filterQLT, gain );
+                        dspoutFilters5(filterTypes[filterType],filterOrders[filterType],freq,filterQ,freqLT,filterQLT,gain,filterNames[filterType]);
                     } else
                     if (filterType == 54) {
                         dspprintf2("filter %s HILBERT with xx=%f, xx=%f, G=%f\n",l->s.name,freq,filterQ,gain);
                         //TODO dsp_hilbert
-                            { addCode(0); addCode(0); addCode(0); addCode(0); addCode(0); addCode(0);}
                     } else {
                         //add filter characteristics in the dsp code (param section)
-                        if (filterkeyw == 0) {
-                            dspprintf2("filter %s type %s created with F=%f, Q=%f, G=%f\n",l->s.name,filterNames[filterType],freq,filterQ,gain);
-                            dsp_filter( filterTypes[filterType], freq, filterQ, gain );
-                        } else
-                        { addCode(0); addCode(0); addCode(0); addCode(0); addCode(0); addCode(0);}
+                        dspprintf2("filter %s type %s created with F=%f, Q=%f, G=%f\n",l->s.name,filterNames[filterType],freq,filterQ,gain);
+                        dsp_filter( filterTypes[filterType], freq, filterQ, gain );
+                        dspoutFilters3(filterTypes[filterType],filterOrders[filterType],freq,filterQ,gain,filterNames[filterType]);
                     }
                     //accept potentially other filters on the same line, separated with comma
                     filterType = searchKeywords( &p, filterNames, filterTypesNumber );
@@ -1293,12 +1406,14 @@ nextline:
                     double temp;
                     if (res) {
                         //value or label authorized after an "="
-                        if ((res = searchExpression( &p, &temp )) < _error) fatalError();
+                        res = searchExpression( &p, &temp );
                         old = _empty;  //clear previous definition if any
                     } else {
                         //only direct value after a label
-                        res = searchValue( &p, &temp, 1 );  // only numerical eventually db
-                        if (res == _empty)  fatalErrorNum(7);
+                        res = searchValue( &p, &temp, 1 );  // only numerical, eventually db
+                        if (res == _empty)  {
+                            lastLabelName = l->s.name;
+                            fatalErrorNum(7); }
                         if (testDelimiter( &p, "+-*/")) fatalErrorNum(31);
                     }
                     if (old == _empty) {
@@ -1311,8 +1426,7 @@ nextline:
                         } else {
                             //dspprintf3("label type %d %s = %f\n",l->s.type,l->s.name, l->value);
                         }
-                    } else
-                        dspprintf2("label type %d %s already set with value %f\n",l->s.type,l->s.name, l->value);
+                    } //else dspprintf2("label type %d %s already set with value %f\n",l->s.type,l->s.name, l->value);
                     break; } // default
                 } //switch (keyword)
                 break; }
@@ -1320,9 +1434,10 @@ nextline:
                     fatalErrorNum(6);
                 break; }
             } //end of switch keyw
+            //dspprintf1("looking next instruction\n");
             //an instruction has been processed now go for next
             if (*lineNum > 0) {
-                while ( searchDelimiter( &p, ";" ));     //optional delimiter on a line
+                getSeparatorEOLError(&p);
             }
         } // while(*p)
     } //while (1) = read next line
@@ -1354,17 +1469,17 @@ void fatalError(){
     switch (errNum) {
     case -1:  fprintf(stderr,"Error: numerical value expected\n"); break;
     case -2:  fprintf(stderr,"Error: numerical value or label expected\n"); break;
-    case -3:  fprintf(stderr,"Error: filter label expected\n"); break;
-    case -4:  fprintf(stderr,"Error: filter label expected, this one has a numerical value\n"); break;
+    case -3:  fprintf(stderr,"Error: filter label expected (%s)\n",lastLabelName); break;
+    case -4:  fprintf(stderr,"Error: filter label expected, this one has a numerical value (%s)\n",lastLabelName); break;
     case -5:  fprintf(stderr,"Error: value out of range (%f ... %f)\n",errMin, errMax); break;
-    case -6:  fprintf(stderr,"Error: dsp keyword or user label starting with a..z letter exptected, found char <0x%X> : \n",*errPtr); break;
-    case -7:  fprintf(stderr,"Error: filter or numerical value exptected after a label definition\n"); break;
+    case -6:  fprintf(stderr,"Error: dsp keyword or user label starting with a..z letter exptected, found char \"%c\" <0x%X> : \n",(*errPtr>=' ')?*errPtr:' ',*errPtr); break;
+    case -7:  fprintf(stderr,"Error: filter or numerical value exptected after a label definition (%s)\n",lastLabelName); break;
     case -8:  fprintf(stderr,"Error: this dsp instruction requires saturation before execution\n"); break;
     case -9:  fprintf(stderr,"Error: dsp accumulator already saturated by previous instruction\n"); break;
-    case -10: fprintf(stderr,"Error: special label defined with MEMORY is expected\n"); break;
+    case -10: fprintf(stderr,"Error: special label defined with MEMORY is expected (%s)\n",lastLabelName); break;
     case -11: fprintf(stderr,"Error: integer value expected\n"); break;
-    case -12: fprintf(stderr,"Error: label already exists\n"); break;
-    case -13: fprintf(stderr,"Error: end of line or \";\" separator expected, found character <0x%x>\n",*errPtr); break;
+    case -12: fprintf(stderr,"Error: label already exists (%s)\n",lastLabelName); break;
+    case -13: fprintf(stderr,"Error: end of line or \";\" separator expected, found character \"%c\" <0x%x>\n",(*errPtr>=' ')?*errPtr:' ',*errPtr); break;
     case -14: fprintf(stderr,"Error: filter frequency (or label) expected\n"); break;
     case -15: fprintf(stderr,"Error: filter Q (or label) expected\n"); break;
     case -16: fprintf(stderr,"Error: filter gain (or label) expected\n"); break;
@@ -1378,12 +1493,12 @@ void fatalError(){
     case -24: fprintf(stderr,"Error: problem while evaluating expression\n"); break;
     case -25: fprintf(stderr,"Error: problem with decibel while evaluating expression\n"); break;
     case -26: fprintf(stderr,"Error: missing closing bracket : \"]\" is expected\n"); break;
-    case -27: fprintf(stderr,"Error: a label with numerical value is expected\n"); break;
+    case -27: fprintf(stderr,"Error: a label with numerical value is expected (%s)\n",lastLabelName); break;
     case -28: fprintf(stderr,"Error: opening bracket \"(\" is expected\n"); break;
     case -29: fprintf(stderr,"Error: closing bracket \")\" is expected\n"); break;
     case -30: fprintf(stderr,"Error: comma \",\" is expected\n"); break;
     case -31: fprintf(stderr,"Error: expression with operator requires equal \"=\" operator\n"); break;
-    case -32: fprintf(stderr,"Error: end of line expected, found character <0x%x>\n",*errPtr); break;
+    case -32: fprintf(stderr,"Error: end of line expected, found character \"%c\" <0x%x>\n",(*errPtr>=' ')?*errPtr:' ',*errPtr); break;
     case -33: fprintf(stderr,"Error: TAPS label expected\n"); break;
     case -34: fprintf(stderr,"Error: string expected\n"); break;
     case -35: fprintf(stderr,"Error: too much values\n"); break;
@@ -1398,6 +1513,9 @@ void fatalError(){
     case -44: fprintf(stderr,"Error: frequency value not valid\n"); break;
     case -45: fprintf(stderr,"Error: cannot change this dsp parameter after code generation\n"); break;
     case -46: fprintf(stderr,"Error: mantissa value not valid\n"); break;
+    case -47: fprintf(stderr,"Error: IO max must be multiple of 8\n"); break;
+    case -48: fprintf(stderr,"Error: too much \"(\"\n"); break;
+    case -49: fprintf(stderr,"Error: cannot be used without a label name upfront\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",*lineNum-1,line);
