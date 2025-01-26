@@ -87,6 +87,7 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_CICUS",
     "DSP_CICN",
     "DSP_EXPMA",
+    "DSP_THDCOMP",
     "DSP_BIQUAD_FS",
     "DSP_BIQUAD_FS_FAST",
     "DSP_BIQUAD_FS_FAST8",

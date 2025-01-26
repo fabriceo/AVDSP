@@ -127,6 +127,7 @@ enum dspOpcodesEnum {
     DSP_CICUS,
     DSP_CICN,
     DSP_EXPMA,
+    DSP_THDCOMP,
     DSP_BIQUADS_FS,     //accept cascaded biquads parameters. single raw of coefficicients expected to be computed at each fs change
     DSP_BIQUADS_FS_FAST,    //same, using VPU capabilities, increasing THD+N at lowfrequency and high sampling rate
     DSP_BIQUADS_FS_FAST8,   //same using specific VPU capability to handle 8 biquad section as fast as possible
