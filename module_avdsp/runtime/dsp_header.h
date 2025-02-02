@@ -141,7 +141,23 @@ enum dspOpcodesEnum {
     DSP_DRC_COMPRESSOR, // compressor based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
-
+    DSP_CLRMEM,
+    DSP_SWAPMEM,
+    DSP_ADDMEM,
+    DSP_MEMADD,
+    DSP_SUBMEM,
+    DSP_MEMSUB,
+    DSP_MULMEM,
+    DSP_DIVMEM,
+    DSP_AVGMEM,
+    DSP_MEMAVG,
+    DSP_NEGMEM,
+    DSP_VALUEMEM,
+    DSP_SAVEMEM,
+    DSP_LOADMEM,
+    DSP_INPUTMEM,
+    DSP_INPUTGAINMEM,
+    DSP_GAIN_MEM,
     // new opcodes should come here below
 
     DSP_MAX_OPCODE      // 66 latest opcode, supported by this runtime version. this will be compared during runtimeinit

@@ -1,6 +1,12 @@
 
 
+lp	LPLR4(1000)
+
 tile 
 core
+
+	transfer (16,24)
     input 16
+		biquad lp
+    output 25
 end

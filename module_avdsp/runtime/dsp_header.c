@@ -101,6 +101,24 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_DRC_COMPRESSOR",
     "DSP_DRC_EXPANDER",
     "DSP_DRC_NOISE_GATE",
+    "DSP_CLRMEM",
+    "DSP_SWAPMEM",
+    "DSP_ADDMEM",
+    "DSP_MEMADD",
+    "DSP_SUBMEM",
+    "DSP_MEMSUB",
+    "DSP_MULMEM",
+    "DSP_DIVMEM",
+    "DSP_AVGMEM",
+    "DSP_MEMAVG",
+    "DSP_NEGMEM",
+    "DSP_VALUEMEM",
+    "DSP_SAVEMEM",
+    "DSP_LOADMEM",
+    "DSP_INPUTMEM",
+    "DSP_INPUTGAINMEM",
+    "DSP_GAIN_MEM",
+
 };
 
 
