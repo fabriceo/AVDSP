@@ -23,9 +23,9 @@ void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
 int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
+int  dsp_FSDYN(int val);
 int  dsp_FORMAT(int format);
 int  dsp_IOMAX(int iomax);
-int  dsp_DYNFS(int val);
 void dspoutFilters3(int type, int order, float freq,float Q,float gain, const char * name);
 void dspoutFilters5(int type, int order, float freq,float Q, float freq2,float Q2,float gain, const char * name);
 extern char * dspOutLabelName;
@@ -48,10 +48,11 @@ int  addGainCodeQ31(dspGainParam_t gain);
  int  dsp_END_OF_CODE();
  int  dsp_TILE();
  int  dsp_TILE_num();   //return current number of the dsptile
- void dsp_NOP();
+
  int  dsp_CORE();
  int  dsg_CORE_num();   //return current number of the dspcore
  int  dsp_CORE_Prog(unsigned progAny1, unsigned progAny0);
+ void dsp_NOP();
  void dsp_SECTION(unsigned progAny1, unsigned progAny0);
  void dsp_SERIAL(unsigned hash);
 
@@ -59,20 +60,20 @@ int  addGainCodeQ31(dspGainParam_t gain);
  void dsp_COPYXY();
  void dsp_COPYYX();
  void dsp_CLRXY();
-
  void dsp_ADDXY();
  void dsp_ADDYX();
  void dsp_SUBXY();
  void dsp_SUBYX();
  void dsp_MULXY();
  void dsp_MULYX();
-  void dsp_DIVXY();
+ void dsp_DIVXY();
  void dsp_DIVYX();
  void dsp_AVGXY();
  void dsp_AVGYX();
  void dsp_SQRTX();
  void dsp_NEGX();
  void dsp_NEGY();
+ void dsp_FUNC_MEM(int op, int paramAddr);
 
  // generate a random number to be used by DITHER or SAT0DB_TPDF
  int dsp_TPDF_CALC(int bits);
@@ -192,16 +193,20 @@ int  addGainCodeQ31(dspGainParam_t gain);
  void dsp_DELAY_DP_FixedMicroSec(int microSec);
  void dsp_DELAY_DP_FixedMilliMeter(int mm,float speed);
  void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix);
- void dsp_CIC_FixedMicroSec(int microSec);
- void dsp_CIC_N(int maxSamples);
- void dsp_EXPMA(float alpha);
+ void dsp_CIC_FixedMicroSec(int microSec);  //moving average in number of microseconds
+ void dsp_CIC_N(int maxSamples);  //moving average N samples
+ void dsp_EXPMA(float alpha);     //exponential moving average
+ void dsp_THDCOMP(float c2, float c3);  //adds H2 (c2) and H3 (c3)
 
  // used to read a predefined wave form.
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);
 
-// calculate cascaded biquads
+// calculate cascaded biquads with predefined coefficient for all frequencies
  int dsp_BIQUADS(int paramAddr);
+ //same but only one frequency : expect the coefficient to be updated when fs is changing
  int dsp_BIQUADS_FS(int paramAddr);
+
+ //use dsp_FSDYN() to defne if the coefficient are pre-computed or not for each frequency
  //define the list of biquad within a PARAM structure
  //each filters to be declared below. Number is the number of biquad cell (1storder = 2ndOrder = 1cell)
  // negative number is used

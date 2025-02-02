@@ -456,6 +456,12 @@ int dsp_FSMAX(int freq){
     return 1;
 }
 
+int dsp_FSDYN(int val) {
+    if (firstOpcodeIndex != opcodeIndex()) return 0;
+    dspDynamic = val;
+    return 1;
+}
+
 int dsp_FORMAT(int format) {
     if (firstOpcodeIndex != opcodeIndex()) return 0;
     dspEncoderFormat(format);
@@ -951,6 +957,15 @@ void dsp_NEGX(){
 void dsp_NEGY(){ 
     dspout("   dsp_NEGY();\n");
     addSingleOpcodePrint(DSP_NEGY); }
+
+void dsp_FUNC_MEM(int op, int paramAddr) {
+    dspout("   dsp_FUNC_MEM(%d,%d);\n",op,opcodeIndex()-paramAddr);
+    int tmp = addOpcodeLengthPrint(op);
+    if (paramAddr) checkInParamSpace(paramAddr,1);
+    addCodeOffset(paramAddr, tmp);
+    setLastMissingParamIf0(paramAddr, 1);
+}
+
 
 void dsp_WHITE() {
     checkCalcTpdf();
@@ -1653,6 +1668,14 @@ void dsp_EXPMA(float alpha) {
 }
 
 
+void dsp_THDCOMP(float c2, float c3){
+    ALUformat = 1;
+    addOpcodeLengthPrint(DSP_THDCOMP);
+    dspout("   dsp_THDCOMP(%f,%f);\n",c2,c3);
+    addGainCodeQ31(c2);
+    addGainCodeQ31(c3);
+}
+
 //DSP_DATA_TABLE
 
 void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size){
@@ -1681,11 +1704,6 @@ int dspGenerator_Sine(int samples){
 }
 
 
-int dsp_DYNFS(int val) {
-    if (firstOpcodeIndex != opcodeIndex()) return 0;
-    dspDynamic = val;
-    return 1;
-}
 /*
  * BIQUAD Related
  */

@@ -16,34 +16,35 @@ const char * filterNames[filterTypesNumber] = {
     "HPBU2","HPBU3","HPBU4","HPBU6","HPBU8",
     "LPLR2","LPLR3","LPLR4","LPLR6","LPLR8",
     "HPLR2","HPLR3","HPLR4","HPLR6","HPLR8",
-    "LP1","HP1","LS1","HS1","AP1","BP0DB",
-    "LP2","HP2", "LS2","HS2", "AP2",
-    "PEAK","NOTCH","BPQ","HILB","LT"
+    "LP1","HP1","LS1","HS1","AP1",
+    "BP0DB","LP2","HP2", "LS2","HS2", "AP2",
+    "PEAK","NOTCH","BPQ","HILB","LT",
 };
 
 const char filterTypes[filterTypesNumber] = {
     LPBE2,LPBE3,LPBE4,LPBE6,LPBE8,   // bessel
     HPBE2,HPBE3,HPBE4,HPBE6,HPBE8,
-    LPBE3db2,LPBE3db3,LPBE3db4,LPBE3db6,LPBE3db8,    // bessel at -3db cutoff
+    LPBE3db2,LPBE3db3,LPBE3db4,LPBE3db6,LPBE3db8,    // bessel normalized at -3db cutoff
     HPBE3db2,HPBE3db3,HPBE3db4,HPBE3db6,HPBE3db8,
     LPBU2,LPBU3,LPBU4,LPBU6,LPBU8, // buterworth
     HPBU2,HPBU3,HPBU4,HPBU6,HPBU8,
     LPLR2,LPLR3,LPLR4,LPLR6,LPLR8,   // linkwitz rilley
     HPLR2,HPLR3,HPLR4,HPLR6,HPLR8,
-    FLP1,FHP1,FLS1,FHS1,FAP1,FBP0DB,
+    FLP1,FHP1,FLS1,FHS1,FAP1,   //first order low pass, high pass, shelves and allpass
+    FBP0DB,       //bandpass normalized to produce its peak with 0db gain
     FLP2,FHP2,    // low pass and high pass
     FLS2,FHS2,    // low shelf and high shelf
-    FAP2,FPEAK,FNOTCH, // allpass, eak and notch
-    FBPQ, FHILB, FLT      // bandpass and hilbert
+    FAP2,FPEAK,FNOTCH, // allpass, peak and notch
+    FBPQ, FHILB, FLT,      // bandpass, hilbert, LT
 };
 
 const char filterOrders[filterTypesNumber] = {
     2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8,
-    1,1,1,1,1,2,2,2,2,2,2,2,2,2,99,2
+    1,1,1,1,1, 2, 2,2, 2,2, 2,2,2, 2,99,2
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPDYNFS,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX,
     _end, _include, _param, _nop, _core, _section,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -53,13 +54,14 @@ enum keywords_e {
     _savexmem, _loadxmem,  _saveymem, _loadymem,
     _dcblock, _biquad, _biquad8, _convol,
     _tpdf, _white, _sine,_square,_dirac,
-    _integrator, _cicus, _cicn,_expma,
+    _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
     _tile,_send,_receive,
+    _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_avgmem,_memavg,_negmem,_mulmem,_divmem,_savemem,_loadmem,_gainmem,_valuemem,_inputmem,_inputgainmem,
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPMANT","DSPFLOAT","DSPIOMAX","DSPDYNFS",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX",
     "end", "include", "param", "nop", "core", "section",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -68,9 +70,10 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "savexmem", "loadxmem","saveymem", "loadymem",
     "dcblock", "biquad", "biquad8", "convol",
     "tpdf", "white", "sine","square","dirac",
-    "integrator","movingavgus","movingavgn","expmovingavg",
+    "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
-    "tile","send","receive"
+    "tile","send","receive",
+    "clrmem","swapmem","addmem","memadd","submem","memsub","avgmem","memavg","negmem","mulmem","divmem","savemem","loadmem","gainmem","valuemem","inputmem","inputgainmem",
 };
 
 enum paramkeywords_e {
@@ -440,6 +443,43 @@ static int searchValue(char * * s, double * value, int enableDB) {
 }
 
 
+static int outOfRange(double x,double Min,double Max){
+    errMin = Min; errMax = Max;
+    if ((x<Min)||(x>Max)) return  errNum = -5;
+    return 0;
+}
+
+static void outOfRangeError(double x,double Min,double Max){
+    if (outOfRange(x, Min, Max) <= _error) fatalError();
+}
+
+
+static int getLabelMemory(char ** s) {
+    char * p = skipSpaces(s);
+    labelptr_t l = findLabel(p);
+    if (l) {
+        if (l->s.type != label_memory) fatalErrorNum(10);
+        double val=l->s.address;
+        int len = l->s.length;
+        *s = &p[len];
+        usedLabelInTile(l);
+        int bracket = searchDelimiter(s,"[.");
+        if (bracket) {
+            int res2 = searchValue(s, &val,0);
+            if (res2 == _empty) {
+                if (l->value > 1.0) fatalErrorNum(2);
+            } else if (res2 != _valueint) fatalErrorNum(11);
+            outOfRangeError( val, 0.0, l->value-1.0 );
+            if (bracket == '[') getDelimiterError( s, ']', 26);
+            val += l->s.address;
+        }
+        return val;
+    } else fatalErrorNum(41);
+    return 0;
+}
+
+
+
 //search for a direct numerical value, or a label of type value eventually with an index [x] or .x
 static int testExpression(char * * s, double * value){
     const int depthMax = 4;
@@ -541,16 +581,6 @@ static int testExpression(char * * s, double * value){
     double check = integer;
     if (check == sum) return _valueint;
     else return _value;
-}
-
-static int outOfRange(double x,double Min,double Max){
-    errMin = Min; errMax = Max;
-    if ((x<Min)||(x>Max)) return  errNum = -5;
-    return 0;
-}
-
-static void outOfRangeError(double x,double Min,double Max){
-    if (outOfRange(x, Min, Max) <= _error) fatalError();
 }
 
 //expect an expression, otherwise error. Return result type (value, valuedb, valueint)
@@ -793,11 +823,11 @@ nextline:
                 valueMax[_tIO] = value;
                 fatalErrorNumIf(45, res == 0 );
                 break; }
-            case _DSPDYNFS : {  //allow biquad filter to be calculated when FS is changed and not staticaly
+            case _DSPFSDYN : {  //allow biquad filter to be calculated when FS is changed and not staticaly
                 double value = 0;
                 if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
                 outOfRangeError(value,0,1);
-                res = dsp_DYNFS(value);
+                res = dsp_FSDYN(value);
                 fatalErrorNumIf(45, res == 0 );
                 dspModeDynamic = value;
                 break; }
@@ -977,7 +1007,6 @@ nextline:
                 searchExpressionRangeError( &p, &result, _tvalue32);
                 dsp_VALUEX_Fixed(result);
                 break; }
-
             case _valuey : {
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
@@ -1013,6 +1042,7 @@ nextline:
                     res = searchDelimiter( &p, "," );
                 } while (res);
                 break; }
+
             case _mixergain:
             case _inputgain:
             case _outputgain: {
@@ -1036,11 +1066,9 @@ nextline:
                     res = searchDelimiter( &p, "," );
                 } while(res);
                 break; }
+
             case _saturate: {
                 dsp_SAT0DB();
-                break; }
-            case _white: {
-                dsp_WHITE();
                 break; }
             case _saturatevol:{
                 dsp_SAT0DB_VOL();
@@ -1049,6 +1077,7 @@ nextline:
                 searchExpressionRangeError( &p, &gain, _tvalue32 );
                 dsp_SAT0DB_GAIN_Fixed(gain);
                 break; }
+
             case _delayone: {
                 dsp_DELAY_1(); break; }
             case _delaydpus:
@@ -1082,6 +1111,7 @@ nextline:
                 searchExpressionRangeError( &p, &mix, _tpercent );
                 dsp_DELAY_FB_MIX_FixedMicroSec( delay, source, feed, delayed, mix );
                 break; }
+
             case _loadxmem:
             case _savexmem:
             case _loadymem:
@@ -1104,10 +1134,12 @@ nextline:
                 else  if (keyw == _loadxmem) dsp_LOAD_X_MEM( l->s.address + input*2.0 );
                 else  if (keyw == _loadymem) dsp_LOAD_Y_MEM( l->s.address + input*2.0 );
                 break; }
+
             case _dcblock: {
                 searchExpressionRangeError( &p, &freq, _tfreq );
                 dsp_DCBLOCK( freq );
                 break; }
+
             case _biquad8:
             case _biquad: {
                 labelptr_t l = searchLabel( &p );
@@ -1118,6 +1150,7 @@ nextline:
                 if ((l->s.type == label_filter)&&(dspModeDynamic==0)) dsp_BIQUADS( l->s.address );
                 else dsp_BIQUADS_FS( l->s.address );
                 break; }
+
             case _convol: {
                 int numFilt = 0;
                 do {
@@ -1132,6 +1165,7 @@ nextline:
                     res = searchDelimiter( &p, ",");
                 } while(res);
                 break; }
+
             case _integrator: {
                 dsp_INTEGRATOR(); break; }
             case _cicus: {
@@ -1147,10 +1181,23 @@ nextline:
                 searchExpressionRangeError( &p, &value, _tpercent );
                 dsp_EXPMA(value);
                 break; }
+
+            case _thdcomp : {
+                double c2=0,c3=0;
+                searchExpressionRangeError( &p, &c2, _tpercent );
+                getDelimiterError( &p, ',',30);
+                searchExpressionRangeError( &p, &c3, _tpercent );
+                dsp_THDCOMP(c2,c3);
+                break; }
+
             case _tpdf: {
                 searchExpressionRangeError( &p, &tpdf, _ttpdf );
                 dsp_TPDF(tpdf);
                 break; }
+            case _white: {
+                dsp_WHITE();
+                break; }
+
             case _sine:
             case _square:
             case _dirac: {
@@ -1165,6 +1212,7 @@ nextline:
                 case _dirac:    dsp_DIRAC_Fixed(freq,gain); break;
                 }
                 break; }
+                
             case _envpeak :
             case _envrms :
             case _limiterpeak :
@@ -1187,6 +1235,30 @@ nextline:
                 labelptr_t drcout = searchLabel( &p );
                 if ((drcout == NULL) || (drcout->s.type != label_drcout)) fatalErrorNum(37);
                 usedLabelInTile(drcout);
+                break; }
+
+            case _clrmem:   //fallthrough voluntary
+            case _swapmem:
+            case _addmem:
+            case _memadd:
+            case _submem:
+            case _memsub:
+            case _avgmem:
+            case _memavg:
+            case _negmem:
+            case _mulmem:
+            case _divmem:
+            case _savemem:
+            case _loadmem: {
+                int op = (keyw - _clrmem) + dsp_SAT0DB_GAIN; //TODO
+                int addr = getLabelMemory(&p);
+                dsp_FUNC_MEM(op, addr);
+                break; }
+            case _gainmem:
+            case _valuemem:
+            case _inputmem:
+            case _inputgainmem: {
+
                 break; }
 
 //end of dsp keywords
