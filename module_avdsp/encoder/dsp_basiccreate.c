@@ -57,7 +57,7 @@ enum keywords_e {
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
     _tile,_send,_receive,
-    _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_avgmem,_memavg,_negmem,_mulmem,_divmem,_savemem,_loadmem,_gainmem,_valuemem,_inputmem,_inputgainmem,
+    _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_negmem,_valuemem,_savemem,_loadmem,_inputmem,_inputgainmem,_gainmem,
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
@@ -73,7 +73,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
     "tile","send","receive",
-    "clrmem","swapmem","addmem","memadd","submem","memsub","avgmem","memavg","negmem","mulmem","divmem","savemem","loadmem","gainmem","valuemem","inputmem","inputgainmem",
+    "clrmem","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","negmem","valuemem","savemem","loadmem","inputmem","inputgainmem","gainmem",
 };
 
 enum paramkeywords_e {
@@ -1243,23 +1243,21 @@ nextline:
             case _memadd:
             case _submem:
             case _memsub:
+            case _mulmem:
+            case _divmem:
             case _avgmem:
             case _memavg:
             case _negmem:
-            case _mulmem:
-            case _divmem:
+            case _valuemem:
             case _savemem:
             case _loadmem: {
-                int op = (keyw - _clrmem) + dsp_SAT0DB_GAIN; //TODO
+                int op = (keyw - _clrmem) + DSP_CLRMEM; //TODO
                 int addr = getLabelMemory(&p);
                 dsp_FUNC_MEM(op, addr);
                 break; }
-            case _gainmem:
-            case _valuemem:
-            case _inputmem:
-            case _inputgainmem: {
-
-                break; }
+            case _inputmem: { break; }
+            case _inputgainmem: { break; }
+            case _gainmem: { break; }
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then
