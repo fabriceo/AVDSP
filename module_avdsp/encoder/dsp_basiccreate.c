@@ -471,7 +471,7 @@ static int getLabelMemory(char ** s) {
             } else if (res2 != _valueint) fatalErrorNum(11);
             outOfRangeError( val, 0.0, l->value-1.0 );
             if (bracket == '[') getDelimiterError( s, ']', 26);
-            val += l->s.address;
+            val += val + l->s.address;
         }
         return val;
     } else fatalErrorNum(41);
