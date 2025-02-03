@@ -2059,8 +2059,8 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
     ALUformat = 1;
     dspout("   dsp_SINE(%d,%f);\n",freq,gain);
     addOpcodeLengthPrint(DSP_SINE);
-    int fmin = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
-    checkInRange(freq, 20, fmin/2);
+    int fmax = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
+    checkInRange(freq, 10, fmax/2-1);
     addDataSpaceAligned8(4);    //data space for computing xn and yn each in 64bits
     addGainCodeQNM(gain);       //initial value for yn (cosine) or when xn == 0
     for (int f=dspMinSamplingFreq; f<=dspMaxSamplingFreq; f++){
@@ -2073,8 +2073,6 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
         // 6000 => 6166
         float epsilon = 0.5*M_PI*(float)freq / (float)fs;   // always < 1.0
         addGainCodeQ31(epsilon );
-        //float epsilon = 2.0*M_PI*(float)freq / (float)fs;
-        //addGainCodeQNM( epsilon );  //using standard dspmantissa (not specific biquad mantissa)
     }
 }
 
