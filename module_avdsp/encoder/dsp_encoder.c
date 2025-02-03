@@ -2071,8 +2071,10 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
         // 1500 => 1502
         // 3000 => 3019
         // 6000 => 6166
-        float epsilon = 2.0*M_PI*(float)freq / (float)fs;
-        addGainCodeQNM( epsilon );  //using standard dspmantissa (not specific biquad mantissa)
+        float epsilon = 0.5*M_PI*(float)freq / (float)fs;   // always < 1.0
+        addGainCodeQ31(epsilon );
+        //float epsilon = 2.0*M_PI*(float)freq / (float)fs;
+        //addGainCodeQNM( epsilon );  //using standard dspmantissa (not specific biquad mantissa)
     }
 }
 
