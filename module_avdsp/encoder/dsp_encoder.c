@@ -462,12 +462,13 @@ int dsp_FSDYN(int val) {
     return 1;
 }
 
-int dsp_FORMAT(int format) {
+int dsp_FORMAT(int format, int mant2) {
     if (firstOpcodeIndex != opcodeIndex()) return 0;
     dspEncoderFormat(format);
-    if (dspFormat < DSP_FORMAT_FLOAT)
+    if (dspFormat < DSP_FORMAT_FLOAT) {
          dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
-    else
+         dspHeaderPtr->mantissa2 = mant2;    // all value encoded in fixedpoint format
+    } else
          dspHeaderPtr->format = 0;  // simplified format to describe float encoded parameters
     return 1;
 }

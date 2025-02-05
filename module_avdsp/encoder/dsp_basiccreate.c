@@ -92,9 +92,9 @@ static const char * paramKeywords[paramKeywordsNumber] = {
 
 enum { dspIOmaximum = 32};
 
-enum   tvalue_e                  { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tdrc_attack, _tnone };
-static double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     16,        0.001 };
-static double valueMax[_tnone] = {   dspIOmaximum-1,  40000,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,        4.0   };
+enum   tvalue_e                  { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tdrc_attack, _tnone };
+static double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
+static double valueMax[_tnone] = {   dspIOmaximum-1,  40000,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
 
 
 int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
@@ -793,12 +793,17 @@ nextline:
             case _DSPMANT : 
             case _DSPFLOAT : {
                 static int mantissa = -1;
-                fatalErrorNumIf(46, mantissa >= 0 );
+                fatalErrorNumIf(46, (mantissa >= 0));
                 if (keyw == _DSPMANT) {
                     double mant = 0;
                     searchExpressionRangeError( &p, &mant, _tmant );
                     mantissa = mant;
-                    res = dsp_FORMAT(mantissa);
+                    if ((res = searchDelimiter(&p, ","))) {
+                        searchExpressionRangeError( &p, &mant, _tmant2 );
+                        //mantissa2 should be less or equal to mantissa+32
+                        outOfRangeError(mant,valueMin[_tmant2],mantissa+32);
+                    }
+                    res = dsp_FORMAT(mantissa, res ? mant:0);
                     valueMax[_tvalue32] = 1ULL<<(31-mantissa);
                     valueMin[_tvalue32] = -valueMax[_tvalue32];
                     valueMax[_tvalue64] = 1ULL<<(63-2*mantissa);
