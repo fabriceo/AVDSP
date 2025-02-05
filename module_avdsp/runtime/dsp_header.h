@@ -141,7 +141,8 @@ enum dspOpcodesEnum {
     DSP_DRC_COMPRESSOR, // compressor based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
-    DSP_CLRMEM,
+
+    DSP_CLRMEM,         //these functions extends the possibilities already offered with Y accumulator
     DSP_SWAPMEM,
     DSP_ADDMEM,
     DSP_MEMADD,
@@ -160,7 +161,7 @@ enum dspOpcodesEnum {
     DSP_GAIN_MEM,
     // new opcodes should come here below
 
-    DSP_MAX_OPCODE      // 66 latest opcode, supported by this runtime version. this will be compared during runtimeinit
+    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
 };
 
 extern const char * dspOpcodeText[DSP_MAX_OPCODE];  //defined in dsp_header.c
@@ -261,6 +262,7 @@ typedef struct dspHeader_s {    // 11 words
 /* 20 */    unsigned tableOutputs[8];  //256bits to describe all output used in this tile
 /* 28 */    unsigned tileNum;       //number of the tile (0..7) only 8 supported here
 /* 29 */    unsigned symbolPos;     //position of the symbols table
+/* 30 */    unsigned mantissa2;     //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
 } dspHeader_t;
 
 typedef struct dspSymbol_s {
