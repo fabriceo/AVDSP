@@ -24,7 +24,7 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
 int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
 int  dsp_FSDYN(int val);
-int  dsp_FORMAT(int format);
+int  dsp_FORMAT(int format, int mant2);
 int  dsp_IOMAX(int iomax);
 void dspoutFilters3(int type, int order, float freq,float Q,float gain, const char * name);
 void dspoutFilters5(int type, int order, float freq,float Q, float freq2,float Q2,float gain, const char * name);

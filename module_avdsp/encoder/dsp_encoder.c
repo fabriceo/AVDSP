@@ -404,6 +404,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
          dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
     else
          dspHeaderPtr->format = 0;  // simplified format to describe float encoded parameters
+    dspHeaderPtr->mantissa2 = 0;    //default runtime value
     dspHeaderPtr->maxOpcode = DSP_MAX_OPCODE-1;
     dspHeaderPtr->freqMin   = dspMinSamplingFreq;
     dspHeaderPtr->freqMax   = dspMaxSamplingFreq;
@@ -466,10 +467,12 @@ int dsp_FORMAT(int format, int mant2) {
     if (firstOpcodeIndex != opcodeIndex()) return 0;
     dspEncoderFormat(format);
     if (dspFormat < DSP_FORMAT_FLOAT) {
-         dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
+         dspHeaderPtr->format = dspMant;     // all value encoded in fixedpoint format
          dspHeaderPtr->mantissa2 = mant2;    // all value encoded in fixedpoint format
-    } else
+    } else {
          dspHeaderPtr->format = 0;  // simplified format to describe float encoded parameters
+         dspHeaderPtr->mantissa2 = 0;
+    }
     return 1;
 }
 

@@ -798,18 +798,18 @@ nextline:
                     double mant = 0;
                     searchExpressionRangeError( &p, &mant, _tmant );
                     mantissa = mant;
-                    if ((res = searchDelimiter(&p, ","))) {
-                        searchExpressionRangeError( &p, &mant, _tmant2 );
-                        //mantissa2 should be less or equal to mantissa+32
-                        outOfRangeError(mant,valueMin[_tmant2],mantissa+32);
-                    }
-                    res = dsp_FORMAT(mantissa, res ? mant:0);
+                    //mantissa2 should be less or equal to mantissa+32
+                    valueMax[_tmant2] = mant+32;
                     valueMax[_tvalue32] = 1ULL<<(31-mantissa);
                     valueMin[_tvalue32] = -valueMax[_tvalue32];
-                    valueMax[_tvalue64] = 1ULL<<(63-2*mantissa);
-                    valueMin[_tvalue64] = -valueMax[_tvalue32];
+                    if ((res = searchDelimiter(&p, ","))) {
+                        searchExpressionRangeError( &p, &mant, _tmant2 );
+                        valueMax[_tvalue64] = 1ULL<< ( 63-(int)mant );
+                        valueMin[_tvalue64] = -valueMax[_tvalue64];
+                    }
+                    res = dsp_FORMAT(mantissa, res ? mant:0);
                 } else {
-                    res = dsp_FORMAT(0);
+                    res = dsp_FORMAT(0,0);
                     valueMax[_tvalue32] =  128.0;
                     valueMin[_tvalue32] = -128.0;
                     valueMax[_tvalue64] =  128.0;
