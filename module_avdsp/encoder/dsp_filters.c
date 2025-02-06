@@ -3,7 +3,7 @@
  *
  *  Created on: 1 janv. 2020
  *      Author: fabriceo
- *      this program will create a list of opcodes to be executed lated by the dsp engine
+ *      this program will create a list of opcodes to be executed later by the dsp engine
  */
 
 #include "dsp_filters.h"      // enum dsp codes, typedefs and QNM definition
