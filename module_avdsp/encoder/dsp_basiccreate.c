@@ -1305,7 +1305,7 @@ nextline:
                     //read filter Q only for generic second order filters
                     gain = 1.0;  //default value
                     filterQ = 1.0; //default value
-                    if (filterType >= 46) {
+                    if (filterType >= 45) { //as of BPQ0DB
                         getDelimiterError( &p, ',', 21 );
                         res = testExpression( &p, &filterQ );
                         if (res ==  _empty) fatalErrorNum(15);
