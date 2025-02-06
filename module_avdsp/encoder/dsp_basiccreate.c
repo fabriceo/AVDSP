@@ -112,7 +112,7 @@ static void fatalErrorNumIf(int num, int cond);
 
 
 //max 3 include files level (4 open in total)
-static const int maxIncludedFiles = 4;         
+#define maxIncludedFiles 4         
 static FILE* dspInputArray[maxIncludedFiles]; 
 static FILE* * dspInput = dspInputArray;
 
