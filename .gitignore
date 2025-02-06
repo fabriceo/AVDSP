@@ -32,3 +32,5 @@ xsim.args
 *.bak
 **/*.cproject
 **/*.project
+**/osx/*.dylib
+
