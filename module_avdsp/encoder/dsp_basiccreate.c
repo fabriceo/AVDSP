@@ -17,7 +17,7 @@ const char * filterNames[filterTypesNumber] = {
     "LPLR2","LPLR3","LPLR4","LPLR6","LPLR8",
     "HPLR2","HPLR3","HPLR4","HPLR6","HPLR8",
     "LP1","HP1","LS1","HS1","AP1",
-    "BP0DB","LP2","HP2", "LS2","HS2", "AP2",
+    "BPQ0DB","LP2","HP2", "LS2","HS2", "AP2",
     "PEAK","NOTCH","BPQ","HILB","LT",
 };
 
