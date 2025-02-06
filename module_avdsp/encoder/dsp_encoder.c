@@ -668,7 +668,7 @@ int dspHeaderDone(){
         integ++; //adding a bit for the sign
         int mant2 = dspHeaderPtr->mantissa2;
         if (mant2 == 0) mant2 = DSP_MANT2;
-        dspprintf1("max encoded    = %f = q%d.%d vs q%d.%d (accu %d)\n", maxParamValue,integ,32-integ,32-dspMant,dspMant,mant2);
+        dspprintf1("max encoded    = %f = q%d.%d vs q%d.%d (accu %d.%d)\n", maxParamValue,integ,32-integ,32-dspMant,dspMant,64-mant2,mant2);
         if (integ > (32-dspMant)) dspFatalError("some numbers are too large for the choosen encoding format");
     }
     dspHeaderPtr->maxOpcode   = maxOpcodeValue;
