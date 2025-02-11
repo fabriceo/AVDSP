@@ -44,7 +44,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPSIZEMAX,
     _end, _include, _param, _nop, _core, _section,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -61,7 +61,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPSIZEMAX",
     "end", "include", "param", "nop", "core", "section",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -836,7 +836,20 @@ nextline:
                 fatalErrorNumIf(45, res == 0 );
                 dspModeDynamic = value;
                 break; }
-
+            case _DSPSIZEMAX : {    //defines the maximum size of the program in words, and total memeory for code & data
+                double value = 0;
+                if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                outOfRangeError(value,1024,32768);
+                int codeMax = value;
+                int totalSize = codeMax;
+                if ((res = searchDelimiter(&p, ","))) {
+                    if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                    outOfRangeError(value,codeMax+32,32768);    //TODO depends on number of IOs
+                    totalSize = value;    
+                }
+                res = dsp_SIZE_MAX(codeMax, totalSize);
+                fatalErrorNumIf(45, res == 0 );
+                break;}
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");

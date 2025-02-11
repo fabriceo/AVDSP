@@ -152,10 +152,11 @@ int dspCreateIntFile(char * name, int * buff, int size, int dataSize, int numCor
     dspFileName = name;
     if (0 != dspfopenWrite("w")) return -1;
     fprintf(dspFile,begin,size,dataSize,numCores);
-    for (int i=0; i<size; i++) {
-        if (i!=(size-1)) fprintf(dspFile,"0x%X, ",*(buff+i));
-        else fprintf(dspFile,"0x%X\n",*(buff+i));
-        if ((i % 16) == 15) fprintf(dspFile,"\n");
+    for (int i=0; i<size; i+=2) {
+        unsigned long long * pp = (unsigned long long *)buff;
+        if (i!=(size-2)) fprintf(dspFile,"0x%llX, ",pp[i/2]);
+        else fprintf(dspFile,"0x%llX\n",pp[i/2]);
+        if ((i % 16) == 14) fprintf(dspFile,"\n");
     }
     fprintf(dspFile,"%s\n",end);
     dspfclose();

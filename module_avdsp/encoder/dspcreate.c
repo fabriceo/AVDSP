@@ -25,8 +25,7 @@ const char * hexBegin =
         "#define DSP_CODESIZE %d\n"
         "#define DSP_DATASIZE %d\n"
         "#define DSP_NUMCORES %d\n"
-        "const long long __attribute__((aligned(8))) _dspPad8_;\n"
-        "const unsigned int dspCodeArray[ DSP_CODESIZE + DSP_DATASIZE ] = {\n";
+        "const unsigned long long __attribute__((aligned(8))) dspCodeArray[ (DSP_CODESIZE + DSP_DATASIZE)/2 ] = {\n";
 const char * hexEnd =
         " };\n";
 

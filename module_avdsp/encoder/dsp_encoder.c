@@ -15,7 +15,8 @@
 static opcode_t * dspOpcodesPtr  = 0;       // absolute adress start of the table containing the opcodes and data
 static opcode_t * symbolStart    = 0;
 dspHeader_t* dspHeaderPtr        = 0;       // point on the header containing program summary
-static int dspOpcodesMax         = 0;       // max allowed size of this table (in words)
+static int dspMemoryMax          = 0;       // max allowed size of this table (in words)
+static int dspOpcodesMax         = 0;       // max allowed size for code in words
 static int symbolNumber          = 0;       //number of symbol added
 volatile static int dspOpcodeIndex = 0;     // point on the next available opcode position in the opcode table
 static int firstOpcodeIndex      =  0;      // point just after the FIRST dsp_HEADER
@@ -84,7 +85,7 @@ int opcodeIndex() {
 static int opcodeIndexAdd(int add) {
     int tmp = opcodeIndex();
     if ((tmp+add) > dspOpcodesMax)   // boundary check
-        dspFatalError("YOUR DSP CODE IS TOO LARGE FOR THE ARRAY PROVIDED");
+        dspFatalError("ERROR : Dsp generate code is too large");
     dspOpcodeIndex += add;
     return tmp;
 }
@@ -420,7 +421,8 @@ void dspHeaderInit(opcode_t * opcodeTable) {
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO) {
 
     if (maxIO > dspIOmaximum) dspFatalError("dspEncoderInit too much IO.");
-    dspOpcodesMax       = max;
+    dspMemoryMax        = max;
+    dspOpcodesMax       = max-32;   //TODO
     dspEncoderFormat(format);
     dspMinSamplingFreq  = minFreq;
     dspMaxSamplingFreq  = maxFreq;
@@ -482,6 +484,14 @@ int dsp_IOMAX(int iomax) {
     if (firstOpcodeIndex != opcodeIndex()) return 0;
     if (iomax>=dspIOmaximum) dspFatalError("IO max out of range.");
     dspIOmax = iomax;
+    return 1;
+}
+
+int dsp_SIZE_MAX(int code, int total) {
+    if (firstOpcodeIndex != opcodeIndex()) return 0;
+    if (total>dspMemoryMax) dspFatalError("total program size cannot exceed %d.",dspMemoryMax);
+    dspOpcodesMax = code;
+    dspMemoryMax = total;
     return 1;
 }
 
@@ -646,13 +656,15 @@ int dspHeaderDone(){
     calcLength();                       // solve latest opcode length
     dspprintf2("DSP_END_OF_CODE\n")
     addOpcodeValue(DSP_END_OF_CODE,0);
-    if (opcodeIndex() & 1) addCode(0);  // padding
+    int index = opcodeIndex();
+    index &= 15;                        //padding/allignement 64 bytes
+    if (index) opcodeIndexAdd(16-index);
     calcLength();                       // just for executing debug print
-
-    dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program
+    dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program including header
     dspprintf1("dsptotallength = %d\n",opcodeIndex());
     dspHeaderPtr->dataSize = dspDataCounter;
     dspprintf1("dataSize       = %d\n",dspDataCounter);
+    if ( (dspHeaderPtr->totalLength+dspHeaderPtr->dataSize) > dspMemoryMax ) dspFatalError("ERROR : Program + Data too large")
     // now calculate the simplified checksum of all the opcodes and count number of cores
     unsigned int sum;
     int numCore;

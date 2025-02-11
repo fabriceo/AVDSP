@@ -1,0 +1,5 @@
+#empty prog for dac8pro
+DSPMANT 28,56
+DSPMINFREQ 44100
+DSPMAXFREQ 192000
+end
