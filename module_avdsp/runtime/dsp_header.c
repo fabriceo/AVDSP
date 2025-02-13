@@ -7,7 +7,7 @@
 #include "dsp_header.h"
 
 //used in both dsp_encoder.c and dsp_runtime
-const char * dspOpcodeText[DSP_MAX_OPCODE] = {
+const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_END_OF_CODE",      //0
     "DSP_HEADER",
     "DSP_PARAM",
@@ -118,7 +118,37 @@ const char * dspOpcodeText[DSP_MAX_OPCODE] = {
     "DSP_INPUTMEM",
     "DSP_INPUTGAINMEM",
     "DSP_GAIN_MEM",
-
+    "DSP_OP101",
+    "DSP_OP102",
+    "DSP_OP103",
+    "DSP_OP104",
+    "DSP_OP105",
+    "DSP_OP106",
+    "DSP_OP107",
+    "DSP_OP108",
+    "DSP_OP109",
+    "DSP_OP110",
+    "DSP_OP111",
+    "DSP_OP112",
+    "DSP_OP113",
+    "DSP_OP114",
+    "DSP_OP115",
+    "DSP_OP116",
+    "DSP_OP117",
+    "DSP_OP118",
+    "DSP_OP119",
+    "DSP_OP120",
+    "DSP_OP121",
+    "DSP_OP122",
+    "DSP_OP123",
+    "DSP_OP124",
+    "DSP_OP125",
+    "DSP_OP126",
+    "DSP_OP127",
+    "DSP_FLOAD",
+    "DSP_FSTORE",
+    "DSP_FGAIN",
+    "DSP_FBIQUAD",
 };
 
 

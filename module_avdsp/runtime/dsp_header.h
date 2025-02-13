@@ -122,7 +122,7 @@ enum dspOpcodesEnum {
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
 
-    DSP_DELAY_FB_MIX,
+    DSP_DELAY_FB_MIX = 65,
     DSP_INTEGRATOR,
     DSP_CICUS,
     DSP_CICN,
@@ -142,7 +142,7 @@ enum dspOpcodesEnum {
     DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
 
-    DSP_CLRMEM,         //these functions extends the possibilities already offered with Y accumulator
+    DSP_CLRMEM = 84,         //these functions extends the possibilities already offered with Y accumulator
     DSP_SWAPMEM,
     DSP_ADDMEM,
     DSP_MEMADD,
@@ -158,13 +158,44 @@ enum dspOpcodesEnum {
     DSP_LOADMEM,
     DSP_INPUTMEM,
     DSP_INPUTGAINMEM,
-    DSP_GAIN_MEM,
+    DSP_GAIN_MEM,       //100
     // new opcodes should come here below
-
-    DSP_MAX_OPCODE      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
+    DSP_OP101 = 101,
+DSP_MAX_OPCODE = DSP_OP101,      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
+    DSP_OP102,
+    DSP_OP103,
+    DSP_OP104,
+    DSP_OP105,
+    DSP_OP106,
+    DSP_OP107,
+    DSP_OP108,
+    DSP_OP109,
+    DSP_OP110,
+    DSP_OP111,
+    DSP_OP112,
+    DSP_OP113,
+    DSP_OP114,
+    DSP_OP115,
+    DSP_OP116,
+    DSP_OP117,
+    DSP_OP118,
+    DSP_OP119,
+    DSP_OP120,
+    DSP_OP121,
+    DSP_OP122,
+    DSP_OP123,
+    DSP_OP124,
+    DSP_OP125,
+    DSP_OP126,
+    DSP_OP127,
+    DSP_FLOAD,
+    DSP_FSTORE,
+    DSP_FGAIN,
+    DSP_FBIQUAD,
+    DSP_LAST_OPCODE
 };
 
-extern const char * dspOpcodeText[DSP_MAX_OPCODE];  //defined in dsp_header.c
+extern const char * dspOpcodeText[DSP_LAST_OPCODE];  //defined in dsp_header.c
 
 enum dspFreqs {
     F8000,   F16000,

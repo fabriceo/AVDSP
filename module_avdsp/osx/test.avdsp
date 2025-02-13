@@ -1,18 +1,15 @@
-DSPMANT 28 ; DSPFSDYN 0
-
-lp	LPLR4(1000)
+DSPMANT 28,56
 
 
 tile 
 core
-	tpdf 25
-	transfer (16,24)
 
-    inputgain (16,-3db)
-    output 25
-    end
+	transfer (16,24)
 	input 16
-		biquad lp
-    
-    outputtpdf 26
+		valuey 2.0
+		swapxy
+		divyx
+		swapxy
+	output 25
+
 end
