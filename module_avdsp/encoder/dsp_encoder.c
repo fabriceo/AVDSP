@@ -55,7 +55,7 @@ static unsigned long long usedOutputsCore       =  0;      // at core level : bi
 
 static int ALUformat             =  0;      // represent the current format of the ALU known at compile time 0 = s31, 1 = double precision or when a sampled is scaled with a gain
 static int dspFormat;                       // dynamic management of the different format when encoding
-static int dspMant;                         // dynamic value of the DSP_MANT. initialize in encoderinit
+static int dspMant;                         // dynamic value of the DSP_MANT. initialize in encoderinit. 0 if format not integer
 static int dspIOmax;                        // max number of IO that can be used with Load & Store (to avoid out of boundaries vs samples table)
 static int numberFrequencies;               // number of covered frequencies (mainly used in BIQUADS and FIR)
 static float maxParamValue      = 0.0;      // to hold the maximum value pushed as encoded parameter
@@ -347,10 +347,11 @@ void dspEncoderFormat(int format){
     } else
     if (format == 0){   // this is considered as float (simplified parameter)
         dspFormat       = DSP_FORMAT_FLOAT;
-        dspMant         = 0; //normally not used
+        dspMant         = 0; //normally not used, only for fast checking int/float format
     } else {
         dspFormat       = format;
-        dspMant         = DSP_MANT; }
+        dspMant         = (format < DSP_FORMAT_FLOAT) ? DSP_MANT : 0;
+    }
     dspprintf("DSP ENCODER : format generated for handling ");
     if      (dspFormat == DSP_FORMAT_INT32)         dspprintf("integer 32 bits, with %d bits mantissa",dspMant)
     else if (dspFormat == DSP_FORMAT_INT64)         dspprintf("integer 64 bits, with %d bits mantissa",dspMant)
@@ -401,10 +402,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspHeaderPtr->checkSum  = 0;
     dspHeaderPtr->numCores  = 0;
     dspHeaderPtr->version   = DSP_ENCODER_VERSION;
-    if (dspFormat < DSP_FORMAT_FLOAT)
-         dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
-    else
-         dspHeaderPtr->format = 0;  // simplified format to describe float encoded parameters
+    dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
     dspHeaderPtr->mantissa2 = 0;    //default runtime value
     dspHeaderPtr->maxOpcode = DSP_MAX_OPCODE-1;
     dspHeaderPtr->freqMin   = dspMinSamplingFreq;
@@ -1066,10 +1064,7 @@ void dsp_LOAD(int IO) {
     if (IO<32) usedInputs |= 1ULL<<IO;      //keep track of inputs used
     if (IO<64) usedInputsCore |= 1ULL<<IO;
     dspout("   dsp_LOAD(%d);\n",IO);
-    if (dspFormat < DSP_FORMAT_FLOAT)
-        addOpcodeLengthPrint(DSP_LOAD);
-    else
-        addOpcodeLengthPrint(DSP_LOAD);
+    addOpcodeLengthPrint(dspMant?DSP_LOAD:DSP_FLOAD);
     addCode(IO);
 }
 
@@ -1144,7 +1139,7 @@ static void dsp_STORE_IO(int IO) {
 
 void dsp_STORE(int IO) {
     dspout("   dsp_STORE(%d);\n",IO);
-    addOpcodeLengthPrint(DSP_STORE);
+    addOpcodeLengthPrint(dspMant?DSP_STORE:DSP_FSTORE);
     dsp_STORE_IO(IO);
 }
 
@@ -1253,7 +1248,7 @@ int  dsp_TILE_num() {
 
 void dsp_GAIN(int paramAddr){
     ALUformat = 1;
-    int tmp = addOpcodeLengthPrint(DSP_GAIN);
+    int tmp = addOpcodeLengthPrint(dspMant?DSP_GAIN:DSP_FGAIN);
     if (paramAddr) checkInParamSpace(paramAddr,1);
     addCodeOffset(paramAddr, tmp);
     setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
@@ -1734,7 +1729,7 @@ int dspGenerator_Sine(int samples){
 //
 int dsp_BIQUADS(int paramAddr){
     ALUformat = 1;
-    int base = addOpcodeLengthPrint(DSP_BIQUADS);
+    int base = addOpcodeLengthPrint(dspMant?DSP_BIQUADS:DSP_FBIQUAD);
     checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
