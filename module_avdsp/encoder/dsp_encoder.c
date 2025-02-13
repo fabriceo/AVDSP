@@ -354,10 +354,10 @@ void dspEncoderFormat(int format){
     dspprintf("DSP ENCODER : format generated for handling ");
     if      (dspFormat == DSP_FORMAT_INT32)         dspprintf("integer 32 bits, with %d bits mantissa",dspMant)
     else if (dspFormat == DSP_FORMAT_INT64)         dspprintf("integer 64 bits, with %d bits mantissa",dspMant)
-    else if (dspFormat == DSP_FORMAT_FLOAT)         dspprintf("float (32bits)")
-    else if (dspFormat == DSP_FORMAT_DOUBLE)        dspprintf("double (64bits)")
-    else if (dspFormat == DSP_FORMAT_FLOAT_FLOAT)   dspprintf("float with float samples")
-    else if (dspFormat == DSP_FORMAT_DOUBLE_FLOAT)  dspprintf("double with float samples");
+    else if (dspFormat == DSP_FORMAT_FLOAT)         dspprintf("float (32bits) with integer samples")
+    else if (dspFormat == DSP_FORMAT_DOUBLE)        dspprintf("double (64bits) with integer samples")
+    else if (dspFormat == DSP_FORMAT_FLOAT_FLOAT)   dspprintf("float (32bits) with float (32bits) samples")
+    else if (dspFormat == DSP_FORMAT_DOUBLE_FLOAT)  dspprintf("double (64bits) with float (32bits) samples");
     dspprintf("\n");
 }
 
@@ -1066,7 +1066,10 @@ void dsp_LOAD(int IO) {
     if (IO<32) usedInputs |= 1ULL<<IO;      //keep track of inputs used
     if (IO<64) usedInputsCore |= 1ULL<<IO;
     dspout("   dsp_LOAD(%d);\n",IO);
-    addOpcodeLengthPrint(DSP_LOAD);
+    if (dspFormat < DSP_FORMAT_FLOAT)
+        addOpcodeLengthPrint(DSP_LOAD);
+    else
+        addOpcodeLengthPrint(DSP_LOAD);
     addCode(IO);
 }
 
