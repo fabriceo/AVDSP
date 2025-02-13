@@ -93,6 +93,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_BIQUAD_FS_FAST8",
     "DSP_SEND",
     "DSP_RECEIVE",
+
     "DSP_DRC_ENV_PEAK",
     "DSP_DRC_ENV_RMS",
     "DSP_DRC_LIM_PEAK",
@@ -101,6 +102,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_DRC_COMPRESSOR",
     "DSP_DRC_EXPANDER",
     "DSP_DRC_NOISE_GATE",
+
     "DSP_CLRMEM",
     "DSP_SWAPMEM",
     "DSP_ADDMEM",
@@ -118,7 +120,13 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_INPUTMEM",
     "DSP_INPUTGAINMEM",
     "DSP_GAIN_MEM",
-    "DSP_OP101",
+
+    "DSP_FLOAD",
+    "DSP_FSTORE",
+    "DSP_FGAIN",
+    "DSP_FBIQUADS",
+
+/*  "DSP_OP101",
     "DSP_OP102",
     "DSP_OP103",
     "DSP_OP104",
@@ -144,11 +152,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_OP124",
     "DSP_OP125",
     "DSP_OP126",
-    "DSP_OP127",
-    "DSP_FLOAD",
-    "DSP_FSTORE",
-    "DSP_FGAIN",
-    "DSP_FBIQUAD",
+    "DSP_OP127", */
 };
 
 

@@ -159,13 +159,14 @@ enum dspOpcodesEnum {
     DSP_INPUTMEM,
     DSP_INPUTGAINMEM,
     DSP_GAIN_MEM,       //100
+
+    DSP_FLOAD,          //101   same as DSP_LOAD but converted to float ieee754
+    DSP_FSTORE,
+    DSP_FGAIN,
+    DSP_FBIQUADS,
     // new opcodes should come here below
-    DSP_OP101 = 101,
-DSP_MAX_OPCODE = DSP_OP101,      // latest opcode, supported by this runtime version. this will be compared during runtimeinit
-    DSP_OP102,
-    DSP_OP103,
-    DSP_OP104,
-    DSP_OP105,
+DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
+/*
     DSP_OP106,
     DSP_OP107,
     DSP_OP108,
@@ -187,11 +188,7 @@ DSP_MAX_OPCODE = DSP_OP101,      // latest opcode, supported by this runtime ver
     DSP_OP124,
     DSP_OP125,
     DSP_OP126,
-    DSP_OP127,
-    DSP_FLOAD,
-    DSP_FSTORE,
-    DSP_FGAIN,
-    DSP_FBIQUAD,
+    DSP_OP127, */
     DSP_LAST_OPCODE
 };
 
