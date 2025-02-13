@@ -1729,7 +1729,7 @@ int dspGenerator_Sine(int samples){
 //
 int dsp_BIQUADS(int paramAddr){
     ALUformat = 1;
-    int base = addOpcodeLengthPrint(dspMant?DSP_BIQUADS:DSP_FBIQUAD);
+    int base = addOpcodeLengthPrint(dspMant?DSP_BIQUADS:DSP_FBIQUADS);
     checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
