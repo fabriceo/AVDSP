@@ -1267,7 +1267,7 @@ int dspGain_Default(dspGainParam_t gain){
 void dsp_GAIN_Fixed(dspGainParam_t gain){
     ALUformat = 1;
     dspout("   dsp_GAIN(%f);\n",gain);
-    int tmp = addOpcodeLengthPrint(DSP_GAIN);
+    int tmp = addOpcodeLengthPrint(dspMant?DSP_GAIN:DSP_FGAIN);
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(gain);
 }
