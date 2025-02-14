@@ -1,15 +1,13 @@
-DSPMANT 28,56
-
+#DSPMANT 28,56
+DSPFLOAT
 
 tile 
 core
 
 	transfer (16,24)
 	input 16
-		valuey 2.0
-		swapxy
-		divyx
-		swapxy
+	valuex 0.5
+	gain 0.5
 	output 25
 
 end

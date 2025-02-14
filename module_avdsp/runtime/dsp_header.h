@@ -162,8 +162,9 @@ enum dspOpcodesEnum {
 
     DSP_FLOAD,          //101   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
+    DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,
+    DSP_FBIQUADS,       //105
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*

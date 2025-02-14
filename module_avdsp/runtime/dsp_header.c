@@ -123,14 +123,11 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
 
     "DSP_FLOAD",
     "DSP_FSTORE",
+    "DSP_FVALUEX",
     "DSP_FGAIN",
     "DSP_FBIQUADS",
 
-/*  "DSP_OP101",
-    "DSP_OP102",
-    "DSP_OP103",
-    "DSP_OP104",
-    "DSP_OP105",
+/*
     "DSP_OP106",
     "DSP_OP107",
     "DSP_OP108",
