@@ -1280,7 +1280,7 @@ void dsp_VALUEX_Fixed(float value){
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(value);
 }
-
+ 
 void dsp_VALUEX(int paramAddr){
     ALUformat = 1;
     int tmp = addOpcodeLengthPrint(dspFormat?DSP_VALUEX:DSP_FVALUEX);
