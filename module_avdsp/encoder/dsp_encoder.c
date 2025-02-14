@@ -1276,14 +1276,14 @@ void dsp_GAIN_Fixed(dspGainParam_t gain){
 void dsp_VALUEX_Fixed(float value){
     ALUformat = 1;
     dspout("   dsp_VALUEX(%f);\n",value);
-    int tmp = addOpcodeLengthPrint(dspFormat?DSP_VALUEX:DSP_FVALUEX);
+    int tmp = addOpcodeLengthPrint(dspMant?DSP_VALUEX:DSP_FVALUEX);
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(value);
 }
  
 void dsp_VALUEX(int paramAddr){
     ALUformat = 1;
-    int tmp = addOpcodeLengthPrint(dspFormat?DSP_VALUEX:DSP_FVALUEX);
+    int tmp = addOpcodeLengthPrint(dspMant?DSP_VALUEX:DSP_FVALUEX);
     checkInParamSpace(paramAddr,1);
     addCodeOffset(paramAddr, tmp);
 }
