@@ -74,6 +74,11 @@ int main(int argc, char **argv) {
                      dspbasicProgName = argv[i];
                      continue; } }
 
+        if (strstr(argv[i],".avd") != 0) {
+            dspbasicProgName = argv[i];
+            continue;
+        }        
+
         if (strcmp(argv[i],"-dspprog") == 0) {
                 i++;
                 if (argc>i) {
