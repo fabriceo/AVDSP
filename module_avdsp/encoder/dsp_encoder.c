@@ -1733,7 +1733,7 @@ int dsp_BIQUADS(int paramAddr){
     checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
-    int addrValue = addDataSpaceAligned8(num*6);  // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
+    int addrValue = addDataSpaceAligned8(num*(dspMant?6:8));  // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
     dspout("   dsp_BIQUADS(&%s,%d,%d,%d); //TODO\n",dspOutLabelName,num,addrValue,num*6);
     addCodeOffset(paramAddr, base);        // store pointer on the table of coefficients
     // from release 1.0 this returns the adress where the Biquaed calculated value is stored
@@ -1809,14 +1809,14 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
     calcMaxParamValue(b0);
     calcMaxParamValue(b1);
     calcMaxParamValue(b2);
-    calcMaxParamValue(a1-1.0);
+    calcMaxParamValue(a1-(dspMant?1.0:0.0));
     calcMaxParamValue(a2);
     if (dspDynamic==0) {
         int tmp = paramAligned8();    // this enforce that coefficient are alligned 8, so 6 words per biquads and per frequency
         addGainCodeQNM(b0);
         addGainCodeQNM(b1);
         addGainCodeQNM(b2);
-        addGainCodeQNM(a1 - 1.0); // to make things easier, even float model is using mantissa reintegration
+        addGainCodeQNM(a1 - (dspMant?1.0:0.0)); // to make things bette for integer routines
         addGainCodeQNM(a2);
         return tmp;
     } else {
