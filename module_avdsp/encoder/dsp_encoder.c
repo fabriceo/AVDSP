@@ -1809,14 +1809,14 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
     calcMaxParamValue(b0);
     calcMaxParamValue(b1);
     calcMaxParamValue(b2);
-    calcMaxParamValue(a1-(dspMant?0.0:0.0));
+    calcMaxParamValue(a1-(dspMant?1.0:0.0));
     calcMaxParamValue(a2);
     if (dspDynamic==0) {
         int tmp = paramAligned8();    // this enforce that coefficient are alligned 8, so 6 words per biquads and per frequency
         addGainCodeQNM(b0);
         addGainCodeQNM(b1);
         addGainCodeQNM(b2);
-        addGainCodeQNM(a1 - (dspMant?0.0:0.0)); // to make things bette for integer routines
+        addGainCodeQNM(a1 - (dspMant?1.0:0.0)); // to make things bette for integer routines
         addGainCodeQNM(a2);
         return tmp;
     } else {
