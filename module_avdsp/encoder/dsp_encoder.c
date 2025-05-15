@@ -842,6 +842,16 @@ int addGainCodeQ31(dspGainParam_t gain){
         return addFloat(gain);
 }
 
+int addDoubleCodeQ31(double value){
+    calcMaxParamValue(value);
+    if (dspFormat < DSP_FORMAT_FLOAT) {
+        if ((value > 1.0) || (value < -1.0))
+            dspprintf(">>>> WARNING : float parameter does not fit in 31 bit mantissa.\n");
+        return addCode(dspQM32( value, 31));
+    } else
+        return addFloat(value);
+}
+
 // indicate No operation
 void dsp_NOP() { addSingleOpcodePrint(DSP_NOP); }
 
@@ -2081,13 +2091,13 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
     addGainCodeQNM(gain);
     for (int f=dspMinSamplingFreq; f<=dspMaxSamplingFreq; f++){
         int fs = dspConvertFrequencyFromIndex(f);
-        float omega = 2.0*M_PI*(float)freq / (float)fs;
-        float alpha = cos(omega);
-        float start = sin(omega);
+        double omega = 2.0*M_PI*(double)freq / (double)fs;
+        double alpha = cos(omega);
+        double start = sin(omega);
         //float epsilon = 0.5*M_PI*(float)freq / (float)fs;   // always < 1.0
         //addGainCodeQ31(epsilon );
-        addGainCodeQ31(alpha);
-        addGainCodeQ31(start);
+        addDoubleCodeQ31(alpha);
+        addDoubleCodeQ31(start);
     }
 }
 

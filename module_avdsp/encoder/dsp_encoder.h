@@ -46,6 +46,7 @@ int  opcodeIndex();
 int  addOpcodeValue(int code, int value);
 int  addGainCodeQNM(dspGainParam_t gain);
 int  addGainCodeQ31(dspGainParam_t gain);
+int  addDoubleCodeQ31(double value);
  int  dsp_END_OF_CODE();
  int  dsp_TILE();
  int  dsp_TILE_num();   //return current number of the dsptile
