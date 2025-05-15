@@ -1,13 +1,27 @@
-#DSPMANT 28,56
-DSPFLOAT
+DSPMANT 28,56
+
+
+lp LPLR4(400)
+hp HPLR4(400)
 
 tile 
 core
 
 	transfer (16,24)
 	input 16
-	valuex 0.5
-	gain 0.5
+		biquad lp
+		copyxy
 	output 25
+	
+	input 16
+		biquad hp
+	output 26
+	
+		addxy
+	output 27
+	
+core
+	sine (1000,1.0)
+	output 31
 
 end

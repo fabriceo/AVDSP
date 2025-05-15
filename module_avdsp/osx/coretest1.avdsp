@@ -1,0 +1,48 @@
+
+#used to test the DSP runtime Program 1
+#apply coefficient on IO and produce a substractive filter.
+#result should be flat delayed signal
+
+DSPMANT 28,56	#default value 28 = sign + 3 bit head room = -8.000...+7.999
+
+lp		LPLR4(400)
+hp		HPLR4(400)
+lpbe8	LPBE8(400)
+dbe8	= 986000/400	#delay for bessel8
+hp2		HP2(400,0.77)	#same as high pass substractive filter
+
+XX		MEMORY 1
+YY		MEMORY 1
+
+tile 
+
+
+core
+		sine (1000,1.0)
+
+	end
+	
+	transfer (16,25) (25,24) (24,16)	#loopback rew1
+	input 16
+		negx
+		copyxy
+	inputgain (16,2)
+		addxy
+		gain -12db
+	output 8,9,10,11,12					#test up to 4+1 outputs
+	mixergain (8,+2) (9,-2) (10,9.1db) (11,3.1db) (12,3.1db)
+	outputgain (25,-3.1db)				#rew2
+	input 25
+		copyxy
+		biquad lpbe8
+	output 25
+		swapxy
+		delaydpus dbe8
+		subxy
+	output 26							#rew3
+	
+	sine (1000,1.0)
+	gain -48db
+	output 31
+	end
+	
