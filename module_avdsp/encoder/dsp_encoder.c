@@ -2076,19 +2076,18 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
     dspout("   dsp_SINE(%d,%f);\n",freq,gain);
     addOpcodeLengthPrint(DSP_SINE);
     int fmax = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
-    checkInRange(freq, 10, fmax/2-1);
+    checkInRange(freq, 10, fmax/4-1);
     addDataSpaceAligned8(4);    //data space for computing xn and yn each in 64bits
-    addGainCodeQNM(gain);       //initial value for yn (cosine) or when xn == 0
+    addGainCodeQNM(gain);
     for (int f=dspMinSamplingFreq; f<=dspMaxSamplingFreq; f++){
         int fs = dspConvertFrequencyFromIndex(f);
-        // for frequency > fs / 32, the value of epsilon must be adjusted...
-        // example measured at 48khz:
-        // 750 => 750.3
-        // 1500 => 1502
-        // 3000 => 3019
-        // 6000 => 6166
-        float epsilon = 0.5*M_PI*(float)freq / (float)fs;   // always < 1.0
-        addGainCodeQ31(epsilon );
+        float omega = 2.0*M_PI*(float)freq / (float)fs;
+        float alpha = cos(omega);
+        float start = sin(omega);
+        //float epsilon = 0.5*M_PI*(float)freq / (float)fs;   // always < 1.0
+        //addGainCodeQ31(epsilon );
+        addGainCodeQ31(alpha);
+        addGainCodeQ31(start);
     }
 }
 
