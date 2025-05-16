@@ -212,7 +212,7 @@ int dspRuntimeReset(const int fs) {            // default dither value used for 
     dspSamplingFreq_hz = fs;
     int freqIndex = dspConvertFrequencyToIndex(fs);
     if (freqIndex>=FMAXpos) {
-        dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
+        dspprintf("ERROR : sampling frequency not supported.%lld\n",z); return -1; }
     if ((freqIndex < dspMinSamplingFreq) || (freqIndex > dspMaxSamplingFreq)) {
          dspprintf("ERROR : sampling freq not compatible with encoded dsp program.\n"); return -2; }
     dspSamplingFreq     = freqIndex;

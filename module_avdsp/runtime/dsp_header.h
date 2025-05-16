@@ -153,12 +153,12 @@ enum dspOpcodesEnum {
     DSP_AVGMEM,
     DSP_MEMAVG,
     DSP_NEGMEM,
-    DSP_VALUEMEM,
     DSP_SAVEMEM,
     DSP_LOADMEM,
+    DSP_VALUEMEM,
+    DSP_GAIN_MEM,
     DSP_INPUTMEM,
-    DSP_INPUTGAINMEM,
-    DSP_GAIN_MEM,       //100
+    DSP_INPUTGAINMEM,   //100
 
     DSP_FLOAD,          //101   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,

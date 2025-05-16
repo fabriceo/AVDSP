@@ -22,6 +22,9 @@ const float hp2[][6] = {
 { 0,0,0,0,0,0}, }; //1 biquad cell(s) provided
 void dsp_CORE1() {
    if (0==dsp_CORE(0xffffffff,0x0)) return;
-   dsp_SINE(1000,1.000000);
+   dsp_TPDF_CALC(26);
+   dsp_LOAD_STORE(0,0); //TODO missing parameters
+   dsp_SINE(43000,0.891251);
+   dsp_STORE_TPDF(31);
 } //end of core 1
 int dspDataSpace1[36];

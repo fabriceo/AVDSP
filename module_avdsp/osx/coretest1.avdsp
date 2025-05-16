@@ -18,9 +18,11 @@ tile
 
 
 core
-		sine (1000,1.0)
-
-	end
+		tpdf 26
+		transfer (16,24)
+		sine (43000,-1db)
+		outputtpdf 31
+end
 	
 	transfer (16,25) (25,24) (24,16)	#loopback rew1
 	input 16
