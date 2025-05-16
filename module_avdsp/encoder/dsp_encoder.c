@@ -2093,7 +2093,7 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
         int fs = dspConvertFrequencyFromIndex(f);
         double omega = 2.0*M_PI*(double)freq / (double)fs;
         double alpha = cos(omega);
-        double start = sin(omega)*gain;
+        double start = sin(omega);
         //float epsilon = 0.5*M_PI*(float)freq / (float)fs;   // always < 1.0
         //addGainCodeQ31(epsilon );
         addDoubleCodeQ31(alpha);
