@@ -57,7 +57,7 @@ enum keywords_e {
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
     _tile,_send,_receive,
-    _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_negmem,_valuemem,_savemem,_loadmem,_inputmem,_inputgainmem,_gainmem,
+    _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_negmem,_savemem,_loadmem,_valuemem,_gainmem,_inputmem,_inputgainmem,
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
@@ -73,7 +73,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
     "tile","send","receive",
-    "clrmem","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","negmem","valuemem","savemem","loadmem","inputmem","inputgainmem","gainmem",
+    "clrmem","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","negmem","savemem","loadmem","valuemem","gainmem","inputmem","inputgainmem",
 };
 
 enum paramkeywords_e {
@@ -1266,16 +1266,16 @@ nextline:
             case _avgmem:
             case _memavg:
             case _negmem:
-            case _valuemem:
             case _savemem:
             case _loadmem: {
                 int op = (keyw - _clrmem) + DSP_CLRMEM; //TODO
                 int addr = getLabelMemory(&p);
                 dsp_FUNC_MEM(op, addr);
                 break; }
+            case _valuemem: { break; }
+            case _gainmem: { break; }
             case _inputmem: { break; }
             case _inputgainmem: { break; }
-            case _gainmem: { break; }
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then
@@ -1303,7 +1303,7 @@ nextline:
                 if ( filterType >= 0 ) {
                     if ( filterNum == 0 ) {
                         //this new label is followed by a filter name for the first time
-                        if ((l->s.type != _empty)&&(l->s.type != label_filter)) fatalErrorNum(12);
+                        if ((l->s.type != _empty)&&(l->s.type != label_filter)&&(l->s.type != label_filters)&&(l->s.type != label_filter8)) fatalErrorNum(12);
                         l->s.type = label_filter;
                         dspOutLabelName = l->s.name;
                         l->s.address = dspBiquad_Sections_Flexible();
@@ -1479,7 +1479,10 @@ nextline:
                 case _FILTER :
                 case _FILTER8 : { //
                     if (l->s.type != _empty) fatalErrorNum(12);
-                    if (keyw == _FILTER) l->s.type = label_filters;
+                    if (keyw == _FILTER) { 
+                        l->s.type = label_filters;
+                        dspprintf3("_FILTER")
+                    }
                     else l->s.type = label_filter8;
                     checkAndCreateParam();
                     l->s.address = opcodeIndex();
