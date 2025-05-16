@@ -94,7 +94,7 @@ enum { dspIOmaximum = 32};
 
 enum   tvalue_e                  { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tdrc_attack, _tnone };
 static double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
-static double valueMax[_tnone] = {   dspIOmaximum-1,  40000,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
+static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
 
 
 int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
