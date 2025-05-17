@@ -1,0 +1,7 @@
+DSPMANT 30,60
+
+core
+	transfer (16,24)
+	sine (1000,1.0)
+	output 25
+end
