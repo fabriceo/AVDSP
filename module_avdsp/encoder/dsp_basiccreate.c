@@ -92,9 +92,9 @@ static const char * paramKeywords[paramKeywordsNumber] = {
 
 enum { dspIOmaximum = 32};
 
-enum   tvalue_e                  { _tIO,             _tfreq, _tvalue32,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tdrc_attack, _tnone };
-static double valueMin[_tnone] = {    0,                 10,      -8.0,   -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
-static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,   +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
+enum   tvalue_e                  {   _tIO          , _tfreq, _tvalue32, _tq31,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tdrc_attack, _tnone };
+static double valueMin[_tnone] = {                0,     10,      -8.0,  -1.0,  -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
+static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,  +1.0,  +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
 
 
 int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
@@ -374,21 +374,27 @@ void createSymbolTable() {
     dspSymbolEndOfTable();
 }
 
+enum { withoutDB = 0, acceptDB = 1 };
 
 //try to extract a numerical value from the charater pointer.
 //then returns 1 for real or 2 for decibel and 3 for integer and provides result in "value" param
 //otherwise return 0
-static int searchValue(char * * s, double * value, int enableDB) {
+static int searchNumerical(char * * s, double * value, int enableDB) {
     int state = 0;
-    double mantisse = 1.0, sign = 1.0, base = 10.0, result = 0.0;
+    double mantisse = 1.0, sign = 0.0, base = 10.0, result = 0.0;
     char * p = skipSpaces(s);
     char* begin = p;
     errPtr = p;
+    *value = 0.0;
     while (*p) {
         if (state == 0) {
             //sign authorized only at the begining
-            if ( (*p) == '-') { sign = -sign; p++; continue; }
-            if ( (*p) == '+') { p++; continue; }
+            if ( (*p) == '-') { 
+                if (sign == 0.0) sign = -1.0; else sign = -sign; 
+                p++; continue; }
+            if ( (*p) == '+') { 
+                if (sign == 0.0) sign = 1.0;
+                p++; continue; }
             if ( isSpaceOrTab(*p) ) { p++; continue; }
             if ( ((*p) == 'b') || ((*p) == 'x') || ((*p) == 'o') ) {
                 //potential labels are prioritized
@@ -396,16 +402,17 @@ static int searchValue(char * * s, double * value, int enableDB) {
                 labelptr_t l = searchLabel(&pos);
                 if (l) { *s = begin; return _empty; }
             }
-            if ( (*p) == 'b') { base=2;  p++;state |= 1; continue; }
-            if ( (*p) == 'x') { base=16; p++;state |= 1; continue; }
-            if ( (*p) == 'o') { base=8;  p++;state |= 1; continue; }
+            if ( (*p) == 'b') { base=2.0;  p++;state |= 1; continue; }
+            if ( (*p) == 'x') { base=16.0; p++;state |= 1; continue; }
+            if ( (*p) == 'o') { base=8.0;  p++;state |= 1; continue; }
         }
         if (state == 1) {
             //point authorised only after at least one digit
             if (*p =='.') { state |= 2; p++; continue; }
         }
         if (state) {
-            if ( (base==10) && ((p[0]=='%')||(p[0]=='m')) ) {
+            if ( (base==10.0) && ((p[0]=='%')||(p[0]=='m')) ) {
+                if (sign == 0.0) sign = 1.0;
                 *value = result * sign / ((p[0]=='%')? 100.0 : 1000.0);
                 *s = &p[1];
                 return _value; 
@@ -413,6 +420,7 @@ static int searchValue(char * * s, double * value, int enableDB) {
             if ( ((p[0]=='d')||(p[0]=='D')) && ((p[1]=='b')||(p[1]=='B'))) {
                 //check if authorized
                 if ((enableDB == 0)||(base != 10.0)) fatalErrorNum(25);
+                if (sign == 0.0) sign = 1.0;
                 *value = pow( 10, result * sign / 20.0 );
                 *s = &p[2];
                 return _valuedb; 
@@ -434,11 +442,13 @@ static int searchValue(char * * s, double * value, int enableDB) {
     } // while
     if (state) { //number started?
         *s = p;
+        if (sign == 0.0) sign = 1.0;
         result *= sign; *value = result;
         int integer = result; double check = integer;
         if (check == result) return _valueint;
         else return _value;
     }
+    if (sign == -1.0) *value = sign;
     return _empty;
 }
 
@@ -465,7 +475,7 @@ static int getLabelMemory(char ** s) {
         usedLabelInTile(l);
         int bracket = searchDelimiter(s,"[.");
         if (bracket) {
-            int res2 = searchValue(s, &val,0);
+            int res2 = searchNumerical(s, &val, withoutDB);
             if (res2 == _empty) {
                 if (l->value > 1.0) fatalErrorNum(2);
             } else if (res2 != _valueint) fatalErrorNum(11);
@@ -485,24 +495,31 @@ static int testExpression(char * * s, double * value){
     const int depthMax = 4;
     static int depth=0;
     int modeDB=0;
-    double sum = 0.0, mul = 0.0, temp;
+    double sum = 0.0, mul = 0.0, temp = 0.0;
     int prevop = 0;
     int res;
     //if (depth == 0) modeDB = 0;
     skipSpaces ( s );
     do {
-        if (searchDelimiter( s, "(")) {
-            //recursive!
-            if (depth < depthMax) depth++; else fatalErrorNum(48);
-            res = testExpression(s, &temp);
-            if (res == _empty) fatalErrorNum(2);
-            getDelimiterError( s, ')', 29);
-            depth--;
-        } else {
-            //get a numerical value. postfix db authorized only if first one or if already detected
-            res = searchValue( s, &temp, (prevop == 0) || modeDB );
+        //get a numerical value. postfix db authorized only if first one or if already detected
+        res = searchNumerical( s, &temp, (prevop == 0) || modeDB );
+        if (res == _empty) {
+            int neg = (temp == -1.0);
+            int braket = searchDelimiter( s, "(");
+            if (braket || neg){
+                //recursive!
+                if (depth < depthMax) depth++; else fatalErrorNum(48);
+                res = testExpression(s, &temp);
+                if (res == _empty) fatalErrorNum(2);
+                if (braket) getDelimiterError( s, ')', 29);
+                depth--;
+                if (neg) {
+                    if (res == _valuedb) temp = 1.0/temp;
+                    else temp = -temp;
+                }
+            }
         }
-        if (res == 0) {
+        if (res == _empty) {
             if ( isLetter( **s ) ) {
                 labelptr_t l = searchLabel(s);
                 if (l == NULL) fatalErrorNum(-2);  //numericalValueOrLabelExpected
@@ -514,7 +531,7 @@ static int testExpression(char * * s, double * value){
                     if( l->s.type != _valueint ) fatalErrorNum(11);
                     double index;
                     char * e = *s;
-                    if (bracket == '.') res = searchValue( s, &index, 0);
+                    if (bracket == '.') res = searchNumerical( s, &index, withoutDB);
                     else {
                         if (depth < depthMax) depth++; else fatalErrorNum(48);
                         res = testExpression(s, &index); //recursive!
@@ -639,8 +656,8 @@ void clearParamSection() {
 }
 
 
-static char line[512] = ""; //buffer for one line of code
-static int lineNumArray[maxIncludedFiles];
+static char line[32768] = ""; //buffer for one line of code
+static int  lineNumArray[maxIncludedFiles];
 static int * lineNum = lineNumArray;
 
 
@@ -819,18 +836,17 @@ nextline:
                 break; }
             case _DSPIOMAX : {
                 double value = 0;
-                if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                 outOfRangeError(value,8,256);
                 int val = value;
-                if (val != value) val = 1;
-                if (val & 7) fatalErrorNum(47);
+                if ((val != value) || (val & 7)) fatalErrorNum(47);
                 res = dsp_IOMAX(value);
                 valueMax[_tIO] = value;
                 fatalErrorNumIf(45, res == 0 );
                 break; }
             case _DSPFSDYN : {  //allow biquad filter to be calculated when FS is changed and not staticaly
                 double value = 0;
-                if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                 outOfRangeError(value,0,1);
                 res = dsp_FSDYN(value);
                 fatalErrorNumIf(45, res == 0 );
@@ -838,12 +854,12 @@ nextline:
                 break; }
             case _DSPSIZEMAX : {    //defines the maximum size of the program in words, and total memeory for code & data
                 double value = 0;
-                if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                 outOfRangeError(value,1024,32768);
                 int codeMax = value;
                 int totalSize = codeMax;
                 if ((res = searchDelimiter(&p, ","))) {
-                    if (_valueint != searchValue( &p, &value, 0)) fatalErrorNum(5);
+                    if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                     outOfRangeError(value,codeMax+32,32768);    //TODO depends on number of IOs
                     totalSize = value;    
                 }
@@ -1201,7 +1217,7 @@ nextline:
                 break; }
 
             case _thdcomp : {
-                double c2=0,c3=0;
+                double c2=0.0,c3=0.0;
                 searchExpressionRangeError( &p, &c2, _tpercent );
                 getDelimiterError( &p, ',',30);
                 searchExpressionRangeError( &p, &c3, _tpercent );
@@ -1268,10 +1284,11 @@ nextline:
             case _negmem:
             case _savemem:
             case _loadmem: {
-                int op = (keyw - _clrmem) + DSP_CLRMEM; //TODO
+                int op = (keyw - _clrmem) + DSP_CLRMEM;
                 int addr = getLabelMemory(&p);
                 dsp_FUNC_MEM(op, addr);
                 break; }
+            //TODO interpret parameters and generate opcodes
             case _valuemem: { break; }
             case _gainmem: { break; }
             case _inputmem: { break; }
@@ -1383,16 +1400,23 @@ nextline:
                     int numTaps=0;
                     if (l->s.type != _empty) fatalErrorNum(12);
                     l->s.type = label_taps;
-                    l->s.address = opcodeIndex();
-                    do {
-                        double tap = 0.0;
-                        searchExpressionRangeError( &p, &tap, _tvalue32 );
-                        l->value = 0;
-                        numTaps++;
-                        res = searchDelimiter( &p, "," );
-                    } while (res);
-                    //convert all taps
-                    dspprintf2("*** %d TAPS ***\n",numTaps);
+                    l->s.address = dspMem_LocationMultiple(0);
+                    char * str;
+                    if (searchString( &p, &str) > 0) {
+                        //TODO import file into dspcode
+                        dspprintf2("*** import file <%s>\n",str);
+                    } else {
+                        do {
+                            double tap = 0.0;
+                            searchExpressionRangeError( &p, &tap, _tq31 );
+                            l->value = 0;
+                            addDoubleCodeQ31(tap);
+                            numTaps++;
+                            res = searchDelimiter( &p, "," );
+                        } while (res);
+                        //dspprintf2("*** %d TAPS ***\n",numTaps);
+                        l->numValues = numTaps;
+                    }
                     break; }
                 case _VALUE :
                 case _VALUEINT : { //
@@ -1496,12 +1520,12 @@ nextline:
                     enum label_type_e old = l->s.type;
                     double temp;
                     if (res) {
-                        //value or label authorized after an "="
+                        //full expression authorized after an "="
                         res = searchExpression( &p, &temp );
                         old = _empty;  //clear previous definition if any
                     } else {
                         //only direct value after a label
-                        res = searchValue( &p, &temp, 1 );  // only numerical, eventually db
+                        res = searchNumerical( &p, &temp, acceptDB );  // only numerical, eventually db
                         if (res == _empty)  {
                             lastLabelName = l->s.name;
                             fatalErrorNum(7); }

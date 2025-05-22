@@ -43,6 +43,7 @@ int  addFloat(float value);
 int  addFloat_or_QNM(float value, int M);
 opcode_t * opcodePtr(int index);
 int  opcodeIndex();
+int  opcodeIndexAdd(int add);
 int  addOpcodeValue(int code, int value);
 int  addGainCodeQNM(dspGainParam_t gain);
 int  addGainCodeQ31(dspGainParam_t gain);
@@ -197,8 +198,8 @@ int  addDoubleCodeQ31(double value);
  void dsp_DELAY_FB_MIX_FixedMicroSec(int microSec, float source, float fb, float delayed, float mix);
  void dsp_CIC_FixedMicroSec(int microSec);  //moving average in number of microseconds
  void dsp_CIC_N(int maxSamples);  //moving average N samples
- void dsp_EXPMA(float alpha);     //exponential moving average
- void dsp_THDCOMP(float c2, float c3);  //adds H2 (c2) and H3 (c3)
+ void dsp_EXPMA(double alpha);     //exponential moving average
+ void dsp_THDCOMP(double c2, double c3);  //adds H2 (c2) and H3 (c3)
 
  // used to read a predefined wave form.
  void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size);

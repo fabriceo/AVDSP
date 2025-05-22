@@ -82,7 +82,7 @@ int opcodeIndex() {
     return dspOpcodeIndex;
 }
 // create a space in the opcode table
-static int opcodeIndexAdd(int add) {
+int opcodeIndexAdd(int add) {
     int tmp = opcodeIndex();
     if ((tmp+add) > dspOpcodesMax)   // boundary check
         dspFatalError("ERROR : Dsp generate code is too large");
@@ -479,6 +479,7 @@ int dsp_FORMAT(int format, int mant2) {
 int dsp_IOMAX(int iomax) {
     iomax += 31;
     iomax &= ~31;
+    //test if code generation as already started
     if (firstOpcodeIndex != opcodeIndex()) return 0;
     if (iomax>=dspIOmaximum) dspFatalError("IO max out of range.");
     dspIOmax = iomax;
@@ -1666,9 +1667,9 @@ void dsp_CIC_FixedMicroSec(int microSec){
         delayLineFactor = dspTableDelayFactor[f];
         unsigned long long samples = (delayLineFactor * (unsigned)microSec);
         samples >>= 32;
-        float coef = samples;
+        double coef = samples;
         coef = 2.0 / coef;
-        addGainCodeQ31(coef);
+        addDoubleCodeQ31(coef);
     }
 }
 
@@ -1679,27 +1680,27 @@ void dsp_CIC_N(int maxSamples){
     addCode(maxSamples);
     int data = addDataSpaceMisAligned8(1 + (maxSamples+1)*2);
     // generate coef according to maxSamples
-    float coef = maxSamples;
+    double coef = maxSamples;
     coef = 2.0 / coef;
     dspout("   dsp_CIC_N(%d,%d,%d,%f);\n",data,maxSamples,1 + (maxSamples+1)*2,coef);
-    addGainCodeQ31(coef);
+    addDoubleCodeQ31(coef);
 }
 
-void dsp_EXPMA(float alpha) {
+void dsp_EXPMA(double alpha) {
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_EXPMA);
     int data = addDataSpaceAligned8(2);            //book a 64bit location
     dspout("   dsp_EXPMA(%d,%f);\n",data,alpha);
-    addGainCodeQ31(alpha);
+    addDoubleCodeQ31(alpha);
 }
 
 
-void dsp_THDCOMP(float c2, float c3){
+void dsp_THDCOMP(double c2, double c3){
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_THDCOMP);
     dspout("   dsp_THDCOMP(%f,%f);\n",c2,c3);
-    addGainCodeQ31(c2);
-    addGainCodeQ31(c3);
+    addDoubleCodeQ31(c2);
+    addDoubleCodeQ31(c3);
 }
 
 //DSP_DATA_TABLE
@@ -1724,7 +1725,7 @@ int dspGenerator_Sine(int samples){
     dspprintf3("dspGenerator : 2.PI sinewave in %d values\n",samples);
     for (int i=0; i<samples; i++) {
         double x = sin((2.0*M_PI * (double)i)/(double)samples);
-        addGainCodeQ31(x); }
+        addDoubleCodeQ31(x); }
     printFromCurrentIndex();
     return tmp;
 }
