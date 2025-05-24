@@ -1187,17 +1187,24 @@ nextline:
 
             case _convol: {
                 int numFilt = 0;
+                int base=0;
+                int max=0;
                 do {
                     labelptr_t l = searchLabel( &p );
                     if (l == NULL) fatalErrorNum(33);
                     if (l->s.type != label_taps) fatalErrorNum(33);
                     usedLabelInTile(l);
-                    if (numFilt == 0) ; //generate opcode
-                    else ; // generates taps adresses
-                    numFilt++;
-                    //TODO generated opcode with adress of taps
+                    if (numFilt == 0) base = dsp_CONVOL(0); //generate opcode and 1 zeros placeholders
+                    numFilt++;  //TODO check bundaries for the number of frequencies allowed
+                    int num = l->numValues;
+                    if (num > max) max = num;
+                    addCodeOffset(l->s.address,base); // generates taps adresses
+                    addCode(num);   //generate number of taps for this impulse
                     res = searchDelimiter( &p, ",");
                 } while(res);
+                //TODO add potential missing impulses to complete frequency table
+                dspprintf3("%d impulses, max %d taps\n",numFilt,max);
+                opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
                 break; }
 
             case _integrator: {
@@ -1397,7 +1404,7 @@ nextline:
                     break; }
                 case _TAPS: { //TAPS
                     checkAndCreateParam();
-                    int numTaps=0;
+                    int numTaps = 0;
                     if (l->s.type != _empty) fatalErrorNum(12);
                     l->s.type = label_taps;
                     l->s.address = dspMem_LocationMultiple(0);

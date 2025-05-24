@@ -142,7 +142,7 @@ static int addOpcodeUnknownLength(int code){
 // and encode it as relative value to the given "base" parameter
 // which is usually the index pointing on the previous dsp_opcode adresses
 // if 0 is provided then it shall mean the adress pointed is just here after this code
-static int addCodeOffset(int index, int base){
+int addCodeOffset(int index, int base){
     int offset;
     if (index) offset = index - base;           // calculate relative value to "base"
     else offset = opcodeIndex() +1 - base;      // calculate the relative value to "base" of the next opcode
@@ -160,7 +160,7 @@ static int addDataSpace(int size) {
 
 // same as above but push the data index by one if needed
 // so that the data adress is alligned on 8 bytes boundaries
-static int addDataSpaceAligned8(int size) {
+int addDataSpaceAligned8(int size) {
     if(dspDataCounter & 1) dspDataCounter++;
     return addDataSpace(size);                 // store the current data index
 }
@@ -1915,6 +1915,15 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     dspprintf2("simulating impulse file with a dspFir_Delay(1).")
 #endif
     return pos;
+}
+
+int dsp_CONVOL(int size) {
+    //generate dsp_convol opcode , expecting a following table containing adresses of impulses for each frequency
+    int temp = addOpcodeLengthPrint(DSP_FIR);
+    if (size>0) 
+         addDataSpaceAligned8(size); //book space in data area for convolution of incoming samples
+    else addCode(0); //size will be defined later, put 1 zero as place holders
+    return temp;
 }
 
 // integrate a s.31 sample during x miliseconds. then moving average in delay line and Sqrt

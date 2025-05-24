@@ -45,9 +45,11 @@ opcode_t * opcodePtr(int index);
 int  opcodeIndex();
 int  opcodeIndexAdd(int add);
 int  addOpcodeValue(int code, int value);
+int  addCodeOffset(int index, int base);
 int  addGainCodeQNM(dspGainParam_t gain);
 int  addGainCodeQ31(dspGainParam_t gain);
 int  addDoubleCodeQ31(double value);
+int  addDataSpaceAligned8(int size);
  int  dsp_END_OF_CODE();
  int  dsp_TILE();
  int  dsp_TILE_num();   //return current number of the dsptile
@@ -225,6 +227,7 @@ int  addDoubleCodeQ31(double value);
  int  dspFir_Delay(int value);
  int  dspFir_ImpulseFile(char * name, int length);
 
+ int dsp_CONVOL(int size);
  //sum square with combined accumulation and moving average over a delay line of N Samples, N can be 0
  void dsp_RMS(int timems, int delayLine);
  // same but the delay line is given in milisecond and the encoder will adjust the number of sample according to FS
