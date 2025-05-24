@@ -1195,7 +1195,7 @@ nextline:
                     if (l->s.type != label_taps) fatalErrorNum(33);
                     usedLabelInTile(l);
                     if (numFilt == 0) base = dsp_CONVOL(0); //generate opcode and 1 zeros placeholders
-                    numFilt++;  //TODO check bundaries for the number of frequencies allowed
+                    numFilt++;  //TODO upper bundaries for the max number of frequencies allowed
                     int num = l->numValues;
                     if (num > max) max = num;
                     addCodeOffset(l->s.address,base); // generates taps adresses
@@ -1204,6 +1204,8 @@ nextline:
                 } while(res);
                 //TODO add potential missing impulses to complete frequency table
                 dspprintf3("%d impulses, max %d taps\n",numFilt,max);
+                //TODO addDataSpaceAligned8 also generate an opcode at the end of the table!
+                if (max & 1) max ++; //always round up to even number
                 opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
                 break; }
 
@@ -1421,6 +1423,7 @@ nextline:
                             numTaps++;
                             res = searchDelimiter( &p, "," );
                         } while (res);
+                        if (numTaps & 1) addCode(0);//always round up to even number
                         //dspprintf2("*** %d TAPS ***\n",numTaps);
                         l->numValues = numTaps;
                     }
