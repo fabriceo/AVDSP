@@ -698,6 +698,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int numCore = 1;
     if (numCore) {} //just to please compiler
     int dspModeDynamic = 0;
+    int tapsinclude = 0;
 
     dspOutFileInit(dspoutfilename,dspoutheader);
     while (nextName && (*nextName)) {
@@ -780,6 +781,9 @@ nextline:
  
             //load a new line when finding # or cr/lf
             if ( (*p == 0) || (*p == '#')  || (*p == 0x5C ) || (*p == 0x0A) || (*p == 0x0D) ) break; //goto next line
+
+            if (tapsinclude) goto labeltaps;
+
             //expecting either a label definition or a dsp keyword, all starting by a letter
             fatalErrorNumIf( 6, isLetter( *p ) == 0 );
             int res;
@@ -879,6 +883,7 @@ nextline:
                 break; }
 
             case _include : {
+                gotoinclude:
                 if (fileNum >= (maxIncludedFiles-1)) fatalErrorNum(43);
                 char * str;
                 if (searchString( &p, &str) <= _error) fatalErrorNum(42);
@@ -1406,27 +1411,33 @@ nextline:
                     break; }
                 case _TAPS: { //TAPS
                     checkAndCreateParam();
-                    int numTaps = 0;
                     if (l->s.type != _empty) fatalErrorNum(12);
                     l->s.type = label_taps;
                     l->s.address = dspMem_LocationMultiple(0);
-                    char * str;
-                    if (searchString( &p, &str) > 0) {
-                        //TODO import file into dspcode
-                        dspprintf2("*** import file <%s>\n",str);
-                    } else {
-                        do {
-                            double tap = 0.0;
-                            searchExpressionRangeError( &p, &tap, _tq31 );
-                            l->value = 0;
-                            addDoubleCodeQ31(tap);
-                            numTaps++;
-                            res = searchDelimiter( &p, "," );
-                        } while (res);
-                        if (numTaps & 1) addCode(0);//always round up to even number
-                        //dspprintf2("*** %d TAPS ***\n",numTaps);
-                        l->numValues = numTaps;
-                    }
+                    if (testDelimiter( &p, "\"")) {
+                        tapsinclude = 1;    //to come back here
+                        goto gotoinclude;   //will consider this string as a new file name
+                    } 
+                labeltaps:
+                    tapsinclude = 0;
+                    int numTaps = 0;
+                    do {
+                        if (testDelimiter( &p, "#\r\n\01" )) {
+                            //special case : autorise taps across lines without needing "\"
+                            if (fgetLine() == 0) fatalErrorNum(1);
+                            p = line; errPtr = line;
+                            continue;
+                        }
+                        double tap = 0.0;
+                        searchExpressionRangeError( &p, &tap, _tq31 );
+                        l->value = 0;
+                        addDoubleCodeQ31(tap);
+                        numTaps++;
+                        res = searchDelimiter( &p, "," );
+                    } while (res);
+                    if (numTaps & 1) addCode(0);//always round up to even number
+                    //dspprintf2("*** %d TAPS ***\n",numTaps);
+                    l->numValues = numTaps;
                     break; }
                 case _VALUE :
                 case _VALUEINT : { //
