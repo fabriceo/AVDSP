@@ -52,7 +52,7 @@ enum keywords_e {
     _saturate, _saturatevol, _saturategain,
     _delayone, _delayus, _delaydpus, _delayusfbmix,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
-    _dcblock, _biquad, _biquad8, _convol,
+    _dcblock, _biquad, _biquad8, _convol, _warpconvol,
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
@@ -68,7 +68,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "saturate", "saturatevol","saturategain",
     "delayone", "delayus", "delaydpus", "delayusfbmix",
     "savexmem", "loadxmem","saveymem", "loadymem",
-    "dcblock", "biquad", "biquad8", "convol",
+    "dcblock", "biquad", "biquad8", "convol", "warpconvol",
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
@@ -1190,16 +1190,22 @@ nextline:
                 else dsp_BIQUADS_FS( l->s.address );
                 break; }
 
+            case _warpconvol: //falthrough
             case _convol: {
                 int numFilt = 0;
-                int base=0;
-                int max=0;
+                int base = 0;
+                int max = 0;
+                double lambda = 0.0;
+                if (keyw == _warpconvol) {
+                    searchExpressionRangeError( &p, &lambda, _tq31 );
+                    getDelimiterError( &p, ',',30);
+                }
                 do {
                     labelptr_t l = searchLabel( &p );
                     if (l == NULL) fatalErrorNum(33);
                     if (l->s.type != label_taps) fatalErrorNum(33);
                     usedLabelInTile(l);
-                    if (numFilt == 0) base = dsp_CONVOL(0); //generate opcode and 1 zeros placeholders
+                    if (numFilt == 0) base = dsp_CONVOL(0, lambda); //generate opcode and a zeros placeholders and lambda value eventually
                     numFilt++;  //TODO upper bundaries for the max number of frequencies allowed
                     int num = l->numValues;
                     if (num > max) max = num;
@@ -1208,9 +1214,10 @@ nextline:
                     res = searchDelimiter( &p, ",");
                 } while(res);
                 //TODO add potential missing impulses to complete frequency table
+                //TODO addDataSpaceAligned8 is also generating an opcode at the end of the table!
+                if (keyw == _warpconvol) max++; //always add one extra sample in buffer when warped fir requested
                 dspprintf3("%d impulses, max %d taps\n",numFilt,max);
-                //TODO addDataSpaceAligned8 also generate an opcode at the end of the table!
-                if (max & 1) max ++; //always round up to even number
+                //if (max & 1) max ++; //always round up to even number
                 opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
                 break; }
 

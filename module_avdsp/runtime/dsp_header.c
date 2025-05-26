@@ -82,6 +82,8 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_SQRTX",
     "DSP_RMS",
     "DSP_FIR",
+    "DSP_WFIR",
+
     "DSP_DELAY_FB_MIX",
     "DSP_INTEGRATOR",
     "DSP_CICUS",
@@ -128,7 +130,6 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_FBIQUADS",
 
 /*
-    "DSP_OP106",
     "DSP_OP107",
     "DSP_OP108",
     "DSP_OP109",

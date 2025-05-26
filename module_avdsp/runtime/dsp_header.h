@@ -120,9 +120,10 @@ enum dspOpcodesEnum {
     DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
     DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
     DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
-    DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency, EXPERIMENTAL
+    DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency
+    DSP_WFIR,           // execute a warped fir filter with many possible impulse depending on frequency
 
-    DSP_DELAY_FB_MIX = 65,
+    DSP_DELAY_FB_MIX = 66,
     DSP_INTEGRATOR,
     DSP_CICUS,
     DSP_CICN,
@@ -142,7 +143,7 @@ enum dspOpcodesEnum {
     DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
 
-    DSP_CLRMEM = 84,         //these functions extends the possibilities already offered with Y accumulator
+    DSP_CLRMEM = 85,         //these functions extends the possibilities already offered with Y accumulator
     DSP_SWAPMEM,
     DSP_ADDMEM,
     DSP_MEMADD,
@@ -158,17 +159,16 @@ enum dspOpcodesEnum {
     DSP_VALUEMEM,
     DSP_GAIN_MEM,
     DSP_INPUTMEM,
-    DSP_INPUTGAINMEM,   //100
+    DSP_INPUTGAINMEM,   //101
 
-    DSP_FLOAD,          //101   same as DSP_LOAD but converted to float ieee754
+    DSP_FLOAD,          //102   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,       //105
+    DSP_FBIQUADS,       //106
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
-    DSP_OP106,
     DSP_OP107,
     DSP_OP108,
     DSP_OP109,
