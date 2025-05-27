@@ -1917,14 +1917,14 @@ int dspFir_ImpulseFile(char * name, int length){ // max lenght expected
     return pos;
 }
 
-int dsp_CONVOL(int size, double lambda) {
-    int warped = (lambda != 0.0);
-    //generate dsp_convol opcode , expecting a following table containing adresses of impulses for each frequency
-    int temp = addOpcodeLengthPrint( warped ? DSP_WFIR : DSP_FIR);
-    if (size>0) 
-         addDataSpaceAligned8(size + (warped ? 1 : 0)); //book space in data area for convolution of incoming samples
-    else addCode(0); //size will be defined later, put a zero as place holders
-    if (warped) addDoubleCodeQ31(lambda);   //store lambda coefficient for warped fir
+int dsp_CONVOL() {
+    int temp = addOpcodeLengthPrint(DSP_FIR);
+    addCode(0); //size will be defined later, put a zero as place holders
+    return temp;
+}
+int dsp_WARPCONVOL() {
+    int temp = addOpcodeLengthPrint(DSP_WFIR);
+    addCode(0); //size will be defined later, put a zero as place holders
     return temp;
 }
 

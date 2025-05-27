@@ -138,6 +138,7 @@ int dspMantissa2;                       // reflects DSP_MANT2 or dspHeaderPtr->m
 int dspDelayLineFactor;                 // used to compute size of delay line
 int dspBiquadFreqOffset;                // used in biquad routine to compute coeficient adress
 int dspBiquadFreqSkip;                  // used in biquad routine to compute coeficient adress at fs
+int dspBiquadFreqSkip4;                 // same in bytes
 int * dspRuntimeDataPtr;                // contains a pointer on the data area (usually after the dsp code program)
 unsigned dspCoresToBeUsed;              // store condition given by dspRuntimeInit to select which cores are enabled
 opcode_t * dspCore2codePtr;             // point on begining of core 2 if core 2 exist. This give possibility to detec if we are in core 1
@@ -184,7 +185,9 @@ static int dspMinSamplingFreq;
 static int dspMaxSamplingFreq;
 static int dspNumSamplingFreq;
 
-int dspSamplingFreqIndex;   //global
+int dspSamplingFreqIndex;   //index between 0...n representing the current sampling rate, 0 correspond to minimum supported
+int dspSamplingFreqIndex2;  //same as above, multiplied by 2
+int dspSamplingFreqIndex3;  //same as above, multiplied by 2
 
 static void dspChangeFormat(opcode_t * ptr, int newFormat);
 
@@ -212,12 +215,16 @@ int dspRuntimeReset(const int fs) {            // default dither value used for 
     dspSamplingFreq_hz = fs;
     int freqIndex = dspConvertFrequencyToIndex(fs);
     if (freqIndex>=FMAXpos) {
-        dspprintf("ERROR : sampling frequency not supported.%lld\n",z); return -1; }
+        dspprintf("ERROR : sampling frequency not supported.\n"); return -1; }
     if ((freqIndex < dspMinSamplingFreq) || (freqIndex > dspMaxSamplingFreq)) {
          dspprintf("ERROR : sampling freq not compatible with encoded dsp program.\n"); return -2; }
     dspSamplingFreq     = freqIndex;
     dspSamplingFreqIndex= freqIndex - dspMinSamplingFreq;  // relative index of the sampling freq vs the encoded min freq
+    dspSamplingFreqIndex2 = dspSamplingFreqIndex*2;
+    dspSamplingFreqIndex3 = dspSamplingFreqIndex*3;
+
     dspBiquadFreqOffset = 5+6*dspSamplingFreqIndex; // skip also the 1+1+3 first words
+
     dspDelayLineFactor  = dspTableDelayFactor[freqIndex];
     //dspRmsFactorFS      = dspTableRmsFactor[freqIndex];
 
@@ -271,7 +278,8 @@ int dspRuntimeInit( opcode_t * codePtr,             // pointer on the begining o
         dspMaxSamplingFreq  = max;
         dspNumSamplingFreq  = max - min +1;
         dspBiquadFreqSkip   = 2+6*dspNumSamplingFreq;   // 3 words for filter user params (type+freq, Q, gain) + 5 coef alligned per biquad
-    #if   DSP_ALU_INT
+        dspBiquadFreqSkip4 = 4*dspBiquadFreqSkip;
+        #if   DSP_ALU_INT
         #ifdef DSP_XS2A
         //special mantissa treatment for XCore runtime
         if (dspHeaderPtr->format == 0) {    //mode float
@@ -383,6 +391,9 @@ static void dspChangeFormat(opcode_t * ptr, int newFormat){
         } break;
 
         case DSP_FIR: {// TODO
+        } break;
+
+        case DSP_WFIR: {// TODO
         } break;
 
         case DSP_DITHER_NS2: {  // data space pointer then table ptr

@@ -1196,28 +1196,33 @@ nextline:
                 int base = 0;
                 int max = 0;
                 double lambda = 0.0;
-                if (keyw == _warpconvol) {
-                    searchExpressionRangeError( &p, &lambda, _tq31 );
-                    getDelimiterError( &p, ',',30);
-                }
                 do {
+                    if (keyw == _warpconvol) {
+                        getDelimiterError( &p, '(',28);
+                        searchExpressionRangeError( &p, &lambda, _tq31 );
+                        getDelimiterError( &p, ',',30);
+                        if (numFilt == 0) base = dsp_WARPCONVOL();
+                    } else 
+                        if (numFilt == 0) base = dsp_CONVOL();
                     labelptr_t l = searchLabel( &p );
                     if (l == NULL) fatalErrorNum(33);
                     if (l->s.type != label_taps) fatalErrorNum(33);
                     usedLabelInTile(l);
-                    if (numFilt == 0) base = dsp_CONVOL(0, lambda); //generate opcode and a zeros placeholders and lambda value eventually
                     numFilt++;  //TODO upper bundaries for the max number of frequencies allowed
                     int num = l->numValues;
                     if (num > max) max = num;
                     addCodeOffset(l->s.address,base); // generates taps adresses
                     addCode(num);   //generate number of taps for this impulse
+                    if (keyw == _warpconvol) {
+                        addDoubleCodeQ31(lambda);
+                        getDelimiterError( &p, ')',20);
+                    }
                     res = searchDelimiter( &p, ",");
                 } while(res);
                 //TODO add potential missing impulses to complete frequency table
                 //TODO addDataSpaceAligned8 is also generating an opcode at the end of the table!
                 if (keyw == _warpconvol) max++; //always add one extra sample in buffer when warped fir requested
                 dspprintf3("%d impulses, max %d taps\n",numFilt,max);
-                //if (max & 1) max ++; //always round up to even number
                 opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
                 break; }
 

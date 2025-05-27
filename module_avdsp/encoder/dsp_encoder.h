@@ -227,7 +227,8 @@ int  addDataSpaceAligned8(int size);
  int  dspFir_Delay(int value);
  int  dspFir_ImpulseFile(char * name, int length);
 
- int dsp_CONVOL(int size, double lambda);
+ int dsp_CONVOL();
+ int dsp_WARPCONVOL();
  //sum square with combined accumulation and moving average over a delay line of N Samples, N can be 0
  void dsp_RMS(int timems, int delayLine);
  // same but the delay line is given in milisecond and the encoder will adjust the number of sample according to FS
