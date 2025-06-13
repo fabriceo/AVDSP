@@ -160,16 +160,15 @@ enum dspOpcodesEnum {
     DSP_GAIN_MEM,
     DSP_INPUTMEM,
     DSP_INPUTGAINMEM,   //101
-
-    DSP_FLOAD,          //102   same as DSP_LOAD but converted to float ieee754
+    DSP_CORE_EXTERN,    //102  same as DSP_CORE but to declare external core like spdif task
+    DSP_FLOAD,          //103   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,       //106
+    DSP_FBIQUADS,       //107
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
-    DSP_OP107,
     DSP_OP108,
     DSP_OP109,
     DSP_OP110,
@@ -318,7 +317,7 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
     while(1){
         enum dspOpcodesEnum code = ptr->op.opcode;
         int skip = ptr->op.skip;
-        if (skip == 0) {
+        if ( (code == DSP_END_OF_CODE) || (skip == 0) ){
             if (*numCore == 0) *numCore = 1;
             break;   // end of program encountered
         }
@@ -326,6 +325,7 @@ static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numC
         if ( ( *numCore == 0 ) &&   //any first opcode will generate a core
                 (code != DSP_HEADER) &&
                 (code != DSP_NOP) &&
+                (code != DSP_CORE_EXTERN) &&
                 (code != DSP_PARAM) &&
                 (code != DSP_PARAM_NUM) )  *numCore = 1;
         *sum += ptr->u32;

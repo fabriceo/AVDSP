@@ -1,27 +1,68 @@
-DSPMANT 28,56
 
+PureUSB		x03
+USBAES		x04
+PureAES		x08
+PureAES1	x10
+PureAES2	x20
+PureAES3	x40
+PureAES4	x80
 
-lp LPLR4(400)
-hp HPLR4(400)
+L		16
+REW1	24
+REW2	25
+REW3	26
+REW4	27
+REW5	28
 
-tile 
+lp4	LPLR4(400)
+
+hpkh HP1(20) HP2(38,0.85) LT(36,0.75,45,0.75) #AP1(85)
+lplr4 LPLR4(35)
+
+fc	200
+fs	192000
+omega	= 2 * 3.1415926 * fc/fs
+sqrt8	= 2.82842712
+om2		= omega * omega + 1
+om4		= omega * omega * omega * omega + 1
+gd		= sqrt8*om2/om4
+lpfc	LPLR4(fc)
+
 core
-
-	transfer (16,24)
-	input 16
-		biquad lp
-		copyxy
-	output 25
+	transfer (L,REW1)
+	input L
+	copyxy
+	biquad	lpfc
+	output REW2
+	swapxy
+	delayus 475000/fc
+	subxy
+	output REW3
 	
-	input 16
-		biquad hp
-	output 26
-	
-		addxy
-	output 27
-	
+end
 core
-	sine (1000,1.0)
-	output 31
+	transfer (L,REW1)
+	input L
+	biquad hpkh	
+	output REW2
+	negx
+	copyxy
 
+	input L
+	biquad lplr4
+	output REW3
+	addxy
+	output REW4
+
+	
+end
+
+core
+	section PureUSB
+		transfer (16,24) (17,25) 
+	section PureAES
+		transfer (8,24) (9,25) (10,26) (11,27) (12,28) (13,29)
+	section
+	
+	transfer (16,0) (17,1)
 end
