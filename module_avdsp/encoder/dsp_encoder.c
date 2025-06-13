@@ -44,6 +44,7 @@ static int lastSectionCount      =  0;      // incremented number each time a da
 static int lastSectionIndex      =  0;      // value of the opcode index when a new section was started
 static int lastCoreIndex         =  0;      // Index where was the latest dsp_core , used to store IO related to this core
 static int lastCoreNum           =  0;      // number of the current core, incrementing
+static int lastCoreOpcode        =  0;      // contains opcode of last core (DSP_CORE or DSP_CORE_EXTERN)
 static int maxOpcodeValue        =  0;      // represent the higher opcode value used in the encoded program
 static int lastTpdfDataAddress   =  0;      //point on the opcode containg shift and factor for normalizing tpdfvalue
 static int lastTpdfDataAddressCore= 0;      //point on the opcode containg shift and factor for normalizing tpdfvalue within current core
@@ -384,6 +385,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     ALUformat      = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex  = 0;
     lastCoreNum    = 0;
+    lastCoreOpcode = 0;
     maxParamValue = 0.0;
     lastTpdfDataAddress     =  0;
     lastTpdfDataAddressCore = 0;
@@ -639,7 +641,7 @@ void dsp_dumpParameterNum(int addr, int size, char * name, int num){
 
 //create a dsp_CORE opcode if none has been decalred yet.
 static void check_dsp_CORE() {
-    if (lastCoreNum == 0) {
+    if ( (lastCoreNum == 0) || (lastCoreOpcode == DSP_CORE_EXTERN) ) {
         dsp_CORE();
         printLastOpcodes();
         lastOpcodePrint = opcodeIndex();
@@ -648,10 +650,11 @@ static void check_dsp_CORE() {
 
 
 int dspHeaderDone(){
-    //check if some instructions are using TPDF or dithering
-    check_dsp_CORE();
-    updateLastCoreIOs();
-    updateLastSection();
+    if (lastCoreOpcode != DSP_CORE_EXTERN) {
+        check_dsp_CORE();
+        updateLastCoreIOs();
+        updateLastSection();
+    }
     calcLength();                       // solve latest opcode length
     dspprintf2("DSP_END_OF_CODE\n")
     addOpcodeValue(DSP_END_OF_CODE,0);
@@ -808,7 +811,7 @@ static int addOpcodeLengthPrint(int code){
     return tmp;
 }
 
-//used only for dsp_PARAM and dsp_CORE, to avoid recursivity
+//used only for dsp_PARAM and dsp_CORE and DSP_CORE_EXTERN, to avoid recursivity
 static int addOpcodeLengthPrint_without_dsp_CORE(int code){
     calcLength();
     int tmp = addOpcodeUnknownLength(code);
@@ -856,9 +859,10 @@ int addDoubleCodeQ31(double value){
 // indicate No operation
 void dsp_NOP() { addSingleOpcodePrint(DSP_NOP); }
 
+
 // indicate start of a program for a dedicated core/task
 //a core will be authorized if any bit in the 1st mask is set to 1, OR any bit in the 2nd mask is set to 0
-int dsp_CORE_Prog(unsigned progAny1, unsigned progAny0){
+int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     checkFinishedParamSection();
     printLastOpcodes();             // flush any opcode printing before starting with new datasets
     if (lastTileNum == 0) {
@@ -873,7 +877,8 @@ int dsp_CORE_Prog(unsigned progAny1, unsigned progAny0){
     updateLastSection();
     if (lastCoreNum > 1) dspout("} //end of core %d\n\n",lastCoreNum-1);
     dspout("void dsp_CORE%d() {\n   if (0==dsp_CORE(0x%x,0x%x)) return;\n",lastCoreNum,progAny1,progAny0);
-    int tmp = addOpcodeLengthPrint_without_dsp_CORE(DSP_CORE);  //avoid potential recusivity!
+    int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
+    lastCoreOpcode = opcode;
     lastCoreIndex = tmp;
     addCode(0);addCode(0);addCode(0);addCode(0); // space for 4 words for input output tracking
     addCode(progAny1);    //add a 32bit value representing compatibility of the code with 32 user programs
@@ -882,6 +887,13 @@ int dsp_CORE_Prog(unsigned progAny1, unsigned progAny0){
     return lastCoreNum;
 }
 
+int dsp_CORE_Prog(unsigned progAny1, unsigned progAny0){
+    return dsp_CORE_Prog_(DSP_CORE,progAny1,progAny0);
+}
+
+int dsp_CORE_EXTERN_Prog(unsigned progAny1, unsigned progAny0){
+    return dsp_CORE_Prog_(DSP_CORE_EXTERN,progAny1,progAny0);
+}
 //a core will be authorized if any bit in the 1st mask is set to 1, AND all bits set in 2nd mask are 0
 int dsp_CORE(){
     return dsp_CORE_Prog(0xFFFFFFFF,0);
