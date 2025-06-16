@@ -619,7 +619,7 @@ static int searchExpressionRangeError(char * * s, double * value, int range){
 }
 
 static void replaceExpressions( char * * s) {
-    char buf[20];
+    char buf[30];
     int res;
     while ((res = goAfterDelimiter(s, "["))) {
         double value = 0;
@@ -775,7 +775,7 @@ nextline:
                 p += 2;
                 char * line = p;
                 replaceExpressions( &p );
-                fprintf(stderr,"%s\n",line);
+                fprintf(stderr,"%s",line);
                 break; // next line
             }
  

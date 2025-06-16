@@ -652,8 +652,8 @@ static void check_dsp_CORE() {
 int dspHeaderDone(){
     if (lastCoreOpcode != DSP_CORE_EXTERN) {
         check_dsp_CORE();
-        updateLastCoreIOs();
         updateLastSection();
+        updateLastCoreIOs();
     }
     calcLength();                       // solve latest opcode length
     dspprintf2("DSP_END_OF_CODE\n")
@@ -863,18 +863,19 @@ void dsp_NOP() { addSingleOpcodePrint(DSP_NOP); }
 // indicate start of a program for a dedicated core/task
 //a core will be authorized if any bit in the 1st mask is set to 1, OR any bit in the 2nd mask is set to 0
 int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
+    calcLength();
     checkFinishedParamSection();
+    updateLastSection();
+    updateLastCoreIOs();
     printLastOpcodes();             // flush any opcode printing before starting with new datasets
     if (lastTileNum == 0) {
         firstTileParamSize = opcodeIndex() - firstTileIndex;
         lastTileNum++;
     }
     lastCoreNum++;
-    updateLastCoreIOs();
     usedInputsCore  = 0;
     usedOutputsCore = 0;
     lastTpdfDataAddressCore = 0;
-    updateLastSection();
     if (lastCoreNum > 1) dspout("} //end of core %d\n\n",lastCoreNum-1);
     dspout("void dsp_CORE%d() {\n   if (0==dsp_CORE(0x%x,0x%x)) return;\n",lastCoreNum,progAny1,progAny0);
     int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
