@@ -80,7 +80,7 @@ int  addDataSpaceAligned8(int size);
  void dsp_SQRTX();
  void dsp_NEGX();
  void dsp_NEGY();
- void dsp_FUNC_MEM(int op, int paramAddr);
+ int  dsp_FUNC_MEM(int op, int paramAddr);
 
  // generate a random number to be used by DITHER or SAT0DB_TPDF
  int dsp_TPDF_CALC(int bits);

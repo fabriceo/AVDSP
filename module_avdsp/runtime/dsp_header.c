@@ -119,6 +119,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_SAVEMEM",
     "DSP_LOADMEM",
     "DSP_VALUEMEM",
+    "DSP_MIXERMEM",
     "DSP_GAIN_MEM",
     "DSP_INPUTMEM",
     "DSP_INPUTGAINMEM",

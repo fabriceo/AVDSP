@@ -998,12 +998,13 @@ void dsp_NEGY(){
     dspout("   dsp_NEGY();\n");
     addSingleOpcodePrint(DSP_NEGY); }
 
-void dsp_FUNC_MEM(int op, int paramAddr) {
+int dsp_FUNC_MEM(int op, int paramAddr) {
     dspout("   dsp_FUNC_MEM(%d,%d);\n",op,opcodeIndex()-paramAddr);
     int tmp = addOpcodeLengthPrint(op);
     if (paramAddr) checkInParamSpace(paramAddr,1);
     addCodeOffset(paramAddr, tmp);
     setLastMissingParamIf0(paramAddr, 1);
+    return tmp;
 }
 
 
