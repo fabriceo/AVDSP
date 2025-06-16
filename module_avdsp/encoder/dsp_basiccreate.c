@@ -1308,9 +1308,7 @@ nextline:
 
             case _clrmem:   //fallthrough voluntary
             case _swapmem:
-            case _addmem:
             case _memadd:
-            case _submem:
             case _memsub:
             case _mulmem:
             case _divmem:
@@ -1324,16 +1322,18 @@ nextline:
                 dsp_FUNC_MEM(op, addr);
                 break; }
             //TODO interpret parameters and generate opcodes
-            case _valuemem: { break; }
+            case _addmem:
+            case _submem:
             case _mixermem: {
                 int ofs = 0;
                 do {
                     int addr = getLabelMemory(&p);
-                    if (ofs == 0) ofs = dsp_FUNC_MEM(DSP_MIXERMEM, addr);
+                    if (ofs == 0) ofs = dsp_FUNC_MEM((keyw - _clrmem) + DSP_CLRMEM, addr);
                     else addCodeOffset(addr,ofs);
                     res = searchDelimiter( &p, ",");
                 } while(res);
             }
+            case _valuemem: { break; }
             case _gainmem: { break; }
             case _inputmem: { break; }
             case _inputgainmem: { break; }

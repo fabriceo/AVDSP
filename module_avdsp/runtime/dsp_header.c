@@ -123,7 +123,9 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_GAIN_MEM",
     "DSP_INPUTMEM",
     "DSP_INPUTGAINMEM",
+
     "DSP_CORE_EXTERN",
+
     "DSP_FLOAD",
     "DSP_FSTORE",
     "DSP_FVALUEX",
@@ -131,7 +133,6 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_FBIQUADS",
 
 /*
-    "DSP_OP108",
     "DSP_OP109",
     "DSP_OP110",
     "DSP_OP111",
