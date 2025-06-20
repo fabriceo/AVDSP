@@ -61,6 +61,7 @@ int  addDataSpaceAligned8(int size);
 
  void dsp_NOP();
  void dsp_SECTION(unsigned progAny1, unsigned progAny0);
+ void dsp_SECTION_ELSE(unsigned progAny1, unsigned progAny0);
  void dsp_SERIAL(unsigned hash);
 
  void dsp_SWAPXY();

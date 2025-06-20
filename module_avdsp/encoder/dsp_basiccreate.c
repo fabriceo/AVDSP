@@ -45,7 +45,7 @@ const char filterOrders[filterTypesNumber] = {
 
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPSIZEMAX,
-    _end, _include, _param, _nop, _core, _section, _coreextern,
+    _end, _include, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
@@ -62,7 +62,7 @@ enum keywords_e {
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPSIZEMAX",
-    "end", "include", "param", "nop", "core", "section", "coreextern",
+    "end", "include", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
@@ -923,6 +923,7 @@ nextline:
             case _nop : { dsp_NOP(); break; }
 
             case _section:
+            case _sectionelse:
             case _core: 
             case _coreextern: {
                 unsigned progAny1 = 0xFFFFFFFF;
@@ -940,6 +941,7 @@ nextline:
                 } else fatalErrorNumIf(11,keyw == _coreextern);
                 if (keyw == _core) numCore = dsp_CORE_Prog(progAny1,progOnly0);  
                 if (keyw == _section) dsp_SECTION(progAny1,progOnly0);
+                if (keyw == _sectionelse) dsp_SECTION_ELSE(progAny1,progOnly0);
                 if (keyw == _coreextern) {
                     numCore = dsp_CORE_EXTERN_Prog(progAny1,progOnly0);
                     getDelimiterError(&p,',',30);

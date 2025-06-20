@@ -43,12 +43,16 @@ static int lastSectionNumber     =  0;      // number expected of data for the s
 static int lastSectionCount      =  0;      // incremented number each time a dataset is encountered
 static int lastSectionIndex      =  0;      // value of the opcode index when a new section was started
 static int lastCoreIndex         =  0;      // Index where was the latest dsp_core , used to store IO related to this core
+static int lastCoreData          =  0;      // value of dspDataCounter of the curent/latest core
 static int lastCoreNum           =  0;      // number of the current core, incrementing
 static int lastCoreOpcode        =  0;      // contains opcode of last core (DSP_CORE or DSP_CORE_EXTERN)
 static int maxOpcodeValue        =  0;      // represent the higher opcode value used in the encoded program
 static int lastTpdfDataAddress   =  0;      //point on the opcode containg shift and factor for normalizing tpdfvalue
 static int lastTpdfDataAddressCore= 0;      //point on the opcode containg shift and factor for normalizing tpdfvalue within current core
-static int LastSectionIndex      =  0;      //point on last dsp_SECTION
+static int lastSectionProg       =  0;      //point on last dsp_SECTION
+static int lastSectionElse       =  0;      //point on last dsp_SECTION_ELSE
+static int lastSectionData       =  0;      //value of dspDataCounter at the begining of the section
+static int lastSectionDataMax    =  0;      //value of dspDataCounter at the end of the section (max)
 static int usedInputs            =  0;      // bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
 static int usedOutputs           =  0;      // bit patern of all the output used by a STORE command
 static unsigned long long usedInputsCore        =  0;      // at core level : bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
@@ -384,12 +388,16 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspDumpStarted = 0;
     ALUformat      = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex  = 0;
+    lastCoreData   = dspDataCounter;
     lastCoreNum    = 0;
     lastCoreOpcode = 0;
     maxParamValue = 0.0;
     lastTpdfDataAddress     =  0;
     lastTpdfDataAddressCore = 0;
-    LastSectionIndex        = 0;
+    lastSectionProg = 0;
+    lastSectionElse = 0;
+    lastSectionData = 0;
+    lastSectionDataMax = 0;
 
     usedInputs = 0;
     usedOutputs = 0;
@@ -573,7 +581,10 @@ static void updateLastCoreIOs(){
         *ptr++ = usedOutputsCore & 0xFFFFFFFF;
         //for compatibility with previous version
         *ptr++ = usedInputsCore >>32;
-        *ptr  = usedOutputsCore >>32;
+        *ptr++ = usedOutputsCore >>32;
+        //compute size of data used in this core
+        if(dspDataCounter & 1) dspDataCounter++;
+        *ptr   = dspDataCounter - lastCoreData; 
         lastCoreIndex = 0;
     }
 }
@@ -598,15 +609,34 @@ static int checkCalcTpdf() {
 }
 
 static void updateLastSection(){
-    if (LastSectionIndex) {
-        //printf("LastSectionIndex=%d\n",LastSectionIndex);
-        int * ptr = (int *)opcodePtr(LastSectionIndex);
-        ptr++;  // point on displacement
-        int ofs = opcodeIndex() - LastSectionIndex;
-        //printf("old= %d, new = %d\n",*ptr,ofs);
-        *ptr = ofs;
-        LastSectionIndex = 0;
+    if (lastSectionElse || lastSectionProg) {
+        int data = dspDataCounter - lastSectionData;
+        if (dspDataCounter > lastSectionDataMax) lastSectionDataMax = dspDataCounter;
+        dspDataCounter = lastSectionDataMax;
+        dspprintf3("previous section data used %d,  dspDataCounter set to %d\n",data,dspDataCounter);
+    } 
+    if (lastSectionElse) {
+
+        //printf("lastSectionElse=%d\n",lastSectionElse);
+        int ofs = opcodeIndex() - lastSectionElse;
+        if (opcodePtr(lastSectionElse)->op.opcode == DSP_NOP) {
+            opcodePtr(lastSectionElse)->op.skip = ofs;
+            dspprintf3("Patching DSP_NOP at %d with ofset %d\n",lastSectionElse,ofs);
+        }
+        lastSectionElse = 0;
     }
+    if (lastSectionProg) {
+        //printf("lastSectionProg=%d\n",lastSectionProg);
+        int * ptr = (int *)opcodePtr(lastSectionProg);
+        if (opcodePtr(lastSectionProg)->op.opcode == DSP_SECTION) {
+            ptr++;  // point on displacement
+            int ofs = opcodeIndex() - lastSectionProg;
+            //printf("old= %d, new = %d\n",*ptr,ofs);
+            *ptr = ofs;
+            dspprintf3("Patching DSP_SECTION at %d with ofset %d\n",lastSectionProg,ofs);
+        }
+        lastSectionProg = 0;
+    } 
 }
 
 void dsp_dump(int addr, int size, char * name){
@@ -882,6 +912,7 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     lastCoreOpcode = opcode;
     lastCoreIndex = tmp;
     addCode(0);addCode(0);addCode(0);addCode(0); // space for 4 words for input output tracking
+    addCode(0); // space for dataSize
     addCode(progAny1);    //add a 32bit value representing compatibility of the code with 32 user programs
     addCode(progAny0);    //add a 32bit value representing compatibility of the code with 32 user programs
     ALUformat = 0;       // reset it as we start a new core
@@ -904,13 +935,33 @@ int dsp_CORE_num() {
     return lastCoreNum;
 }
 
-void dsp_SECTION(unsigned progAny1, unsigned progAny0){
+void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
+    calcLength();   //used to print late data
     updateLastSection();
-    int tmp = addOpcodeLengthPrint(DSP_SECTION);
-    LastSectionIndex = tmp;
+    lastSectionData = dspDataCounter;
+    lastSectionDataMax = dspDataCounter;
+    dspprintf3("initial datacounter %d\n",lastSectionData);
+    int tmp = opcodeIndex();
+    if ((progAny1 == 0xFFFFFFFF) && (progOnly0 == 0)) return;
+    lastSectionProg = tmp;
+    addOpcodeLengthPrint(DSP_SECTION);
     addCode(0);             //offset for jump (at least 4 !)
     addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
-    addCode(progAny0);      //add a 32bit value representing compatibility of the code with 32 user programs
+    addCode(progOnly0);      //add a 32bit value representing compatibility of the code with 32 user programs
+}
+
+void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
+    calcLength();   //used to print late data
+    if (lastSectionProg == 0) dspFatalError("no SECTION identified before SECTION ELSE");
+    updateLastSection();
+    int tmp = addSingleOpcodePrint(DSP_NOP);
+    if (dspDataCounter != lastSectionData)
+        dspprintf3("reinitialize datacounter backward to %d\n",lastSectionData);
+    dspDataCounter = lastSectionData;
+    int old = lastSectionDataMax;
+    dsp_SECTION(progAny1,progOnly0);
+    lastSectionDataMax = old;
+    lastSectionElse = tmp;
 }
 
 
