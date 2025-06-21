@@ -496,14 +496,6 @@ int dsp_IOMAX(int iomax) {
     return 1;
 }
 
-int dsp_SIZE_MAX(int code, int total) {
-    if (firstOpcodeIndex != opcodeIndex()) return 0;
-    if (total>dspMemoryMax) dspFatalError("total program size cannot exceed %d.",dspMemoryMax);
-    dspOpcodesMax = code;
-    dspMemoryMax = total;
-    return 1;
-}
-
 // search one PARAM or PARAM_NUM area covering the address provided as a parameter
 int findInParamSpace(int addrParam) {
     int pos = 0;
@@ -689,14 +681,13 @@ int dspHeaderDone(){
     dspprintf2("DSP_END_OF_CODE\n")
     addOpcodeValue(DSP_END_OF_CODE,0);
     int index = opcodeIndex();
-    index &= 15;                        //padding/allignement 64 bytes
-    if (index) opcodeIndexAdd(16-index);
+    index &= 3;                        //padding/allignement 16 bytes
+    if (index) opcodeIndexAdd(4-index);
     calcLength();                       // just for executing debug print
     dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program including header
     dspprintf1("dsptotallength = %d\n",opcodeIndex());
     dspHeaderPtr->dataSize = dspDataCounter;    //not relevant,as each core is dynamically allocating data
-    dspprintf1("dataSize       = %d\n",dspDataCounter);
-    if ( (dspHeaderPtr->totalLength+dspHeaderPtr->dataSize) > dspMemoryMax ) dspFatalError("ERROR : Program + Data too large")
+    dspprintf1("dataSize (max) = %d\n",dspDataCounter);
     // now calculate the simplified checksum of all the opcodes and count number of cores
     unsigned int sum;
     int numCore;
@@ -705,7 +696,7 @@ int dspHeaderDone(){
     dspprintf1("check sum      = 0x%X\n", sum);
     if (numCore == 0) numCore = 1;
     dspHeaderPtr->numCores = numCore;       // comit number of declared cores
-    dspprintf1("cores declared = %d\n",numCore);
+    dspprintf1("cores found    = %d\n",numCore);
     if (dspFormat < DSP_FORMAT_FLOAT) {
         int integ = maxParamValue;
         for (int i=0; i<31; i++) { if (integ) integ >>= 1; else {integ = i; break;} } //compute log2
@@ -747,14 +738,16 @@ void dspSymbolAdd(dspSymbol_t * s){
         }
         dspprintf2("%4d    %4X    %5d    %2d  %3d  %s\n",s->tileNum, s->tileUsed, s->address, s->type, s->length, s->name);
     }
-    addCode(s->address);
-    unsigned f = s->type | (s->tileNum << 8) | (s->tileUsed << 16) | (s->length << 24);
-    addCode(f);
-    char * p = (char*)opcodeIndexPtr();
-    char * q = s->name;
-    int w = (s->length+4)/4;
-    opcodeIndexAdd(w);
-    for (int i=0; i < s->length; i++) p[i] = q[i];
+    if (s->address) {
+        addCode(s->address);
+        unsigned f = s->type | (s->tileNum << 8) | (s->tileUsed << 12) | (s->length << 16);
+        addCode(f);
+        char * p = (char*)opcodeIndexPtr();
+        char * q = s->name;
+        int w = (s->length+1+3)/4;
+        opcodeIndexAdd(w);
+        for (int i=0; i < s->length; i++) p[i] = q[i];
+    }
 }
 
 int dspSymbolEndOfTable(){
@@ -910,12 +903,12 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     dspout("void dsp_CORE%d() {\n   if (0==dsp_CORE(0x%x,0x%x)) return;\n",lastCoreNum,progAny1,progAny0);
     int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
     lastCoreOpcode = opcode;
-    lastCoreIndex = tmp;
-    lastCoreData = dspDataCounter;
+    lastCoreIndex  = tmp;
+    lastCoreData   = dspDataCounter;
     addCode(0);addCode(0);addCode(0);addCode(0); // space for 4 words for input output tracking
     addCode(0);             // space for dataSize
-    addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
-    addCode(progAny0);      //add a 32bit value representing compatibility of the code with 32 user programs
+    addCode(progAny1);      // add a 32bit value representing compatibility of the code with 32 user programs
+    addCode(progAny0);      // add a 32bit value representing compatibility of the code with 32 user programs
     ALUformat = 0;          // reset it as we start a new core
     return lastCoreNum;
 }
@@ -939,7 +932,7 @@ int dsp_CORE_num() {
 void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
     calcLength();   //used to print late data
     updateLastSection();
-    lastSectionData = dspDataCounter;
+    lastSectionData    = dspDataCounter;
     lastSectionDataMax = dspDataCounter;
     dspprintf3("initial datacounter %d\n",lastSectionData);
     int tmp = opcodeIndex();
@@ -957,7 +950,7 @@ void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
     updateLastSection();
     int tmp = addSingleOpcodePrint(DSP_NOP);
     if (dspDataCounter != lastSectionData)
-        dspprintf3("reinitialize datacounter backward to %d\n",lastSectionData);
+        dspprintf3("reinitialize data counter backward to %d\n",lastSectionData);
     dspDataCounter = lastSectionData;
     int old = lastSectionDataMax;
     dsp_SECTION(progAny1,progOnly0);

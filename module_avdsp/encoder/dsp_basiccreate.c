@@ -44,7 +44,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPSIZEMAX,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX,
     _end, _include, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -61,7 +61,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPSIZEMAX",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX",
     "end", "include", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -90,7 +90,7 @@ enum paramkeywords_e {
 static const char * paramKeywords[paramKeywordsNumber] = {
         "MEMORY","TAPS","VALUE","VALUEINT","DRCIN","DRCOUT","FILTER","FILTER8" };
 
-enum { dspIOmaximum = 32};
+enum { dspIOmaximum = 64};
 
 enum   tvalue_e                  {   _tIO          , _tfreq, _tvalue32, _tq31,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tdrc_attack, _tnone };
 static double valueMin[_tnone] = {                0,     10,      -8.0,  -1.0,  -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
@@ -406,7 +406,7 @@ static int searchNumerical(char * * s, double * value, int enableDB) {
             if ( (*p) == 'x') { base=16.0; p++;state |= 1; continue; }
             if ( (*p) == 'o') { base=8.0;  p++;state |= 1; continue; }
         }
-        if (state == 1) {
+        if ((state == 1)&&(base==10.0)) {
             //point authorised only after at least one digit
             if (*p =='.') { state |= 2; p++; continue; }
         }
@@ -856,20 +856,6 @@ nextline:
                 fatalErrorNumIf(45, res == 0 );
                 dspModeDynamic = value;
                 break; }
-            case _DSPSIZEMAX : {    //defines the maximum size of the program in words, and total memeory for code & data
-                double value = 0;
-                if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                outOfRangeError(value,1024,32768);
-                int codeMax = value;
-                int totalSize = codeMax;
-                if ((res = searchDelimiter(&p, ","))) {
-                    if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                    outOfRangeError(value,codeMax+32,32768);    //TODO depends on number of IOs
-                    totalSize = value;    
-                }
-                res = dsp_SIZE_MAX(codeMax, totalSize);
-                fatalErrorNumIf(45, res == 0 );
-                break;}
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
