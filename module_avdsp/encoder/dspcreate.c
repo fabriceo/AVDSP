@@ -14,9 +14,9 @@
 extern int minidspCreateParameters(char * xmlName);
 extern int dspbasicCreate(char * fileName, int argc, char ** argv);
 
-#define opcodesMax 40000                // just to define a maximum, could be up to 65000 (=256kbytes)
+#define opcodesMax 65000                // just to define a maximum, could be up to 65000 (=256kbytes)
 
-#define inputOutputMax 32               // size of the future table containg samples of each IO accessible by LOAD & STORE
+#define inputOutputMax 32               
 
 int freqMin = DSP_DEFAULT_MIN_FREQ;     // default value from header.h
 int freqMax = DSP_DEFAULT_MAX_FREQ;

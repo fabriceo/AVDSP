@@ -35,6 +35,15 @@
 #define dspprintf3(...) { }
 #endif
 
+// special syntax for XMOS XCore compiler...
+#if  defined(__XC__)
+#ifndef XCunsafe
+#define XCunsafe unsafe
+#endif
+#else
+#define XCunsafe
+#endif
+
 
 // list of all DSP supported opcode as of this version. The last opcode is marked in the header
 enum dspOpcodesEnum {
@@ -275,24 +284,20 @@ typedef union opcode_u {
 //used at the very begining of the tile dsp program to store basic information
 typedef struct dspHeader_s {    // 11 words
 /* 0 */     opcode_t head;      // marker
-/* 1 */     int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 8bytes
-/* 2 */     int   dataSize;     // required data space for executing the dsp program (in 32 bits words)
-/* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program
-/* 4 */     int   numCores;     // number of cores/tasks declared in the dsp program
-/* 5 */     int   version;      // version of the encoder used MAJOR, MINOR,BUGFIX
-/* 6 */     unsigned short   format;       // contains DSP_MANT used by encoder or 0 for float encoding (recomended)
-/*   */     unsigned short   maxOpcode;    // last op code number used in this program (to check compatibility with runtime)
-/* 7 */     int   freqMin;          // minimum frequency possible for this program
-/* 8 */     int   freqMax;          // maximum frequency possible for this program
-/* 9 */     unsigned usedInputs;    // bit mapping of all used inputs  (max 32 in this version)
-/* 10 */    unsigned usedOutputs;   // bit mapping of all used outputs (max 32 in this version)
-/* 11 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
-//extension as of january 12th 2025 to support multi tile dsp programs. each tile is starting with a new header
-/* 12 */    unsigned tableInputs[8];   //256bits to describe all inputs used in this tile
-/* 20 */    unsigned tableOutputs[8];  //256bits to describe all output used in this tile
-/* 28 */    unsigned tileNum;       //number of the tile (0..7) only 8 supported here
-/* 29 */    unsigned symbolPos;     //position of the symbols table
-/* 30 */    unsigned mantissa2;     //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
+/* 1 */     int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 16bytes boundary
+/* 2 */     int   dataSize;     // maximum required data space for executing the dsp program (in 32 bits words)
+/* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program for this header only
+/* 4 */     unsigned numCores;     // number of cores/tasks declared in the dsp program (excluding external cores)
+/* 5 */     unsigned version;      // version of the encoder used MAJOR, MINOR,BUGFIX
+/* 6 */     unsigned short format;     // contains DSP_MANT used by encoder or 0 for float encoding (recomended)
+/*   */     unsigned short maxOpcode;  // last op code number used in this program (to check compatibility with runtime)
+/* 7 */     unsigned freqMin;      // minimum frequency possible for this program
+/* 8 */     unsigned freqMax;      // maximum frequency possible for this program
+/* 9 */     unsigned mantissa2;    //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
+/* 10 */    unsigned long long usedInputs;    // bit mapping of all used inputs  (max 64 in this version)
+/* 12 */    unsigned long long usedOutputs;   // bit mapping of all used outputs (max 64 in this version)
+/* 14 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
+/* 15 */    unsigned tileNum;       //number of the tile (0..7) only 8 supported here
 } dspHeader_t;
 
 typedef struct dspSymbol_s {
@@ -306,36 +311,8 @@ typedef struct dspSymbol_s {
 #else
     char * name;
 #endif
-    char name_[1];  //asciiz extended by malloc. Keep at the ned of the structure!
+    char name_[1];  //asciiz extended by malloc. mandatory to keep at the end of the structure!
 } dspSymbol_t;
-
-//this function is declared inline and not stored in dsp_header.c
-//just for compatibility with XMOS XC compiler (due to unsafe pointers)...
-//it is used only once in both dsp_runtime.c and dsp_encoder.c
-static inline void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore, unsigned int maxcode){
-    *sum = 0;
-    *numCore = 0;
-    unsigned int p = 0;
-    while(1){
-        enum dspOpcodesEnum code = ptr->op.opcode;
-        int skip = ptr->op.skip;
-        if ( (code == DSP_END_OF_CODE) || (skip == 0) ){
-            if (*numCore == 0) *numCore = 1;
-            break;   // end of program encountered
-        }
-        if (code == DSP_CORE) (*numCore)++;
-        if ( ( *numCore == 0 ) &&   //any first opcode will generate a core
-                (code != DSP_HEADER) &&
-                (code != DSP_NOP) &&
-                (code != DSP_CORE_EXTERN) &&
-                (code != DSP_PARAM) &&
-                (code != DSP_PARAM_NUM) )  *numCore = 1;
-        *sum += ptr->u32;
-        p += skip;
-        if (p > maxcode) { dspprintf("BUGG in memory : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // fatal issue
-        ptr += skip;
-    } // while(1)
-}
 
 
 // this define the precision for the fixed point maths when runtime is using DSP_FORMAT_INTxx
@@ -385,4 +362,5 @@ extern long long dspQNM(double x, int n, int m);
 extern long long dspQM64(double x, int m);
 extern int dspQM32(double x, int m);
 
+extern void dspCalcSumCore(opcode_t * XCunsafe ptr, unsigned int * XCunsafe sum, int * XCunsafe numCore, unsigned int maxcode);
 #endif /* DSP_HEADER_H_ */

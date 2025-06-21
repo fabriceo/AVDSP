@@ -166,3 +166,30 @@ long long dspQM64(double x, int m) {
 int dspQM32(double x, int m){
     return DSP_QM32(x,m);
 }
+
+void dspCalcSumCore(opcode_t * XCunsafe ptr, unsigned int * XCunsafe sum, int * XCunsafe numCore, unsigned int maxcode){
+    XCunsafe {
+    *sum = 0;
+    *numCore = 0;
+    unsigned int p = 0;
+    while(1){
+        enum dspOpcodesEnum code = ptr->op.opcode;
+        int skip = ptr->op.skip;
+        if ( (code == DSP_END_OF_CODE) || (skip == 0) ){
+            if (*numCore == 0) *numCore = 1;
+            break;   // end of program encountered
+        }
+        if (code == DSP_CORE) (*numCore)++;
+        if ( ( *numCore == 0 ) &&   //any first opcode will generate a core
+                (code != DSP_HEADER) &&
+                (code != DSP_NOP) &&
+                (code != DSP_CORE_EXTERN) &&
+                (code != DSP_PARAM) &&
+                (code != DSP_PARAM_NUM) )  *numCore = 1;
+        *sum += ptr->u32;
+        p += skip;
+        if (p > maxcode) { dspprintf("BUGG in memory : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // fatal issue
+        ptr += skip;
+    } // while(1)
+} }
+

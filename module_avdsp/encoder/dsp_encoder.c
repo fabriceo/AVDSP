@@ -53,8 +53,8 @@ static int lastSectionProg       =  0;      //point on last dsp_SECTION
 static int lastSectionElse       =  0;      //point on last dsp_SECTION_ELSE
 static int lastSectionData       =  0;      //value of dspDataCounter at the begining of the section
 static int lastSectionDataMax    =  0;      //value of dspDataCounter at the end of the section (max)
-static int usedInputs            =  0;      // bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
-static int usedOutputs           =  0;      // bit patern of all the output used by a STORE command
+static unsigned long long  usedInputs           =  0;      // bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
+static unsigned long long  usedOutputs          =  0;      // bit patern of all the output used by a STORE command
 static unsigned long long usedInputsCore        =  0;      // at core level : bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
 static unsigned long long usedOutputsCore       =  0;      // at core level : bit patern of all the output used by a STORE command
 
@@ -68,7 +68,7 @@ static int dspDynamic           = 0;        // 0 means filters are staticaly cal
 
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
-const int dspIOmaximum = 32;    //TODO ->256
+const int dspIOmaximum = 64; 
 
 
 #ifndef DSP_FILEACCESS_H_
@@ -370,12 +370,12 @@ void dspEncoderFormat(int format){
 //initialize encoder for a new header
 void dspHeaderInit(opcode_t * opcodeTable) {
 
-    dspOpcodesPtr       = opcodeTable;
-    dspHeaderPtr        = (dspHeader_t*)opcodeTable;
+    dspOpcodesPtr         = opcodeTable;
+    dspHeaderPtr          = (dspHeader_t*)opcodeTable;
 
-    dspOpcodeIndex      = 0;
-    dspDataCounter      = dspIOmax;    //first table is used to store volume assigned to IO
-    dspOutLabel         = 0;
+    dspOpcodeIndex        = 0;
+    dspDataCounter        = 0;    //first table is used to store volume assigned to IO
+    dspOutLabel           = 0;
     lastOpcodePrint       = 0;
     lastOpcodeIndexLength = -1;
     lastParamNumIndex     = 0;
@@ -385,24 +385,24 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     lastSectionIndex      = 0;
     lastSectionNumber     = 0;
     lastSectionCount      = 0;
-    dspDumpStarted = 0;
-    ALUformat      = 0; // by default we consider to be single precision with ALU containing a 0.31 value
-    lastCoreIndex  = 0;
-    lastCoreData   = dspDataCounter;    //will be set anyway when a DSP_CORE is generated
-    lastCoreNum    = 0;
-    lastCoreOpcode = 0;
-    maxParamValue = 0.0;
-    lastTpdfDataAddress     =  0;
+    dspDumpStarted        = 0;
+    ALUformat             = 0; // by default we consider to be single precision with ALU containing a 0.31 value
+    lastCoreIndex         = 0;
+    lastCoreData          = dspDataCounter;    //will be set anyway when a DSP_CORE is generated
+    lastCoreNum           = 0;
+    lastCoreOpcode        = 0;
+    maxParamValue         = 0.0;
+    lastTpdfDataAddress   =  0;
     lastTpdfDataAddressCore = 0;
-    lastSectionProg = 0;
-    lastSectionElse = 0;
-    lastSectionData = 0;
-    lastSectionDataMax = 0;
+    lastSectionProg       = 0;
+    lastSectionElse       = 0;
+    lastSectionData       = 0;
+    lastSectionDataMax    = 0;
 
-    usedInputs = 0;
-    usedOutputs = 0;
-    usedInputsCore = 0;
-    usedOutputsCore = 0;
+    usedInputs            = 0;
+    usedOutputs           = 0;
+    usedInputsCore        = 0;
+    usedOutputsCore       = 0;
 
     addOpcodeUnknownLength(DSP_HEADER);
     opcodeIndexAdd(sizeof(dspHeader_t)/sizeof(int) - 1);
@@ -412,7 +412,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspHeaderPtr->checkSum  = 0;
     dspHeaderPtr->numCores  = 0;
     dspHeaderPtr->version   = DSP_ENCODER_VERSION;
-    dspHeaderPtr->format = dspMant;    // all value encoded in fixedpoint format
+    dspHeaderPtr->format    = dspMant;    // all value encoded in fixedpoint format
     dspHeaderPtr->mantissa2 = 0;    //default runtime value
     dspHeaderPtr->maxOpcode = DSP_MAX_OPCODE-1;
     dspHeaderPtr->freqMin   = dspMinSamplingFreq;
@@ -430,7 +430,7 @@ void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, in
 
     if (maxIO > dspIOmaximum) dspFatalError("dspEncoderInit too much IO.");
     dspMemoryMax        = max;
-    dspOpcodesMax       = max-32;   //TODO
+    dspOpcodesMax       = max;   //TODO
     dspEncoderFormat(format);
     dspMinSamplingFreq  = minFreq;
     dspMaxSamplingFreq  = maxFreq;
@@ -487,9 +487,9 @@ int dsp_FORMAT(int format, int mant2) {
 }
 
 int dsp_IOMAX(int iomax) {
-    iomax += 31;
-    iomax &= ~31;
-    //test if code generation as already started
+    iomax += 7;
+    iomax &= ~7;
+    //test if code generation has already started
     if (firstOpcodeIndex != opcodeIndex()) return 0;
     if (iomax>=dspIOmaximum) dspFatalError("IO max out of range.");
     dspIOmax = iomax;
@@ -1138,7 +1138,7 @@ void dsp_SHIFT_FixedInt(int bits){  //same :)
 void dsp_LOAD(int IO) {
     ALUformat = 0;
     checkIOmax(IO);
-    if (IO<32) usedInputs |= 1ULL<<IO;      //keep track of inputs used
+    if (IO<64) usedInputs |= 1ULL<<IO;      //keep track of inputs used
     if (IO<64) usedInputsCore |= 1ULL<<IO;
     dspout("   dsp_LOAD(%d);\n",IO);
     addOpcodeLengthPrint(dspMant?DSP_LOAD:DSP_FLOAD);
@@ -1149,7 +1149,7 @@ void dsp_LOAD_GAIN(int IO, int paramAddr){
     ALUformat = 1;
     int tmp = addOpcodeLengthPrint(DSP_LOAD_GAIN);
     checkIOmax(IO);
-    if (IO<32) usedInputs |= 1ULL<<IO;
+    if (IO<64) usedInputs |= 1ULL<<IO;
     if (IO<64) usedInputsCore |= 1ULL<<IO;
     if (paramAddr) checkInParamSpace(paramAddr,1);
     addCode(IO);
@@ -1188,7 +1188,7 @@ int dspLoadMux_Inputs(int number){
 //to be used just below dspLoadMux_Inputs, as many time as defined
 void dspLoadMux_Data(int in, dspGainParam_t gain){
     checkIOmax(in);
-    if (in<32) usedInputs |= 1ULL<<in;
+    if (in<64) usedInputs |= 1ULL<<in;
     if (in<64) usedInputsCore |= 1ULL<<in;
     int next = nextParamSection(DSP_LOAD_MUX);
     addCode(in);
@@ -1207,7 +1207,7 @@ static void dsp_STORE_IO(int IO) {
     for (int i=0; i<4; i++) {
         int out = IO & 0xFF;
         checkIOmax(out);
-        if (out<32) usedOutputs |= 1ULL<<out;
+        if (out<64) usedOutputs |= 1ULL<<out;
         if (out<64) usedOutputsCore |= 1ULL<<out;
         IO >>= 8;
         if (IO==0) break;
@@ -1487,9 +1487,9 @@ void dspLoadStore_Data(int in, int out){
 
     addCode(in);
     addCode(out);
-    if (in<32)  usedInputs  |= 1ULL<<in;
+    if (in<64)  usedInputs  |= 1ULL<<in;
     if (in<64)  usedInputsCore  |= 1ULL<<in;
-    if (out<32) usedOutputs |= 1ULL<<out;
+    if (out<64) usedOutputs |= 1ULL<<out;
     if (out<64) usedOutputsCore |= 1ULL<<out;
 }
 
@@ -1509,7 +1509,7 @@ void dspMixer_Data(int in,  dspGainParam_t gain){
     checkIOmax(in);
     addCode(in);
     addGainCodeQNM(gain);
-    if (in<32)  usedInputs  |= 1ULL<<in;
+    if (in<64)  usedInputs  |= 1ULL<<in;
     if (in<64)  usedInputsCore  |= 1ULL<<in;
 }
 
@@ -2117,7 +2117,7 @@ void dsp_DISTRIB(int IO, int size){
     addOpcodeLengthPrint(DSP_DISTRIB);
     checkIOmax(IO);
     addCode(IO);
-    if (IO<32) usedOutputs |= 1ULL<<IO;
+    if (IO<64) usedOutputs |= 1ULL<<IO;
     if (IO<64) usedOutputsCore |= 1ULL<<IO;
     checkInRange(size, 8,1024);
     addCode(size);
