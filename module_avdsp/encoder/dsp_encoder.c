@@ -158,7 +158,7 @@ int addCodeOffset(int index, int base){
 // add a word in the opcode table reresenting the data offset where a space is reserved
 static int addDataSpace(int size) {
     int tmp = dspDataCounter;
-    addCode(dspDataCounter);              // store the current data index value pointing on the next spare data space
+    addCode(dspDataCounter - lastCoreData);              // store the current data index value pointing on the next spare data space
     dspDataCounter += size;               // simulate consumption the expected data space
     return tmp;
 }
@@ -388,7 +388,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspDumpStarted = 0;
     ALUformat      = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex  = 0;
-    lastCoreData   = dspDataCounter;
+    lastCoreData   = dspDataCounter;    //will be set anyway when a DSP_CORE is generated
     lastCoreNum    = 0;
     lastCoreOpcode = 0;
     maxParamValue = 0.0;
@@ -694,7 +694,7 @@ int dspHeaderDone(){
     calcLength();                       // just for executing debug print
     dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program including header
     dspprintf1("dsptotallength = %d\n",opcodeIndex());
-    dspHeaderPtr->dataSize = dspDataCounter;
+    dspHeaderPtr->dataSize = dspDataCounter;    //not relevant,as each core is dynamically allocating data
     dspprintf1("dataSize       = %d\n",dspDataCounter);
     if ( (dspHeaderPtr->totalLength+dspHeaderPtr->dataSize) > dspMemoryMax ) dspFatalError("ERROR : Program + Data too large")
     // now calculate the simplified checksum of all the opcodes and count number of cores
@@ -911,11 +911,12 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
     lastCoreOpcode = opcode;
     lastCoreIndex = tmp;
+    lastCoreData = dspDataCounter;
     addCode(0);addCode(0);addCode(0);addCode(0); // space for 4 words for input output tracking
-    addCode(0); // space for dataSize
-    addCode(progAny1);    //add a 32bit value representing compatibility of the code with 32 user programs
-    addCode(progAny0);    //add a 32bit value representing compatibility of the code with 32 user programs
-    ALUformat = 0;       // reset it as we start a new core
+    addCode(0);             // space for dataSize
+    addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
+    addCode(progAny0);      //add a 32bit value representing compatibility of the code with 32 user programs
+    ALUformat = 0;          // reset it as we start a new core
     return lastCoreNum;
 }
 
