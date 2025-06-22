@@ -496,6 +496,13 @@ int dsp_IOMAX(int iomax) {
     return 1;
 }
 
+int dsp_CLOCK(int cpu, int k176, int k192) {
+    dspHeaderPtr->clockcpu = cpu * 1000000;
+    dspHeaderPtr->clock176k = k176 * 1000000;
+    dspHeaderPtr->clock192k = k192 * 1000000;
+    return 1;
+}
+
 // search one PARAM or PARAM_NUM area covering the address provided as a parameter
 int findInParamSpace(int addrParam) {
     int pos = 0;

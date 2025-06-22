@@ -298,6 +298,9 @@ typedef struct dspHeader_s {    // 11 words
 /* 12 */    unsigned long long usedOutputs;   // bit mapping of all used outputs (max 64 in this version)
 /* 14 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
 /* 15 */    unsigned tileNum;       //number of the tile (0..7) only 8 supported here
+/* 16 */    unsigned clockcpu;      //clock in MHZ
+/* 17 */    unsigned clock176k;     //when spdif mode and 176k
+/* 18 */    unsigned clock192k;     //when spdif mode and 192k
 } dspHeader_t;
 
 typedef struct dspSymbol_s {

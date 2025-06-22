@@ -26,6 +26,7 @@ int  dsp_FSMAX(int freq);
 int  dsp_FSDYN(int val);
 int  dsp_FORMAT(int format, int mant2);
 int  dsp_IOMAX(int iomax);
+int  dsp_CLOCK(int cpu, int k176, int k192);
 void dspoutFilters3(int type, int order, float freq,float Q,float gain, const char * name);
 void dspoutFilters5(int type, int order, float freq,float Q, float freq2,float Q2,float gain, const char * name);
 extern char * dspOutLabelName;

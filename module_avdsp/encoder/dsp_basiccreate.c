@@ -44,7 +44,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK,
     _end, _include, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -61,7 +61,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK",
     "end", "include", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -856,6 +856,26 @@ nextline:
                 fatalErrorNumIf(45, res == 0 );
                 dspModeDynamic = value;
                 break; }
+            case _DSPCLOCK : {
+                double value = 0.0;
+                if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
+                outOfRangeError(value,480,600);
+                int clockcpu = value;
+                if ((clockcpu != value) || (clockcpu & 3)) fatalErrorNum(50);
+                int clock176k=0,clock192k=0;
+                if ((res = searchDelimiter(&p, ","))) {
+                    if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
+                    outOfRangeError(value,480,600);
+                    clock176k = value;
+                    if ((clock176k != value) || (clock176k & 3)) fatalErrorNum(50);
+                    getDelimiterError(&p, ',',30);
+                    if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
+                    outOfRangeError(value,480,600);
+                    clock192k = value;
+                    if ((clock192k != value) || (clock192k & 3)) fatalErrorNum(50);
+                }
+                dsp_CLOCK(clockcpu,clock176k,clock192k);
+            }
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
@@ -1670,6 +1690,7 @@ void fatalError(){
     case -47: fprintf(stderr,"Error: IO max must be multiple of 8\n"); break;
     case -48: fprintf(stderr,"Error: too much \"(\"\n"); break;
     case -49: fprintf(stderr,"Error: cannot be used without a label name upfront\n"); break;
+    case -50: fprintf(stderr,"Error: CLOCK must be multiple of 4\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",*lineNum-1,line);
