@@ -875,7 +875,7 @@ nextline:
                     if ((clock192k != value) || (clock192k & 3)) fatalErrorNum(50);
                 }
                 dsp_CLOCK(clockcpu,clock176k,clock192k);
-            }
+                break; }
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
@@ -887,7 +887,6 @@ nextline:
                 dspprintf2("back to previous file, line %d\n",*lineNum);
                 goto nextline;
                 break; }
-
             case _include : {
                 gotoinclude:
                 if (fileNum >= (maxIncludedFiles-1)) fatalErrorNum(43);
@@ -1135,7 +1134,8 @@ nextline:
                 break; }
 
             case _delayone: {
-                dsp_DELAY_1(); break; }
+                dsp_DELAY_1(); 
+                break; }
             case _delaydpus:
             case _delayus: {
                 char * oldp = skipSpaces( &p);
@@ -1244,7 +1244,8 @@ nextline:
                 break; }
 
             case _integrator: {
-                dsp_INTEGRATOR(); break; }
+                dsp_INTEGRATOR(); 
+                break; }
             case _cicus: {
                 searchExpressionRangeError( &p, &delay, _tdelay );
                 dsp_CIC_FixedMicroSec( delay );
@@ -1340,6 +1341,7 @@ nextline:
                     else addCodeOffset(addr,ofs);
                     res = searchDelimiter( &p, ",");
                 } while(res);
+                break;
             }
             case _valuemem: { break; }
             case _gainmem: { break; }

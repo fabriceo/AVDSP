@@ -419,6 +419,10 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspHeaderPtr->freqMax   = dspMaxSamplingFreq;
     dspHeaderPtr->usedInputs  = 0;
     dspHeaderPtr->usedOutputs = 0;
+    dspHeaderPtr->clockcpu    = 0;
+    dspHeaderPtr->clock176k   = 0;
+    dspHeaderPtr->clock192k   = 0;
+
     setSerialHash(0);
     firstTileIndex = opcodeIndex();
     calcLength();
