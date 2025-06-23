@@ -282,18 +282,18 @@ typedef union opcode_u {
 
 
 //used at the very begining of the tile dsp program to store basic information
-typedef struct dspHeader_s {    // 11 words
+typedef struct dspHeader_s {    //
 /* 0 */     opcode_t head;      // marker
-/* 1 */     int   totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 16bytes boundary
-/* 2 */     int   dataSize;     // maximum required data space for executing the dsp program (in 32 bits words)
+/* 1 */     unsigned totalLength;  // the total length of the dsp program (in 32 bits words), rounded to upper 16bytes boundary
+/* 2 */     unsigned dataSize;     // maximum required data space for executing the dsp program (in 32 bits words)
 /* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program for this header only
 /* 4 */     unsigned numCores;     // number of cores/tasks declared in the dsp program (excluding external cores)
 /* 5 */     unsigned version;      // version of the encoder used MAJOR, MINOR,BUGFIX
-/* 6 */     unsigned short format;     // contains DSP_MANT used by encoder or 0 for float encoding (recomended)
-/*   */     unsigned short maxOpcode;  // last op code number used in this program (to check compatibility with runtime)
+/*   */     unsigned maxOpcode;  // highest op code number used in this program (to check compatibility with runtime)
+/* 6 */     unsigned format;     // contains DSP_MANT used by encoder or 0 for float encoding
+/* 9 */     unsigned mantissa2;    //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
 /* 7 */     unsigned freqMin;      // minimum frequency possible for this program
 /* 8 */     unsigned freqMax;      // maximum frequency possible for this program
-/* 9 */     unsigned mantissa2;    //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
 /* 10 */    unsigned long long usedInputs;    // bit mapping of all used inputs  (max 64 in this version)
 /* 12 */    unsigned long long usedOutputs;   // bit mapping of all used outputs (max 64 in this version)
 /* 14 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
@@ -301,7 +301,6 @@ typedef struct dspHeader_s {    // 11 words
 /* 16 */    unsigned clockcpu;      //clock in MHZ
 /* 17 */    unsigned clock176k;     //when spdif mode and 176k
 /* 18 */    unsigned clock192k;     //when spdif mode and 192k
-/* 19 */    unsigned externalcores; //
 } dspHeader_t;
 
 typedef struct dspSymbol_s {
