@@ -45,7 +45,7 @@ const char filterOrders[filterTypesNumber] = {
 
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK,
-    _end, _include, _param, _nop, _core, _section, _sectionelse, _coreextern,
+    _end, _include, _param, _nop, _core, _section, _sectionelse, _coreaes,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
@@ -62,7 +62,7 @@ enum keywords_e {
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK",
-    "end", "include", "param", "nop", "core", "section", "sectionelse", "coreextern",
+    "end", "include", "param", "nop", "core", "section", "sectionelse", "coreaes",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
@@ -930,32 +930,34 @@ nextline:
             case _section:
             case _sectionelse:
             case _core: 
-            case _coreextern: {
-                unsigned progAny1 = 0xFFFFFFFF;
-                unsigned progOnly0 = 0;
-                res = testExpression( &p, &input );
-                if (res) {
-                    if (res != _valueint) fatalErrorNum(11);
-                    progAny1 = input;
-                    res = searchDelimiter( &p, "," );
+            case _coreaes: {
+                int num=0;
+                do {        //multiple x,y condition accepted
+                    unsigned progAny1 = 0xFFFFFFFF;
+                    unsigned progOnly0 = 0;
+                    res = testExpression( &p, &input );
                     if (res) {
-                        res = searchExpression( &p, &input );
                         if (res != _valueint) fatalErrorNum(11);
-                        progOnly0 = input;
-                    } else fatalErrorNumIf(30,keyw == _coreextern);
-                } else fatalErrorNumIf(11,keyw == _coreextern);
-                if (keyw == _core) numCore = dsp_CORE_Prog(progAny1,progOnly0);  
-                if (keyw == _section) dsp_SECTION(progAny1,progOnly0);
-                if (keyw == _sectionelse) dsp_SECTION_ELSE(progAny1,progOnly0);
-                if (keyw == _coreextern) {
-                    numCore = dsp_CORE_EXTERN_Prog(progAny1,progOnly0);
-                    getDelimiterError(&p,',',30);
-                    do {
-                        res = searchExpressionRangeError(&p, &input, _tint32); 
-                        addCode(input);
+                        progAny1 = input;
+                        num++;
                         res = searchDelimiter( &p, "," );
-                    } while (res);
-                }
+                        if (res) {
+                            res = searchExpression( &p, &input );
+                            if (res != _valueint) fatalErrorNum(11);
+                            progOnly0 = input;
+                            num++;
+                        } 
+                    } 
+                    if (num <= 2) {
+                        if (keyw == _core) numCore = dsp_CORE_Prog(progAny1,progOnly0);  
+                        if (keyw == _section) dsp_SECTION(progAny1,progOnly0);
+                        if (keyw == _sectionelse) dsp_SECTION_ELSE(progAny1,progOnly0);
+                        if (keyw == _coreaes) dsp_CORE_EXTERN_Prog(progAny1,progOnly0);
+                    } else {
+                        addCode(progAny1); addCode(progOnly0);
+                    }
+                    res = (num & 1) ? 0 : searchDelimiter( &p, "," );
+                } while(res);
                 break; }
 
             case _tile : {  
@@ -1003,12 +1005,19 @@ nextline:
             case _output: {
                 unsigned int outcount;
                 unsigned int finalIO;
+                unsigned int out;
+                int breaking=0;
                 do {
                     outcount=0;
                     finalIO=0;
                     do {
-                        searchExpressionRangeError( &p, &output , _tIO );
-                        unsigned int out = output;   //convert to integer
+                        if (breaking == 0) {
+                            searchExpressionRangeError( &p, &output , _tIO );
+                            out = output;   //convert to integer
+                        } else {
+                            breaking = 0; out = 0; //from last loop
+                        }
+                        if ((out == 0) && (outcount)) { breaking = 1; break; }
                         finalIO |= (out << (8*outcount));
                         outcount++;
                         res = searchDelimiter( &p, "," );
@@ -1017,7 +1026,7 @@ nextline:
                     else  if (keyw == _outputpdf) dsp_STORE_TPDF( finalIO );
                     else  if (keyw == _outputvol) dsp_STORE_VOL( finalIO );
                     else dsp_STORE_VOL_SAT( finalIO );
-                } while(res);
+                } while(res || breaking);   //force an additional loop if "breaking" was used
                 break; }
 
             case _transfer: {

@@ -301,6 +301,7 @@ typedef struct dspHeader_s {    // 11 words
 /* 16 */    unsigned clockcpu;      //clock in MHZ
 /* 17 */    unsigned clock176k;     //when spdif mode and 176k
 /* 18 */    unsigned clock192k;     //when spdif mode and 192k
+/* 19 */    unsigned externalcores; //
 } dspHeader_t;
 
 typedef struct dspSymbol_s {
