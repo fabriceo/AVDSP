@@ -952,14 +952,14 @@ void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
     addOpcodeLengthPrint(DSP_SECTION);
     addCode(0);             //offset for jump (at least 4 !)
     addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
-    addCode(progOnly0);      //add a 32bit value representing compatibility of the code with 32 user programs
+    addCode(progOnly0);     //add a 32bit value representing compatibility of the code with 32 user programs
 }
 
 void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
     calcLength();   //used to print late data
     if (lastSectionProg == 0) dspFatalError("no SECTION identified before SECTION ELSE");
-    updateLastSection();
     int tmp = addSingleOpcodePrint(DSP_NOP);
+    updateLastSection();
     if (dspDataCounter != lastSectionData)
         dspprintf3("reinitialize data counter backward to %d\n",lastSectionData);
     dspDataCounter = lastSectionData;
