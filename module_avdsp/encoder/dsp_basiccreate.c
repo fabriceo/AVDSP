@@ -56,7 +56,7 @@ enum keywords_e {
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
-    _tile,_send,_receive,
+    _tile,_send,_receive,_fullload,
     _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_savemem,_loadmem,_valuemem,_mixermem,_gainmem,_inputmem,_inputgainmem,
     dspKeywordsNumber
 };
@@ -72,7 +72,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
-    "tile","send","receive",
+    "tile","send","receive","fullload",
     "clrmem","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","savemem","loadmem","valuemem","mixermem","gainmem","inputmem","inputgainmem",
 };
 
@@ -1356,6 +1356,10 @@ nextline:
             case _gainmem: { break; }
             case _inputmem: { break; }
             case _inputgainmem: { break; }
+
+            case _fullload: {
+                dsp_FULL_LOAD();
+            }
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then

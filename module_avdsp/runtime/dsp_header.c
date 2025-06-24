@@ -124,7 +124,8 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_INPUTMEM",
     "DSP_INPUTGAINMEM",
 
-    "DSP_CORE_EXTERN",
+    "DSP_CORE_AES",
+    "DSP_FULL_LOAD",
 
     "DSP_FLOAD",
     "DSP_FSTORE",
@@ -133,7 +134,6 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_FBIQUADS",
 
 /*
-    "DSP_OP109",
     "DSP_OP110",
     "DSP_OP111",
     "DSP_OP112",
@@ -171,7 +171,6 @@ void dspCalcSumCore(opcode_t * XCunsafe ptr, unsigned int * XCunsafe sum, int * 
     XCunsafe {
     *sum = 0;
     *numCore = 0;
-    unsigned int p = 0;
     while(1){
         enum dspOpcodesEnum code = ptr->op.opcode;
         int skip = ptr->op.skip;
@@ -183,12 +182,10 @@ void dspCalcSumCore(opcode_t * XCunsafe ptr, unsigned int * XCunsafe sum, int * 
         if ( ( *numCore == 0 ) &&   //any first opcode will generate a core
                 (code != DSP_HEADER) &&
                 (code != DSP_NOP) &&
-                (code != DSP_CORE_EXTERN) &&
+                (code != DSP_CORE_AES) &&
                 (code != DSP_PARAM) &&
                 (code != DSP_PARAM_NUM) )  *numCore = 1;
         *sum += ptr->u32;
-        p += skip;
-        if (p > maxcode) { dspprintf("BUGG in memory : p = %d, *p=0x%X\n",p,ptr->u32); break;}  // fatal issue
         ptr += skip;
     } // while(1)
 } }

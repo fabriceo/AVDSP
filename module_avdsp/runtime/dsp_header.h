@@ -171,17 +171,16 @@ enum dspOpcodesEnum {
     DSP_INPUTMEM,
     DSP_INPUTGAINMEM,   //102
 
-    DSP_CORE_EXTERN,    //103  same as DSP_CORE but to declare external core like spdif task
-
-    DSP_FLOAD,          //104   same as DSP_LOAD but converted to float ieee754
+    DSP_CORE_AES,       //103  same as DSP_CORE but to declare external core like spdif task
+    DSP_FULL_LOAD,
+    DSP_FLOAD,         //105   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,       //108
+    DSP_FBIQUADS,       //109
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
-    DSP_OP109,
     DSP_OP110,
     DSP_OP111,
     DSP_OP112,
