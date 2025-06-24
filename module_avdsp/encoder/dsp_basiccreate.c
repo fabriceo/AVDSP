@@ -1359,7 +1359,7 @@ nextline:
 
             case _fullload: {
                 dsp_FULL_LOAD();
-            }
+                break;}
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then
