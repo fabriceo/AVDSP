@@ -1068,10 +1068,9 @@ void dsp_FULL_LOAD(int IO) {
     checkIOmax(IO);
     if (IO<64) usedOutputs |= 1ULL<<IO;
     if (IO<64) usedOutputsCore |= 1ULL<<IO;
-    addCode(IO);
-    calcLength();
     dspout("   dsp_FULL_LOAD();\n");
-    int tmp = addSingleOpcodePrint(DSP_FULL_LOAD); 
+    int tmp = addOpcodeLengthPrint(DSP_FULL_LOAD); 
+    addCode(IO);
     int size = opcodePtr(lastCoreIndex)->op.skip;
     int start = lastCoreIndex+size;
     if (tmp != start) dspFatalError("dsp_FULL_LOAD must be first instruction in a core ");
