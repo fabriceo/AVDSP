@@ -500,10 +500,11 @@ int dsp_IOMAX(int iomax) {
     return 1;
 }
 
-int dsp_CLOCK(int cpu, int k176, int k192) {
+int dsp_CLOCK(int cpu, int k176, int k192, int prio) {
     dspHeaderPtr->clockcpu = cpu * 1000000;
     dspHeaderPtr->clock176k = k176 * 1000000;
     dspHeaderPtr->clock192k = k192 * 1000000;
+    dspHeaderPtr->coreaesprio = prio;
     return 1;
 }
 

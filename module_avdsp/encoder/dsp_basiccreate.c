@@ -862,7 +862,7 @@ nextline:
                 outOfRangeError(value,480,600);
                 int clockcpu = value;
                 if ((clockcpu != value) || (clockcpu & 3)) fatalErrorNum(50);
-                int clock176k=0,clock192k=0;
+                int clock176k=0,clock192k=0,prio=0;
                 if ((res = searchDelimiter(&p, ","))) {
                     if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                     outOfRangeError(value,480,600);
@@ -873,8 +873,13 @@ nextline:
                     outOfRangeError(value,480,600);
                     clock192k = value;
                     if ((clock192k != value) || (clock192k & 3)) fatalErrorNum(50);
+                    if ((res = searchDelimiter(&p, ","))) {
+                        if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
+                        outOfRangeError(value,0,3);
+                        prio=value;
+                    }
                 }
-                dsp_CLOCK(clockcpu,clock176k,clock192k);
+                dsp_CLOCK(clockcpu,clock176k,clock192k,prio);
                 break; }
             case _end:   { 
                 if (fileNum==0) goto finished; 
