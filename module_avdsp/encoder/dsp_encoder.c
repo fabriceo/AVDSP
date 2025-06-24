@@ -1065,17 +1065,16 @@ int dsp_FUNC_MEM(int op, int paramAddr) {
 
 
 void dsp_FULL_LOAD(int IO) {
-    calcLength();
     checkIOmax(IO);
     if (IO<64) usedOutputs |= 1ULL<<IO;
     if (IO<64) usedOutputsCore |= 1ULL<<IO;
-
+    addCode(IO);
+    calcLength();
     dspout("   dsp_FULL_LOAD();\n");
     int tmp = addSingleOpcodePrint(DSP_FULL_LOAD); 
     int size = opcodePtr(lastCoreIndex)->op.skip;
     int start = lastCoreIndex+size;
     if (tmp != start) dspFatalError("dsp_FULL_LOAD must be first instruction in a core ");
-    addCode(IO);
 }
 
 
