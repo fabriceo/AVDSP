@@ -1358,7 +1358,8 @@ nextline:
             case _inputgainmem: { break; }
 
             case _fullload: {
-                dsp_FULL_LOAD();
+                searchExpressionRangeError( &p, &input, _tIO  );
+                dsp_FULL_LOAD(input);
                 break;}
 
 //end of dsp keywords

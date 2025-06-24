@@ -58,7 +58,7 @@ int  addDataSpaceAligned8(int size);
  int  dsg_CORE_num();   //return current number of the dspcore
  int  dsp_CORE_Prog(unsigned progAny1, unsigned progAny0);
  int dsp_CORE_EXTERN_Prog(unsigned progAny1, unsigned progAny0);
- void dsp_FULL_LOAD();
+ void dsp_FULL_LOAD(int IO);
  void dsp_NOP();
  void dsp_SECTION(unsigned progAny1, unsigned progAny0);
  void dsp_SECTION_ELSE(unsigned progAny1, unsigned progAny0);
