@@ -1363,9 +1363,11 @@ nextline:
             case _inputgainmem: { break; }
 
             case _fullload: {
-                searchExpressionRangeError( &p, &input, _tIO  );
+                res = testExpression( &p, &input);
+                if (res == _empty) input = 0.0;
+                else outOfRangeError(input,8,16);
                 dsp_FULL_LOAD(input);
-                break;}
+                break; }
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then

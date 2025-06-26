@@ -158,8 +158,8 @@ int addCodeOffset(int index, int base){
 // add a word in the opcode table reresenting the data offset where a space is reserved
 static int addDataSpace(int size) {
     int tmp = dspDataCounter;
-    addCode(dspDataCounter - lastCoreData);              // store the current data index value pointing on the next spare data space
-    dspDataCounter += size;               // simulate consumption the expected data space
+    addCode(dspDataCounter - lastCoreData);     // store the current data index value pointing on the next spare data space
+    dspDataCounter += size;                     // simulate consumption the expected data space
     return tmp;
 }
 
@@ -388,7 +388,6 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspDumpStarted        = 0;
     ALUformat             = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex         = 0;
-    lastCoreData          = dspDataCounter;    //will be set anyway when a DSP_CORE is generated
     lastCoreNum           = 0;
     lastCoreOpcode        = 0;
     maxParamValue         = 0.0;
@@ -617,7 +616,9 @@ static void updateLastSection(){
         int data = dspDataCounter - lastSectionData;
         if (dspDataCounter > lastSectionDataMax) lastSectionDataMax = dspDataCounter;
         dspDataCounter = lastSectionDataMax;
-        dspprintf3("previous section data used %d,  dspDataCounter set to %d\n",data,dspDataCounter);
+        calcLength();
+        printLastOpcodes();
+        dspprintf3("DSP_SECTION END : data used %d,  dspDataCounter set to %d\n",data,dspDataCounter);
     } 
     if (lastSectionElse) {
 
@@ -625,7 +626,7 @@ static void updateLastSection(){
         int ofs = opcodeIndex() - lastSectionElse;
         if (opcodePtr(lastSectionElse)->op.opcode == DSP_NOP) {
             opcodePtr(lastSectionElse)->op.skip = ofs;
-            dspprintf3("Patching DSP_NOP at %d with ofset %d\n",lastSectionElse,ofs);
+            dspprintf3("DSP_SECTION ELSE Patching DSP_NOP at %d with ofset %d => %d\n",lastSectionElse,ofs,lastSectionElse+ofs);
         }
         lastSectionElse = 0;
     }
@@ -637,7 +638,9 @@ static void updateLastSection(){
             int ofs = opcodeIndex() - lastSectionProg;
             //printf("old= %d, new = %d\n",*ptr,ofs);
             *ptr = ofs;
-            dspprintf3("Patching DSP_SECTION at %d with ofset %d\n",lastSectionProg,ofs);
+            calcLength();
+            printLastOpcodes(); //
+            dspprintf3("DSP_SECTION Patching at %d with ofset %d => %d\n\n",lastSectionProg,ofs,lastSectionProg+ofs);
         }
         lastSectionProg = 0;
     } 
@@ -942,18 +945,17 @@ int dsp_CORE_num() {
 }
 
 void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
-    calcLength();   //used to print late data
+    calcLength();
+    check_dsp_CORE();
     updateLastSection();
     lastSectionData    = dspDataCounter;
     lastSectionDataMax = dspDataCounter;
-    dspprintf3("initial datacounter %d\n",lastSectionData);
-    int tmp = opcodeIndex();
     if ((progAny1 == 0xFFFFFFFF) && (progOnly0 == 0)) return;
-    lastSectionProg = tmp;
-    addOpcodeLengthPrint(DSP_SECTION);
+    lastSectionProg = addOpcodeLengthPrint(DSP_SECTION);
     addCode(0);             //offset for jump (at least 4 !)
     addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
     addCode(progOnly0);     //add a 32bit value representing compatibility of the code with 32 user programs
+    dspprintf3("DSP_SECTION : initial datacounter %d\n",lastSectionData);
 }
 
 void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
@@ -961,8 +963,7 @@ void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
     if (lastSectionProg == 0) dspFatalError("no SECTION identified before SECTION ELSE");
     int tmp = addSingleOpcodePrint(DSP_NOP);
     updateLastSection();
-    if (dspDataCounter != lastSectionData)
-        dspprintf3("reinitialize data counter backward to %d\n",lastSectionData);
+    dspprintf3("DSP_SECTION ELSE : reinitialize datacounter %d\n",lastSectionData);
     dspDataCounter = lastSectionData;
     int old = lastSectionDataMax;
     dsp_SECTION(progAny1,progOnly0);
@@ -1606,9 +1607,11 @@ static void dsp_DELAY_(int paramAddr, int opcode){
     int tmp = addOpcodeLengthPrint(opcode);
     int size = opcodePtr(paramAddr)->i32;       // get max delay line in samples
     addCode(size);                              // store the max size of the delay line for runtime to check due to user potential changes
-    if (opcode == DSP_DELAY_DP)
-         addDataSpaceMisAligned8(size*2+1);      // now we can request the data space
-    else addDataSpace(size+1);
+    if (size) {
+        if (opcode == DSP_DELAY_DP)
+            addDataSpaceMisAligned8(size*2+1);      // now we can request the data space
+        else addDataSpace(size+1);
+    } else addCode(0);
     addCodeOffset(paramAddr, tmp);              // point on where is the delay in uSec
 }
 
@@ -1695,14 +1698,16 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     dspprintf2("    DELAY %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
     addCode(microSec);  // store the expected delay in uSec
     int data;
-    if (DP == 1 ) {
-        data = addDataSpace(1 + maxSamples); // request data space (including index) and store the pointer
-         if (opcode == DSP_DELAY) dspout("   dsp_DELAY(%d,%d,%d);\n",microSec,data,maxSamples);
-         else dspout("//dsp_DELAY_FB_MIX(..); //TODO\n");
-    } else {
-        data = addDataSpaceMisAligned8(1 + maxSamples*2);
-        dspout("   dsp_DELAY_DP(%d,%d,%d);\n",microSec,data,maxSamples);
-    }
+    if (maxSamples) {
+        if (DP == 1 ) {
+            data = addDataSpace(1 + maxSamples); // request data space (including index) and store the pointer
+            if (opcode == DSP_DELAY) dspout("   dsp_DELAY(%d,%d,%d);\n",microSec,data,maxSamples);
+            else dspout("//dsp_DELAY_FB_MIX(..); //TODO\n");
+        } else {
+            data = addDataSpaceMisAligned8(1 + maxSamples*2);
+            dspout("   dsp_DELAY_DP(%d,%d,%d);\n",microSec,data,maxSamples);
+        }
+    } else addCode(0);
     addCode(0); // this will indicate to runtime that this is a fixed delay line.
 }
 
