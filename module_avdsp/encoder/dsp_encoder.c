@@ -166,7 +166,7 @@ static int addDataSpace(int size) {
 // same as above but push the data index by one if needed
 // so that the data adress is alligned on 8 bytes boundaries
 int addDataSpaceAligned8(int size) {
-    if(dspDataCounter & 1) dspDataCounter++;
+    dspDataCounter += (dspDataCounter & 1);
     return addDataSpace(size);                 // store the current data index
 }
 
@@ -582,15 +582,14 @@ static int checkInParamSpaceOpcode(int index, int size, int opcode){
 static void updateLastCoreIOs(){
     if (lastCoreIndex) {
         int * ptr = (int *)opcodePtr(lastCoreIndex);
-        ptr++;  // point on usedInputs
-        *(ptr++) = usedInputsCore & 0xFFFFFFFF;
-        *(ptr++) = usedOutputsCore & 0xFFFFFFFF;
+        ptr[1] = usedInputsCore  & 0xFFFFFFFF;
+        ptr[2] = usedOutputsCore & 0xFFFFFFFF;
         //for compatibility with previous version
-        *(ptr++) = usedInputsCore >>32;
-        *(ptr++) = usedOutputsCore >>32;
+        ptr[3] = usedInputsCore  >>32;
+        ptr[4] = usedOutputsCore >>32;
         //compute size of data used in this core
-        if(dspDataCounter & 1) dspDataCounter++;
-        (*ptr)   = dspDataCounter - lastCoreData; 
+        dspDataCounter += (dspDataCounter & 1);
+        ptr[5]   = dspDataCounter - lastCoreData; 
         lastCoreIndex = 0;
     }
 }
@@ -922,7 +921,8 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
     lastCoreOpcode = opcode;
     lastCoreIndex  = tmp;
-    lastCoreData   = dspDataCounter;
+    dspDataCounter += (dspDataCounter & 1); //round up
+    lastCoreData   = dspDataCounter;        
     addCode(0);addCode(0);addCode(0);addCode(0); // space for 4 words for input output tracking
     addCode(0);             // space for dataSize
     addCode(progAny1);      // add a 32bit value representing compatibility of the code with 32 user programs
