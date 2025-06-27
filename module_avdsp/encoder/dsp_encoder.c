@@ -202,6 +202,9 @@ static void printLastOpcodes() {
     printFromCurrentIndex();
 }
 
+void dspPrintPending() {
+    printLastOpcodes();
+}
 
 // verify if we are within a PARAM or PARAM_NUM section
 static void checkInParamNum(){
@@ -580,14 +583,14 @@ static void updateLastCoreIOs(){
     if (lastCoreIndex) {
         int * ptr = (int *)opcodePtr(lastCoreIndex);
         ptr++;  // point on usedInputs
-        *ptr++ = usedInputsCore & 0xFFFFFFFF;
-        *ptr++ = usedOutputsCore & 0xFFFFFFFF;
+        *(ptr++) = usedInputsCore & 0xFFFFFFFF;
+        *(ptr++) = usedOutputsCore & 0xFFFFFFFF;
         //for compatibility with previous version
-        *ptr++ = usedInputsCore >>32;
-        *ptr++ = usedOutputsCore >>32;
+        *(ptr++) = usedInputsCore >>32;
+        *(ptr++) = usedOutputsCore >>32;
         //compute size of data used in this core
         if(dspDataCounter & 1) dspDataCounter++;
-        *ptr   = dspDataCounter - lastCoreData; 
+        (*ptr)   = dspDataCounter - lastCoreData; 
         lastCoreIndex = 0;
     }
 }

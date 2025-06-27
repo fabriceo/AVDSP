@@ -44,6 +44,7 @@ int dspOutFileIsOpen(){
     return (dspOutFile != NULL);
 }
 int dspOutFileCreate(){
+    return -1;
     if (dspOutFileName == NULL) return -1;
     if (dspOutFileName[0] == 0) return -1;
     if (dspOutFile) return 0;

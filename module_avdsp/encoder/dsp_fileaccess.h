@@ -17,7 +17,8 @@ extern FILE* dspFileDump;
 #define dumpprintf(...) fprintf(dspFileDump, __VA_ARGS__)
 extern FILE * dspOutFile;
 extern char * dspOutFileName;
-#define dspout(...) do { if (dspOutFile) fprintf(dspOutFile,__VA_ARGS__); } while(0)
+#define dspout(...) do {} while (0)
+//do { if (dspOutFile) fprintf(dspOutFile,__VA_ARGS__); } while(0)
 
 // open a file for reading, either in binary "rb" or text "r"
 extern int dspfopenRead(char * mode);

@@ -152,7 +152,7 @@ enum dspOpcodesEnum {
     DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
     DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
 
-    DSP_CLRMEM = 85,         //these functions extends the possibilities already offered with Y accumulator
+    DSP_MEMCLR = 85,         //these functions extends the possibilities already offered with Y accumulator
     DSP_SWAPMEM,
     DSP_ADDMEM,
     DSP_MEMADD,
@@ -165,22 +165,22 @@ enum dspOpcodesEnum {
     DSP_MEMNEG,
     DSP_SAVEMEM,
     DSP_LOADMEM,
-    DSP_VALUEMEM,
+    DSP_MEMVALUE,
     DSP_MIXERMEM,
-    DSP_GAIN_MEM,
-    DSP_INPUTMEM,
-    DSP_INPUTGAINMEM,   //102
+    DSP_MEMGAIN,
+    DSP_MEMINPUT,
 
-    DSP_CORE_AES,       //103  same as DSP_CORE but to declare external core like spdif task
+    DSP_CORE_AES,       //102  same as DSP_CORE but to declare external core like spdif task
     DSP_FULL_LOAD,
-    DSP_FLOAD,         //105   same as DSP_LOAD but converted to float ieee754
+    DSP_FLOAD,         //104   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,       //109
+    DSP_FBIQUADS,       //108
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
+    DSP_OP109,
     DSP_OP110,
     DSP_OP111,
     DSP_OP112,

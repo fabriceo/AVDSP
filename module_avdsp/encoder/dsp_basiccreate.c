@@ -57,7 +57,8 @@ enum keywords_e {
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
     _tile,_send,_receive,_fullload,
-    _clrmem,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_savemem,_loadmem,_valuemem,_mixermem,_gainmem,_inputmem,_inputgainmem,
+    _memclr,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_memsave,_loadmem,
+    _memvalue,_mixermem,_memgain,_meminput,
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
@@ -73,7 +74,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
     "tile","send","receive","fullload",
-    "clrmem","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","savemem","loadmem","valuemem","mixermem","gainmem","inputmem","inputgainmem",
+    "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem","memvalue","mixermem","memgain","meminput",
 };
 
 enum paramkeywords_e {
@@ -674,7 +675,9 @@ static char * skipSpaces(char * * s){
         errPtr = *s;
         if (isCharEOL(**s)==0) fatalErrorNum(32);
         if (fgetLine()) {
+            (*lineNum)++;
             *s = line;
+            errPtr = *s;
             continue;   //while 1
         } 
         line[0] = 0;
@@ -692,7 +695,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int fileNum = 0;    //depth for included files
     dspInput = dspInputArray;
     lineNum = lineNumArray;
-    *lineNum = 0;
+    (*lineNum) = 0;
     char * nextName = dspbasicName;
     int size = 0;
     int numCore = 1;
@@ -737,14 +740,14 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
 
     while (1) {
 nextline:
-        if (*lineNum == 0) {
+        if ((*lineNum) == 0) {
             //analyse all the parameters given on the command line
             if (countarg != argc) {
                 strcpy(line, argv[countarg]);
                 dspprintf1("option %d %s\n",countarg,line);
                 countarg++;
             } else 
-                *lineNum = 1;
+                (*lineNum) = 1;
         }
         if (*lineNum) {
             //read next line
@@ -901,7 +904,7 @@ nextline:
                 fileNum ++;
                 lineNum++;
                 dspInput++;
-                *lineNum = 1;
+                (*lineNum) = 1;
                 nextName = str;
                 goto nextfile;  //restart by opening the next file name
                 break; }
@@ -1329,7 +1332,7 @@ nextline:
                 usedLabelInTile(drcout);
                 break; }
 
-            case _clrmem:   //fallthrough voluntary
+            case _memclr:   //fallthrough voluntary
             case _swapmem:
             case _memadd:
             case _memsub:
@@ -1338,9 +1341,9 @@ nextline:
             case _avgmem:
             case _memavg:
             case _memneg:
-            case _savemem:
+            case _memsave:
             case _loadmem: {
-                int op = (keyw - _clrmem) + DSP_CLRMEM;
+                int op = (keyw - _memclr) + DSP_MEMCLR;
                 int addr = getLabelMemory(&p);
                 dsp_FUNC_MEM(op, addr);
                 break; }
@@ -1351,16 +1354,29 @@ nextline:
                 int ofs = 0;
                 do {
                     int addr = getLabelMemory(&p);
-                    if (ofs == 0) ofs = dsp_FUNC_MEM((keyw - _clrmem) + DSP_CLRMEM, addr);
+                    if (ofs == 0) ofs = dsp_FUNC_MEM((keyw - _memclr) + DSP_MEMCLR, addr);
                     else addCodeOffset(addr,ofs);
                     res = searchDelimiter( &p, ",");
                 } while(res);
                 break;
             }
-            case _valuemem: { break; }
-            case _gainmem: { break; }
-            case _inputmem: { break; }
-            case _inputgainmem: { break; }
+            case _memvalue: 
+            case _memgain: { 
+                int addr = getLabelMemory(&p); 
+                getDelimiterError(&p, ',', 30);
+                double result;
+                searchExpressionRangeError( &p, &result, _tvalue32);
+                if (keyw == _memvalue) dsp_FUNC_MEM(DSP_MEMVALUE,addr);
+                if (keyw == _memgain)  dsp_FUNC_MEM(DSP_MEMGAIN,addr);
+                addGainCodeQNM(result);
+                break; }
+            case _meminput: { 
+                int addr = getLabelMemory(&p); 
+                getDelimiterError(&p, ',', 30);
+                searchExpressionRangeError( &p, &input, _tIO  );
+                dsp_FUNC_MEM(DSP_MEMINPUT,addr);
+                addCode(input);
+                break; }
 
             case _fullload: {
                 res = testExpression( &p, &input);
@@ -1633,7 +1649,7 @@ nextline:
             } //end of switch keyw
             //dspprintf1("looking next instruction\n");
             //an instruction has been processed now go for next
-            if (*lineNum > 0) {
+            if ((*lineNum) > 0) {
                 getSeparatorEOLError(&p);
             }
         } // while(*p)
@@ -1662,6 +1678,7 @@ static void fatalErrorNumIf(int num, int cond) {
 
 
 void fatalError(){
+    dspPrintPending();
     if (errNum > 0) errNum = - errNum;
     switch (errNum) {
     case -1:  fprintf(stderr,"Error: numerical value expected\n"); break;
@@ -1716,11 +1733,11 @@ void fatalError(){
     case -50: fprintf(stderr,"Error: CLOCK must be multiple of 4\n"); break;
     default: break;
     }
-    fprintf(stderr,"l%d: %s",*lineNum-1,line);
-    fprintf(stderr,"l%d: ",*lineNum-1);
+    fprintf(stderr,"l%d: %s",(*lineNum)-1,line);
+    fprintf(stderr,"l%d: ",(*lineNum)-1);
     char *q = line;
     while (isSpaceOrTab(*errPtr)) errPtr++;
-    while (q != errPtr) { fprintf(stderr,"%c",((*q==9) ? *q : ' ')); q++; }
+    while (q != errPtr) { fprintf(stderr,"%c",(((*q)==9) ? *q : ' ')); q++; }
     fprintf(stderr,"^\n");
     freeAllLabels();
     fclose(*dspInput);

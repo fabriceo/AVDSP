@@ -105,7 +105,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_DRC_EXPANDER",
     "DSP_DRC_NOISE_GATE",
 
-    "DSP_CLRMEM",
+    "DSP_MEMCLR",
     "DSP_SWAPMEM",
     "DSP_ADDMEM",
     "DSP_MEMADD",
@@ -118,11 +118,10 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_NEGMEM",
     "DSP_SAVEMEM",
     "DSP_LOADMEM",
-    "DSP_VALUEMEM",
+    "DSP_MEMVALUE",
     "DSP_MIXERMEM",
-    "DSP_GAIN_MEM",
-    "DSP_INPUTMEM",
-    "DSP_INPUTGAINMEM",
+    "DSP_MEMGAIN",
+    "DSP_MEMINPUT",
 
     "DSP_CORE_AES",
     "DSP_FULL_LOAD",

@@ -160,7 +160,7 @@ int  addDataSpaceAligned8(int size);
 // initialize an area of data (biquad, gain, delay line, matrix...)
  int  dsp_PARAM();
  int  dsp_PARAM_NUM(int num);
-
+ void dspPrintPending();
  int  dspDataTableInt(int * data, int n);
  int  dspDataTableFloat(float * data, int n);
  int  dspData2(int a,int b);
