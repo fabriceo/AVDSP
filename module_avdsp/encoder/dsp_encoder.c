@@ -1687,7 +1687,6 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
 static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     int DP = 1;
     if (opcode == DSP_DELAY_DP) { DP = 2; ALUformat = 1; } else ALUformat = 0;
-    addOpcodeLengthPrint(opcode);
     unsigned long long delayLineFactor = dspTableDelayFactor[dspMaxSamplingFreq];
     unsigned long long maxSamples_ = (delayLineFactor * microSec);
     maxSamples_ >>= 32;
@@ -1700,6 +1699,7 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     int fslo = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
     dspprintf2("    DELAY %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
     if (maxSamples) {
+        addOpcodeLengthPrint(opcode);
         addCode(microSec);  // store the expected delay in uSec
         int data;
         if (DP == 1 ) {
@@ -1710,10 +1710,8 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
             data = addDataSpaceMisAligned8(1 + maxSamples*2);
             dspout("   dsp_DELAY_DP(%d,%d,%d);\n",microSec,data,maxSamples);
         }
-    } else {
-        addCode(0);addCode(0);
-    }
-    addCode(0); // this will indicate to runtime that this is a fixed delay line.
+        addCode(0); // this will indicate to runtime that this is a fixed delay line.
+    } 
 }
 
 void dsp_DELAY_FixedMicroSec(int microSec){
