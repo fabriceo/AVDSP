@@ -769,10 +769,6 @@ nextline:
         }
         double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         char * p = line;   //pointer on the character to analyse
-        if (ifcondition == 2) {
-            ifcondition = 1;
-            dspprintf3("L%d: IF condition back to 1\n",(*lineNum)-1);
-        }
         //main loop to analyse the line
         while (*p ) {
             //skip any spaces or tab
@@ -796,9 +792,10 @@ nextline:
             fatalErrorNumIf( 6, isLetter( *p ) == 0 );
             int res;
             int keyw = searchKeywords( &p, dspKeywords, dspKeywordsNumber);
-            if (ifcondition != 1) {
-                if (keyw == _if) ifcondition = 1;
-                else goto nextline;
+            if (ifcondition == 0) {
+                if (keyw == _if) {
+                    ifcondition = 1;
+                } else goto nextline;
             }
             if (keyw > _param) clearParamSection();
             switch(keyw) {
@@ -952,9 +949,10 @@ nextline:
                     skipSpacesBasic(&p);
                     res = testDelimiter( &p, "#\r\n\01" );
                     if (res == 0) { 
-                        ifcondition = 2;
-                        dspprintf3("L%d: IF condition 2, ignoring only this line %s",(*lineNum)-1,p);
-                    } else dspprintf3("L%d: IF condition 0, ignoring all next lines\n",(*lineNum)-1);
+                        dspprintf3("L%d: IF condition 0, ignoring only this line %s",(*lineNum)-1,p);
+                        ifcondition = 1;
+                    } else 
+                        dspprintf3("L%d: IF condition 0, ignoring all next lines\n",(*lineNum)-1);
                     goto nextline;
                 } else {
                     dspprintf3("L%d: IF condition 1\n",(*lineNum)-1);
