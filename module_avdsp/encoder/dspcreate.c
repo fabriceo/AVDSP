@@ -1,6 +1,6 @@
 
 /*
- * this program is for testing the encode with a user dsp program
+ * this program is for testing the encoder with a user dsp program
  * can be compiled directly on any platfform with gcc (install mingw64 for windows)
  * launch make -f dspcreate.mak all
  *
@@ -52,13 +52,15 @@ int main(int argc, char **argv) {
     char *dspbasicProgName = NULL;
     int outFileType = 0;
     int defaultType = DSP_FORMAT_FLOAT;
-    int i,size;
+    int i,size=0;
 
     opcode_t opcodes[opcodesMax];       // temporary table for dsp code
     const int max = opcodesMax;
 
+#ifndef NODYLIB
     int (*dspProg)(int argc, char **argv);
     void *dspproglib;
+#endif
 
     for (i=1; i<argc; i++) {
         // basic parameters handling for file outputs and encoder format
@@ -165,7 +167,7 @@ int main(int argc, char **argv) {
 	usage();
 	exit(-1);
     }
-
+#ifndef NODYLIB
     if (!( dspproglib = dlopen (dspProgName, RTLD_LAZY))) {
     	fprintf(stderr,"Could not load %s\n",dspProgName);
      usage();
@@ -176,7 +178,6 @@ int main(int argc, char **argv) {
      dlclose (dspproglib);
      exit (-1);
     }
-
     dspEncoderInit( opcodes,            // table where we store the generated opcodes
                     max,                // max number of words in this table
                     defaultType,        // format of the dsp : int64, float or double (see runtime.h)
@@ -184,6 +185,7 @@ int main(int argc, char **argv) {
                     inputOutputMax);    // number of I/O that can be used in the Load & Store instruction (represent ADC + DAC)
 
 	size = dspProg(argc-i,&argv[i]);     
+#endif
     }
 
     if (size > 0) {

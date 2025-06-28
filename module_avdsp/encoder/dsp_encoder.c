@@ -554,6 +554,7 @@ static int checkInParamSpace(int index, int size){
         int code = cptr->op.opcode;
         int skip = cptr->op.skip;
         int add = 0;
+        //dspprintf3("%d: opcode %d, skip %d\n",pos,code,skip);
         if (code == DSP_PARAM)     add = 1; // position of the first parameter
         if (code == DSP_PARAM_NUM) add = 2; // position of the first parameter following the PARAM_NUM value
         if (add) {
@@ -1711,8 +1712,9 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
         }
         addCode(0); // this will indicate to runtime that this is a fixed delay line.
     } 
+    if (opcode != DSP_DELAY_FB_MIX)
         calcLength();
-        dspprintf2("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText[opcode], microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
+    dspprintf2("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText[opcode], microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
 
 }
 
@@ -1835,8 +1837,9 @@ int dspGenerator_Sine(int samples){
 int dsp_BIQUADS(int paramAddr){
     ALUformat = 1;
     int base = addOpcodeLengthPrint(dspMant?DSP_BIQUADS:DSP_FBIQUADS);
-    checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
+//    checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
+    //dspprintf3("biquad filter expected in param area at %d with %d sections\n",paramAddr,num);
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
     int addrValue = addDataSpaceAligned8(num*(dspMant?6:8));  // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
     dspout("   dsp_BIQUADS(&%s,%d,%d,%d); //TODO\n",dspOutLabelName,num,addrValue,num*6);

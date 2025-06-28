@@ -1271,6 +1271,7 @@ nextline:
                 if ( (l->s.type != label_filter)&&(l->s.type != label_filters)&&(l->s.type != label_filter8) ) fatalErrorNum(3);
                 usedLabelInTile(l);
                 dspOutLabelName = l->s.name;
+                dspprintf3("biquad filter %s, %d\n",dspOutLabelName,l->s.address);
                 if ((l->s.type == label_filter)&&(dspModeDynamic==0)) dsp_BIQUADS( l->s.address );
                 else dsp_BIQUADS_FS( l->s.address );
                 break; }
