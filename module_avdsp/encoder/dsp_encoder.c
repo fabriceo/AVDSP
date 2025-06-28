@@ -1697,7 +1697,6 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     unsigned minSamples = minSamples_;
     int fshi = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
     int fslo = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
-    dspprintf2("    DELAY %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
     if (maxSamples) {
         addOpcodeLengthPrint(opcode);
         addCode(microSec);  // store the expected delay in uSec
@@ -1712,6 +1711,9 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
         }
         addCode(0); // this will indicate to runtime that this is a fixed delay line.
     } 
+        calcLength();
+        dspprintf2("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText[opcode], microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
+
 }
 
 void dsp_DELAY_FixedMicroSec(int microSec){

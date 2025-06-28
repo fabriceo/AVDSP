@@ -45,7 +45,7 @@ const char filterOrders[filterTypesNumber] = {
 
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK,
-    _end, _include, _param, _nop, _core, _section, _sectionelse, _coreaes,
+    _end, _include, _if, _param, _nop, _core, _section, _sectionelse, _coreaes,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
@@ -63,7 +63,7 @@ enum keywords_e {
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK",
-    "end", "include", "param", "nop", "core", "section", "sectionelse", "coreaes",
+    "end", "include", "if", "param", "nop", "core", "section", "sectionelse", "coreaes",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
@@ -613,9 +613,10 @@ static int searchExpressionRangeError(char * * s, double * value, int range){
     int res = searchExpression( s , value );
     if (range != _tnone) { 
         if ((res != _valueint) && 
-            ((range == _tIO) || (range == _tmem)|| (range == _ttpdf)|| (range == _tint32)|| (range == _tshift))) fatalErrorNum(11);
+            ((range == _tIO) || (range == _tmem)|| (range == _ttpdf)|| (range == _tint32)|| (range == _tshift)|| (range == _ttile)|| (range == _tmant)|| (range == _tmant2))) fatalErrorNum(11);
         outOfRangeError( *value, valueMin[range], valueMax[range]);
-    }
+    } 
+
     return res;
 }
 
@@ -624,7 +625,7 @@ static void replaceExpressions( char * * s) {
     int res;
     while ((res = goAfterDelimiter(s, "["))) {
         double value = 0;
-        char * begin = *s -1;  //begining of the experssion just after []
+        char * begin = *s -1;  //begining of the expression just after []
         res = searchExpression(s, &value);
         getDelimiterError( s, ']', 26);
         char * end = *s;     //point on the ]
@@ -702,6 +703,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     if (numCore) {} //just to please compiler
     int dspModeDynamic = 0;
     int tapsinclude = 0;
+    int ifcondition = 1;
 
     dspOutFileInit(dspoutfilename,dspoutheader);
     while (nextName && (*nextName)) {
@@ -774,7 +776,7 @@ nextline:
             if ( isSpaceOrTab(*p) || ((*p==';')) ) { p++; continue; }
             else errPtr = p;
             //check special case '#-' as a prefix for printable comments
-            if ( (p[0] == '#') && (p[1] == '-') ) {
+            if ( ifcondition && (p[0] == '#') && (p[1] == '-') ) {
                 p += 2;
                 char * line = p;
                 replaceExpressions( &p );
@@ -791,6 +793,10 @@ nextline:
             fatalErrorNumIf( 6, isLetter( *p ) == 0 );
             int res;
             int keyw = searchKeywords( &p, dspKeywords, dspKeywordsNumber);
+            if (ifcondition == 0) {
+                if (keyw == _if) ifcondition = 1;
+                else goto nextline;
+            }
             if (keyw > _param) clearParamSection();
             switch(keyw) {
             case _DSPFSMIN : 
@@ -909,6 +915,46 @@ nextline:
                 goto nextfile;  //restart by opening the next file name
                 break; }
 
+            case _if : {
+                skipSpacesBasic(&p);
+                res = testDelimiter( &p, ";#\r\n\01" );
+                if (res) {
+                    if (res>=32) p--;
+                    ifcondition = 1; //end of line found : everything is now accepted
+                } else {
+                    double value;
+                    getDelimiterError( &p, '(', 51);
+                    res = searchExpressionRangeError( &p, &value,_tint32);
+                    int var = value;
+                    int num=0;
+                    int cond=0;
+                    while ((searchDelimiter( &p, ","))) {
+                        res = searchExpressionRangeError( &p, &value,_tint32);
+                        if (res != _valueint) fatalErrorNum(2);
+                        int val = value;
+                        if (num & 1) {
+                            if (var & val) cond &= 0xFFFFFFFE;
+                            else if (cond & 1) cond |= 2;
+                        } else {
+                            if (var & val) cond |= 1;
+                        }
+                        num++;
+                    }
+                    getDelimiterError( &p, ')', 29);
+                    if (num) ifcondition = (cond ? 1 : 0);
+                    else 
+                        ifcondition = var ? 1 : 0;
+                }
+                if (ifcondition == 0) {
+                    skipSpacesBasic(&p);
+                    res = testDelimiter( &p, "#\r\n\01" );
+                    if (res == 0) { dspprintf3("L%d: IF condition 0, ignoring next lines and %s",(*lineNum)-1,p);
+                    } else dspprintf3("L%d: IF condition 0, ignoring next lines\n",(*lineNum)-1);
+                    goto nextline;
+                } else {
+                    dspprintf3("L%d: IF condition %d\n",(*lineNum)-1,ifcondition);
+                    continue; }
+                break;}
             case _param: {
                 res = testExpression( &p, &input );
                 if (res) {
@@ -1731,6 +1777,8 @@ void fatalError(){
     case -48: fprintf(stderr,"Error: too much \"(\"\n"); break;
     case -49: fprintf(stderr,"Error: cannot be used without a label name upfront\n"); break;
     case -50: fprintf(stderr,"Error: CLOCK must be multiple of 4\n"); break;
+    case -51: fprintf(stderr,"Error: opening bracket \"(\" or end-of-line expected\n"); break;
+
     default: break;
     }
     fprintf(stderr,"l%d: %s",(*lineNum)-1,line);
