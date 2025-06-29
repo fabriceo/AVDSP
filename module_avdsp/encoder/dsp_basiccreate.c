@@ -1431,7 +1431,7 @@ nextline:
             case _fullload: {
                 res = testExpression( &p, &input);
                 if (res == _empty) input = 0.0;
-                else outOfRangeError(input,8,16);
+                else outOfRangeError(input,0,0x7FFFFFFF);
                 dsp_FULL_LOAD(input);
                 break; }
 

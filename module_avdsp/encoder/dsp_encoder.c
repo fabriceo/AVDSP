@@ -1077,9 +1077,6 @@ void dsp_FULL_LOAD(int IO) {
     dspout("   dsp_FULL_LOAD();\n");
     int tmp = addOpcodeLengthPrint(DSP_FULL_LOAD); 
     addCode(IO);
-    int size = opcodePtr(lastCoreIndex)->op.skip;
-    int start = lastCoreIndex+size;
-    if (tmp != start) dspFatalError("dsp_FULL_LOAD must be first instruction in a core ");
 }
 
 
