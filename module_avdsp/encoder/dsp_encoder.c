@@ -1070,13 +1070,10 @@ int dsp_FUNC_MEM(int op, int paramAddr) {
 }
 
 
-void dsp_FULL_LOAD(int IO) {
-    checkIOmax(IO);
-    if (IO<64) usedOutputs |= 1ULL<<IO;
-    if (IO<64) usedOutputsCore |= 1ULL<<IO;
+void dsp_FULL_LOAD(int val) {
     dspout("   dsp_FULL_LOAD();\n");
     int tmp = addOpcodeLengthPrint(DSP_FULL_LOAD); 
-    addCode(IO);
+    addCode(val);
 }
 
 
