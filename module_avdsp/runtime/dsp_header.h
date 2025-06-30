@@ -56,7 +56,7 @@ enum dspOpcodesEnum {
     DSP_SECTION,        //conditional section.
 
 /* IO engine */
-    DSP_LOAD = 7,       //load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
+    DSP_LOAD = 7,           //load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
     DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
     DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
     DSP_STORE_TPDF,     // apply a gain and store result in an output
@@ -74,7 +74,7 @@ enum dspOpcodesEnum {
 
 /* math engine */
 
-    DSP_CLRXY = 20,     //clear both ALU register
+    DSP_CLRXY = 20,          //clear both ALU register
     DSP_SWAPXY,         // exchange ALU X with second one "Y".
     DSP_COPYXY,         // copy ALU X in a second "Y" register.
     DSP_COPYYX,         // copy ALU Y to ALU X
@@ -170,18 +170,20 @@ enum dspOpcodesEnum {
     DSP_MEMGAIN,
     DSP_MEMINPUT,
 
-    DSP_CORE_AES,       //102  same as DSP_CORE but to declare external core like spdif task
+    DSP_CORE_AES = 102,       //102  same as DSP_CORE but to declare external core like spdif task
     DSP_FULL_LOAD,
-    DSP_FLOAD,         //104   same as DSP_LOAD but converted to float ieee754
+    DSP_PRIO_ON,
+    DSP_PRIO_OFF,
+
+    DSP_FLOAD = 106,         //106   same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,       //108
+    DSP_FBIQUADS,       //110
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
-    DSP_OP109,
-    DSP_OP110,
+
     DSP_OP111,
     DSP_OP112,
     DSP_OP113,

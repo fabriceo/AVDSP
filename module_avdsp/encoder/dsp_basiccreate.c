@@ -56,7 +56,7 @@ enum keywords_e {
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
-    _tile,_send,_receive,_fullload,
+    _tile,_send,_receive,_instructions,_priorityon,_priorityoff,
     _memclr,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_memsave,_loadmem,
     _memvalue,_mixermem,_memgain,_meminput,
     dspKeywordsNumber
@@ -73,7 +73,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
-    "tile","send","receive","fullload",
+    "tile","send","receive","instructions","priorityon","priorityoff",
     "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem","memvalue","mixermem","memgain","meminput",
 };
 
@@ -1428,12 +1428,15 @@ nextline:
                 addCode(input);
                 break; }
 
-            case _fullload: {
+            case _instructions: {
                 res = testExpression( &p, &input);
                 if (res == _empty) input = 0.0;
                 else outOfRangeError(input,0,0x7FFFFFFF);
                 dsp_FULL_LOAD(input);
                 break; }
+
+            case _priorityon :  { dsp_singleOpcode(DSP_PRIO_ON); break; }
+            case _priorityoff : { dsp_singleOpcode(DSP_PRIO_OFF); break; }
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then

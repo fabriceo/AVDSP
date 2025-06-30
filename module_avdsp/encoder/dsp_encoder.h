@@ -50,6 +50,7 @@ int  addGainCodeQNM(dspGainParam_t gain);
 int  addGainCodeQ31(dspGainParam_t gain);
 int  addDoubleCodeQ31(double value);
 int  addDataSpaceAligned8(int size);
+int  dsp_singleOpcode(unsigned opcode);
  int  dsp_END_OF_CODE();
  int  dsp_TILE();
  int  dsp_TILE_num();   //return current number of the dsptile

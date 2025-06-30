@@ -15,9 +15,9 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_NOP",
     "DSP_CORE",
     "DSP_SECTION",
-
-    "DSP_LOAD",             //7
+    "DSP_LOAD",
     "DSP_STORE",
+
     "DSP_LOAD_STORE",
     "DSP_STORE_TPDF",
     "DSP_STORE_GAIN",
@@ -32,7 +32,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
 
     "DSP_LOAD_MEM_DATA",
 
-    "DSP_CLRXY",        //20
+    "DSP_CLRXY",
     "DSP_SWAPXY",
     "DSP_COPYXY",
     "DSP_COPYYX",
@@ -123,8 +123,10 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_MEMGAIN",
     "DSP_MEMINPUT",
 
-    "DSP_CORE_AES",
+    "DSP_CORE_AES", //102
     "DSP_FULL_LOAD",
+    "DSP_PRIO_ON",
+    "DSP_PRIO_OFF",
 
     "DSP_FLOAD",
     "DSP_FSTORE",

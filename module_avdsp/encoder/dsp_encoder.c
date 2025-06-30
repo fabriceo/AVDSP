@@ -900,6 +900,10 @@ int addDoubleCodeQ31(double value){
 // indicate No operation
 void dsp_NOP() { addSingleOpcodePrint(DSP_NOP); }
 
+int  dsp_singleOpcode(unsigned opcode) {
+    return addSingleOpcodePrint(opcode);
+};
+
 
 // indicate start of a program for a dedicated core/task
 //a core will be authorized if any bit in the 1st mask is set to 1, OR any bit in the 2nd mask is set to 0
