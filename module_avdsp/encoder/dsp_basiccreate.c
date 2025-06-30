@@ -1429,9 +1429,11 @@ nextline:
                 break; }
 
             case _instructions: {
+                int freq = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
+                int maxinst = 128000000/freq;
                 res = testExpression( &p, &input);
                 if (res == _empty) input = 0.0;
-                else outOfRangeError(input,0,0x7FFFFFFF);
+                else outOfRangeError(input,8,maxinst);
                 dsp_FULL_LOAD(input);
                 break; }
 

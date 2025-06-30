@@ -18,6 +18,8 @@
 
 extern dspHeader_t* dspHeaderPtr;
 extern char * dspOutFileName;
+extern int dspMinSamplingFreq;
+extern int dspMaxSamplingFreq;
 //prototypes from dsp_encoder.c
 void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
