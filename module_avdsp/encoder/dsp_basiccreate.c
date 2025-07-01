@@ -874,7 +874,7 @@ nextline:
                 int clock176k=0,clock192k=0,prio=0;
                 if ((res = searchDelimiter(&p, ","))) {
                     if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                    outOfRangeError(value,480,600);
+                    outOfRangeError(value,480,648);
                     clock176k = value;
                     if ((clock176k != value) || (clock176k & 3)) fatalErrorNum(50);
                     getDelimiterError(&p, ',',30);
