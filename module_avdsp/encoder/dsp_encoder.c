@@ -8,6 +8,7 @@
 
 #include "dsp_encoder.h"         // enum dsp codes, typedefs and QNM definition
 #include <stdlib.h>             // only for importing exit()
+#include <math.h>
 
 //MOVED in dsp_encoder.h
 //#define DSP_ENCODER_VERSION ((1<<8) | (1 <<4) | 0) // will be stored in the program header for further interpretation by the runtime
@@ -43,6 +44,7 @@ static int lastSectionNumber     =  0;      // number expected of data for the s
 static int lastSectionCount      =  0;      // incremented number each time a dataset is encountered
 static int lastSectionIndex      =  0;      // value of the opcode index when a new section was started
 static int lastCoreIndex         =  0;      // Index where was the latest dsp_core , used to store IO related to this core
+static int lastCoreIndex_        =  0;      // Index where was the latest dsp_core , used to store IO related to this core
 static int lastCoreData          =  0;      // value of dspDataCounter of the curent/latest core
 static int lastCoreNum           =  0;      // number of the current core, incrementing
 static int lastCoreOpcode        =  0;      // contains opcode of last core (DSP_CORE or DSP_CORE_EXTERN)
@@ -391,6 +393,7 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     dspDumpStarted        = 0;
     ALUformat             = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex         = 0;
+    lastCoreIndex_        = 0;
     lastCoreNum           = 0;
     lastCoreOpcode        = 0;
     maxParamValue         = 0.0;
@@ -471,6 +474,10 @@ int dsp_FSMAX(int freq){
     dspHeaderPtr->freqMax   = dspMaxSamplingFreq;
     numberFrequencies = dspMaxSamplingFreq - dspMinSamplingFreq +1;
     return 1;
+}
+
+int dsp_checkCodeAlready(){
+    return (firstOpcodeIndex != opcodeIndex());
 }
 
 int dsp_FSDYN(int val) {
@@ -579,6 +586,12 @@ static int checkInParamSpaceOpcode(int index, int size, int opcode){
     return checkInParamSpace(index, size);
 }
 
+extern int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned maxfreq);
+
+static void printMipsEstimate() {
+        int mips = getMipsEstimate(opcodeIndexPtr(lastCoreIndex_),0,dspMinSamplingFreq,dspMaxSamplingFreq);
+        dspprintf1("CORE AT %d:  Estimated instructions = %d\n",lastCoreIndex_,mips);
+}
 
 static void updateLastCoreIOs(){
     if (lastCoreIndex) {
@@ -590,7 +603,8 @@ static void updateLastCoreIOs(){
         ptr[4] = usedOutputsCore >>32;
         //compute size of data used in this core
         dspDataCounter += (dspDataCounter & 1);
-        ptr[5]   = dspDataCounter - lastCoreData; 
+        ptr[5]  = dspDataCounter - lastCoreData; 
+        //ptr[6]  = opcodeIndex() - lastCoreIndex;
         lastCoreIndex = 0;
     }
 }
@@ -702,6 +716,7 @@ int dspHeaderDone(){
     index &= 3;                        //padding/allignement 16 bytes
     if (index) opcodeIndexAdd(4-index);
     calcLength();                       // just for executing debug print
+    printMipsEstimate();
     dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program including header
     dspprintf1("dsptotallength = %d\n",opcodeIndex());
     dspHeaderPtr->dataSize = dspDataCounter;    //not relevant,as each core is dynamically allocating data
@@ -924,8 +939,10 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     if (lastCoreNum > 1) dspout("} //end of core %d\n\n",lastCoreNum-1);
     dspout("void dsp_CORE%d() {\n   if (0==dsp_CORE(0x%x,0x%x)) return;\n",lastCoreNum,progAny1,progAny0);
     int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
+    if (lastCoreNum>1) printMipsEstimate();
     lastCoreOpcode = opcode;
     lastCoreIndex  = tmp;
+    lastCoreIndex_ = tmp;
     dspDataCounter += (dspDataCounter & 1); //round up
     lastCoreData   = dspDataCounter;        
     addCode(0);addCode(0);addCode(0);addCode(0); // space for 4 words for input output tracking
@@ -933,6 +950,7 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     addCode(progAny1);      // add a 32bit value representing compatibility of the code with 32 user programs
     addCode(progAny0);      // add a 32bit value representing compatibility of the code with 32 user programs
     ALUformat = 0;          // reset it as we start a new core
+
     return lastCoreNum;
 }
 

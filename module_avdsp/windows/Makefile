@@ -1,7 +1,7 @@
 
 INCLUDES = -I. -I../encoder -I../runtime -I../dspprogs
 LIBS     = -L. -lavdspencoder
-CFLAGS   = -DWIN32 -DDSP_PRINTF=2 -Ofast -fPIC -Wall $(INCLUDES)
+CFLAGS   = -DWIN32 -DDSP_PRINTF=3 -O3 -fPIC -Wall $(INCLUDES)
 
 #define your binary dsp code here, and for each, add a section below as per example
 DSPPROGS = mydspcode.bin

@@ -23,6 +23,7 @@ extern int dspMaxSamplingFreq;
 //prototypes from dsp_encoder.c
 void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
+int dsp_checkCodeAlready();
 int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
 int  dsp_FSDYN(int val);

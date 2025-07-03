@@ -40,11 +40,11 @@ const char filterTypes[filterTypesNumber] = {
 
 const char filterOrders[filterTypesNumber] = {
     2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8, 2,3,4,6,8,
-    1,1,1,1,1, 2, 2,2, 2,2, 2,2,2, 2,99,2
+    1,1,1,1,1, 2, 2,2, 2,2, 2,2,2, 2,99,2 
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,
     _end, _include, _if, _param, _nop, _core, _section, _sectionelse, _coreaes,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -62,7 +62,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3"
     "end", "include", "if", "param", "nop", "core", "section", "sectionelse", "coreaes",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -97,6 +97,8 @@ enum   tvalue_e                  {   _tIO          , _tfreq, _tvalue32, _tq31,  
 static double valueMin[_tnone] = {                0,     10,      -8.0,  -1.0,  -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
 static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,  +1.0,  +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
 
+unsigned dspCOND = 0;
+unsigned dspProcessor = 0;
 
 int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
 
@@ -704,6 +706,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int dspModeDynamic = 0;
     int tapsinclude = 0;
     int ifcondition = 1;
+    dspCOND = 0;
 
     dspOutFileInit(dspoutfilename,dspoutheader);
     while (nextName && (*nextName)) {
@@ -766,6 +769,8 @@ nextline:
                     goto finished;
             }
             (*lineNum)++;
+            dspprintf3("L%d:%s",*lineNum,line);
+
         }
         double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         char * p = line;   //pointer on the character to analyse
@@ -801,6 +806,7 @@ nextline:
             switch(keyw) {
             case _DSPFSMIN : 
             case _DSPFSMAX : {
+                fatalErrorNumIf(45, dsp_checkCodeAlready());
                 static int minFreq = -1;
                 static int maxFreq = -1;
                 double freq = 0;
@@ -822,6 +828,7 @@ nextline:
                 break ;}
             case _DSPMANT : 
             case _DSPFLOAT : {
+                fatalErrorNumIf(45, dsp_checkCodeAlready());
                 static int mantissa = -1;
                 fatalErrorNumIf(46, (mantissa >= 0));
                 if (keyw == _DSPMANT) {
@@ -848,6 +855,7 @@ nextline:
                 fatalErrorNumIf(46, res == 0 );
                 break; }
             case _DSPIOMAX : {
+                fatalErrorNumIf(45, dsp_checkCodeAlready());
                 double value = 0;
                 if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                 outOfRangeError(value,8,256);
@@ -866,6 +874,7 @@ nextline:
                 dspModeDynamic = value;
                 break; }
             case _DSPCLOCK : {
+                fatalErrorNumIf(45, dsp_checkCodeAlready());
                 double value = 0.0;
                 if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                 outOfRangeError(value,480,600);
@@ -890,6 +899,17 @@ nextline:
                 }
                 dsp_CLOCK(clockcpu,clock176k,clock192k,prio);
                 break; }
+            case _DSPCOND : {
+                double value = 0.0;
+                fatalErrorNumIf(45, dsp_checkCodeAlready());
+                res = searchExpressionRangeError( &p, &value,_tint32);
+                dspCOND = value;
+                break; }
+            case _DSPXS2 : 
+            case _DSPXS3 : {
+                fatalErrorNumIf(45, dsp_checkCodeAlready());
+                dspProcessor = keyw;
+                break;}
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
@@ -1052,6 +1072,7 @@ nextline:
             break; }
 
             case _input: {
+                dspprintf3("SHIT\n");
                 searchExpressionRangeError( &p, &input, _tIO  );
                 dsp_LOAD( input);
                 break; }
@@ -1720,6 +1741,7 @@ nextfile:
 
     createSymbolTable();
     freeAllLabels();
+    //report cores mips
     return size;
 }
 
