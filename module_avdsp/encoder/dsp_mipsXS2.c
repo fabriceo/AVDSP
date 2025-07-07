@@ -15,11 +15,11 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
 /* IO engine */
     5,  //DSP_LOAD = 7,           //load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
     6,  //DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
-    6,  //DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
+    5,  //DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
     6+7,  //DSP_STORE_TPDF,     // apply a gain and store sum in an output
     11,  //DSP_STORE_GAIN,     // apply a gain and store sum in an output
-    10,  //******-1*****DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. sum is double precision
-    12,  //DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many 2,  //DSP_LOAD_GAIN. sum is double precision
+    10,  //DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. sum is double precision
+    6,  //DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many 2,  
     10,  //DSP_MIXER,          // load all inputs with their respective gain, couples stores below opcode
 
     4,  //DSP_LOAD_X_MEM,       // load a memory location 64bits into the ALU "X" without any conversion.
@@ -258,8 +258,12 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                         } 
                     }
                     break; }
-                case DSP_LOAD_STORE : //falltrhough
-                case DSP_MIXER :    { inst = (skip-1)/2 * 6; break; }
+                case DSP_LOAD_STORE : { 
+                    inst = ((skip-1)/2-1) * 6; 
+                    if (inst==0) inst++;
+                    break; }
+                case DSP_MIXER :      { 
+                    inst = ((skip-1)/2-1) * 6; break; }
                 case DSP_LOAD_MUX : {
                     opcode_t * f = ptr + param1;
                     short num = f->op.skip;
@@ -267,8 +271,8 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     break; }
                 case DSP_ADDMEM : 
                 case DSP_SUBMEM : 
-                case DSP_MIXERMEM : { inst = (skip-1) * 6; break; }
-
+                case DSP_MIXERMEM : { 
+                    inst = (skip-1) * 6; break; }
                 case DSP_STORE : //fallthrough
                 case DSP_STORE_VOL : 
                 case DSP_STORE_VOL_SAT : 
