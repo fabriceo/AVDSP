@@ -320,7 +320,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
             int total = dispatch + inst + tableMipsXS2[code];
             sum += total;
             if (lastsectionsum == -1) lastsectionsum = sum;
-            dspprintf4("%4d %s: base %d, inst %d, result %d, sum %d\n",pos,dspOpcodeText[code],tableMipsXS2[code],inst,total,sum);
+            dspprintf3("%4d %s: base %d, inst %d, result %d, sum %d\n",pos,dspOpcodeText[code],tableMipsXS2[code],inst,total,sum);
         }
         ptr += skip ; pos += skip;
     } //while ptr;
