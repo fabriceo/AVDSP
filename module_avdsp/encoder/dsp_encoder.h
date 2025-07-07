@@ -20,16 +20,25 @@ extern dspHeader_t* dspHeaderPtr;
 extern char * dspOutFileName;
 extern int dspMinSamplingFreq;
 extern int dspMaxSamplingFreq;
+extern unsigned dspCondition;
+extern unsigned dspProcessor;
+extern int dspFormat;
+extern int dspMant; 
+
+
 //prototypes from dsp_encoder.c
 void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
 int dsp_checkCodeAlready();
+void calcLength();
 int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
 int  dsp_FSDYN(int val);
 int  dsp_FORMAT(int format, int mant2);
 int  dsp_IOMAX(int iomax);
 int  dsp_CLOCK(int cpu, int k176, int k192, int prio);
+void dsp_COND(unsigned cond);
+void dsp_PROCESSOR(unsigned proc);
 void dspoutFilters3(int type, int order, float freq,float Q,float gain, const char * name);
 void dspoutFilters5(int type, int order, float freq,float Q, float freq2,float Q2,float gain, const char * name);
 extern char * dspOutLabelName;

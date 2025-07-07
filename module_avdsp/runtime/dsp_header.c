@@ -4,7 +4,16 @@
  *  Created on: 11 oct. 2023
  *      Author: Fabrice
  */
+
+
+#if defined(DSP_PRINTF)
+int dspPrintfVal = DSP_PRINTF;
+#else
+int dspPrintfVal = 0;
+#endif
+
 #include "dsp_header.h"
+
 
 //used in both dsp_encoder.c and dsp_runtime
 const char * dspOpcodeText[DSP_LAST_OPCODE] = {

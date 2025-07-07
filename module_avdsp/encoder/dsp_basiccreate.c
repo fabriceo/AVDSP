@@ -44,7 +44,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,_DSPPRINTF,
     _end, _include, _if, _param, _nop, _core, _section, _sectionelse, _coreaes,
     _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -62,7 +62,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3"
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3","DSPPRINTF",
     "end", "include", "if", "param", "nop", "core", "section", "sectionelse", "coreaes",
     "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -97,8 +97,6 @@ enum   tvalue_e                  {   _tIO          , _tfreq, _tvalue32, _tq31,  
 static double valueMin[_tnone] = {                0,     10,      -8.0,  -1.0,  -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
 static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,  +1.0,  +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
 
-unsigned dspCOND = 0;
-unsigned dspProcessor = 0;
 
 int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
 
@@ -299,8 +297,8 @@ char * lastLabelName = "";
 
 //add a new label in the list and return its allocated pointer.
 //character pointer expected to point on label and then moved after label.
-static labelptr_t appendNewLabel(char * * s) {
-    char * p = *s;
+static labelptr_t appendNewLabel(char * s) {
+    char * p = s;
     int len = 0;
     while ( isAlphanum(*p) ) { p++; len++; }
     labelptr_t l = malloc(sizeof(label_t)+len);
@@ -310,7 +308,7 @@ static labelptr_t appendNewLabel(char * * s) {
     if (firstLabel) { lastLabel->next = l; lastLabel = l; }
     else { firstLabel = lastLabel = l; }
     int i;
-    for (i=0, p=*s; i<len; i++) l->s.name_[i] = *(p++);
+    for (i=0, p=s; i<len; i++) l->s.name_[i] = *(p++);
     l->s.name_[len] = 0;
     l->s.name = l->s.name_; //set pointer
     lastLabelName = l->s.name;
@@ -319,10 +317,16 @@ static labelptr_t appendNewLabel(char * * s) {
     l->numValues = 0;
     l->s.tileNum = dsp_TILE_num();
     l->s.tileUsed = 0;
-    *s = p;
     return l;
 }
  
+static labelptr_t appendNewLabelConst(const char * cp) {
+    char * p = (char *)cp;
+    return appendNewLabel(p);
+}
+
+
+
 //search a possible label
 static label_t * findLabel(char * p) {
    for (labelptr_t l = firstLabel; l ; l=l->next) {
@@ -706,7 +710,26 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int dspModeDynamic = 0;
     int tapsinclude = 0;
     int ifcondition = 1;
-    dspCOND = 0;
+    dsp_PROCESSOR(0);
+    char *txtDSPLINE = "DSPLINE";
+    labelptr_t pDSPLINE = appendNewLabel(txtDSPLINE);
+    pDSPLINE->s.type =_valueint;
+    dsp_COND(0);
+    labelptr_t pDSPCOND = appendNewLabelConst(dspKeywords[_DSPCOND]);
+    pDSPCOND->s.type = _valueint;
+    dsp_CLOCK(528,496,528,0);
+    labelptr_t pDSPCLOCK = appendNewLabelConst(dspKeywords[_DSPCLOCK]);
+    pDSPCLOCK->s.type = _valueint;
+    pDSPCLOCK->value = 528;
+    labelptr_t pDSPFSMIN = appendNewLabelConst(dspKeywords[_DSPFSMIN]);
+    pDSPFSMIN->s.type = _valueint;
+    pDSPFSMIN->value = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
+    labelptr_t pDSPFSMAX = appendNewLabelConst(dspKeywords[_DSPFSMAX]);
+    pDSPFSMAX->s.type = _valueint;
+    pDSPFSMAX->value = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
+    labelptr_t pDSPMANT = appendNewLabelConst(dspKeywords[_DSPMANT]);
+    pDSPMANT->s.type = _valueint;
+    pDSPMANT->value = dspMant;
 
     dspOutFileInit(dspoutfilename,dspoutheader);
     while (nextName && (*nextName)) {
@@ -754,6 +777,7 @@ nextline:
             } else 
                 (*lineNum) = 1;
         }
+        pDSPLINE->value = *lineNum;
         if (*lineNum) {
             //read next line
             while ( fgetLine() == 0) {
@@ -768,8 +792,8 @@ nextline:
                 } else
                     goto finished;
             }
+            dspprintf4("L%d:%d:%s",*lineNum,ifcondition,line);
             (*lineNum)++;
-            dspprintf3("L%d:%s",*lineNum,line);
 
         }
         double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
@@ -792,7 +816,6 @@ nextline:
             if ( (*p == 0) || (*p == '#')  || (*p == 0x5C ) || (*p == 0x0A) || (*p == 0x0D) ) break; //goto next line
 
             if (tapsinclude) goto labeltaps;
-
             //expecting either a label definition or a dsp keyword, all starting by a letter
             fatalErrorNumIf( 6, isLetter( *p ) == 0 );
             int res;
@@ -802,7 +825,10 @@ nextline:
                     ifcondition = 1;
                 } else goto nextline;
             }
-            if (keyw > _param) clearParamSection();
+            if (keyw > _param) {
+                clearParamSection();
+                calcLength();
+            }
             switch(keyw) {
             case _DSPFSMIN : 
             case _DSPFSMAX : {
@@ -825,6 +851,8 @@ nextline:
                     res = dsp_FSMAX(index);
                 }
                 fatalErrorNumIf(45, res == 0 );
+                pDSPFSMIN->value = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
+                pDSPFSMAX->value = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
                 break ;}
             case _DSPMANT : 
             case _DSPFLOAT : {
@@ -853,6 +881,7 @@ nextline:
                     valueMin[_tvalue64] = -128.0;
                 }
                 fatalErrorNumIf(46, res == 0 );
+                pDSPMANT->value = dspMant;
                 break; }
             case _DSPIOMAX : {
                 fatalErrorNumIf(45, dsp_checkCodeAlready());
@@ -898,18 +927,31 @@ nextline:
                     }
                 }
                 dsp_CLOCK(clockcpu,clock176k,clock192k,prio);
+                pDSPCLOCK->value = clockcpu;
                 break; }
             case _DSPCOND : {
                 double value = 0.0;
                 fatalErrorNumIf(45, dsp_checkCodeAlready());
                 res = searchExpressionRangeError( &p, &value,_tint32);
-                dspCOND = value;
+                dsp_COND(value);
+                pDSPCOND->value = value;
                 break; }
-            case _DSPXS2 : 
+            case _DSPXS2 :
             case _DSPXS3 : {
                 fatalErrorNumIf(45, dsp_checkCodeAlready());
-                dspProcessor = keyw;
+                dsp_PROCESSOR(keyw == _DSPXS2 ? 2 : 3 );
+                int freqmax = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
+                int lastclock = pDSPCLOCK->value;
+                lastclock *= 1000000/5;
+                int inst = lastclock / freqmax;
+                dspprintf2("XMOS instructions per samples %d\n",inst);
                 break;}
+                case _DSPPRINTF : {
+                    double value;
+                    if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
+                    outOfRangeError(value,0,4);
+                    dspPrintfVal = value;
+                    break;}
             case _end:   { 
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
@@ -1033,8 +1075,11 @@ nextline:
                     } else {
                         addCode(progAny1); addCode(progOnly0);
                     }
-                    res = (num & 1) ? 0 : searchDelimiter( &p, "," );
+                    //stop searching parameter when a true condition is seen
+                    if ((progAny1 == 0xFFFFFFFF) && (progOnly0 == 0)) break;
+                    res = searchDelimiter( &p, "," );
                 } while(res);
+                calcLength();
                 break; }
 
             case _tile : {  
@@ -1068,11 +1113,11 @@ nextline:
                 index = opcodeIndex() - index;
                 //TODO, update skip value according to total numbers
                 ptr->op.opcode = (keyw==_send) ? DSP_SEND : DSP_RECEIVE;
-                ptr->op.skip   = index;
-            break; }
+                calcLength();
+                //ptr->op.skip   = index;
+                break; }
 
             case _input: {
-                dspprintf3("SHIT\n");
                 searchExpressionRangeError( &p, &input, _tIO  );
                 dsp_LOAD( input);
                 break; }
@@ -1324,11 +1369,16 @@ nextline:
                     }
                     res = searchDelimiter( &p, ",");
                 } while(res);
-                //TODO add potential missing impulses to complete frequency table
+                int n=dspMaxSamplingFreq-dspMinSamplingFreq+1;
+                for (int i=numFilt; i<n; i++) {
+                    addCodeOffset(0,base);addCode(1);
+                    if (keyw == _warpconvol) addCode(0);
+                }
                 //TODO addDataSpaceAligned8 is also generating an opcode at the end of the table!
                 if (keyw == _warpconvol) max++; //always add one extra sample in buffer when warped fir requested
                 dspprintf3("%d impulses, max %d taps\n",numFilt,max);
                 opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
+                calcLength();
                 break; }
 
             case _integrator: {
@@ -1429,6 +1479,7 @@ nextline:
                     else addCodeOffset(addr,ofs);
                     res = searchDelimiter( &p, ",");
                 } while(res);
+                calcLength();
                 break;
             }
             case _memvalue: 
@@ -1447,6 +1498,7 @@ nextline:
                 searchExpressionRangeError( &p, &input, _tIO  );
                 dsp_FUNC_MEM(DSP_MEMINPUT,addr);
                 addCode(input);
+                calcLength();
                 break; }
 
             case _instructions: {
@@ -1474,7 +1526,8 @@ nextline:
                     //yes overloading accepted
                 } else {
                     //label unknown. add it to the list
-                    l = appendNewLabel( &p );
+                    l = appendNewLabel( p );
+                    p += l->s.length;
                     //eventually accept ? for numerical lables
                     if (l->s.type <= _valueint) searchDelimiter( &p, "?" );   
                 }
@@ -1679,7 +1732,7 @@ nextline:
                     if (l->s.type != _empty) fatalErrorNum(12);
                     if (keyw == _FILTER) { 
                         l->s.type = label_filters;
-                        dspprintf3("_FILTER")
+                        dspprintf3("_FILTER");
                     }
                     else l->s.type = label_filter8;
                     checkAndCreateParam();

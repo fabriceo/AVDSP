@@ -10,16 +10,16 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     0,  //DSP_PARAM_NUM,      // same as PARAM but the data area is indexed and each param_num section can be accessed separately
     0,  //DSP_NOP,            // sometime used to align opcode adress start to a 8byte cell
     0,  //DSP_CORE,           // used to separate each dsp code trunck and distribute opcodes on multiple tasks.
-    9,  //DSP_SECTION,        //conditional section.
+    0,  //DSP_SECTION,        //conditional section.
 
 /* IO engine */
     5,  //DSP_LOAD = 7,           //load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
     6,  //DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
     6,  //DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
-    6+7,  //DSP_STORE_TPDF,     // apply a gain and store result in an output
-    11,  //DSP_STORE_GAIN,     // apply a gain and store result in an output
-    10,  //******-1*****DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. result is double precision
-    12,  //DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many 2,  //DSP_LOAD_GAIN. result is double precision
+    6+7,  //DSP_STORE_TPDF,     // apply a gain and store sum in an output
+    11,  //DSP_STORE_GAIN,     // apply a gain and store sum in an output
+    10,  //******-1*****DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. sum is double precision
+    12,  //DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many 2,  //DSP_LOAD_GAIN. sum is double precision
     10,  //DSP_MIXER,          // load all inputs with their respective gain, couples stores below opcode
 
     4,  //DSP_LOAD_X_MEM,       // load a memory location 64bits into the ALU "X" without any conversion.
@@ -87,7 +87,7 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     2,  //DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
     2,  //DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     16,  //DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency
-    2,  //DSP_WFIR,           // execute a warped fir filter with many possible impulse depending on frequency
+    20,  //DSP_WFIR,           // execute a warped fir filter with many possible impulse depending on frequency
 
     29,  //DSP_DELAY_FB_MIX = 66,
     14,  //DSP_INTEGRATOR,
@@ -149,19 +149,26 @@ int dspOpcodeMips(unsigned opcode) {
 //condition correspond to the pattern given when launching runtimeinit (see dac8pro)
 //minfreq 44k = 4; maxfreq 384 = 11
 int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned maxfreq) {
-    int result = 0;
-    int endsectionresult=0;
+    int sum = 0, summax = 0;
+    int endsectionsum = 0;
     int firstcode = 0;
     int coreseen = 0;
-    int lastsectioninst =0;
+    int lastsectionsum =0;
+    int pos = 0;
+    dspprintf3("estimating instructions...\n");
     opcode_t * elseskipptr = 0;
     while (ptr) {
+        if (sum > summax) summax = sum;
         unsigned code = ptr->op.opcode;
         int skip = ptr->op.skip;
-        if ((code == DSP_END_OF_CODE)||(skip == 0)) 
-            return ((result>endsectionresult) ? result : endsectionresult);
-        if ((code == DSP_CORE)) { 
-            if (coreseen) return ((result>endsectionresult) ? result : endsectionresult);    //begining of a new core
+        //dspprintf3("<%s>\n",dspOpcodeText[code])
+        if ((code == DSP_END_OF_CODE)||(skip == 0)) {
+            sum += dispatch;
+            return ((sum > endsectionsum) ? sum : endsectionsum);
+        }
+        if (code == DSP_CORE_AES) return ((sum>endsectionsum) ? sum : endsectionsum);
+        if (code == DSP_CORE) { 
+            if (coreseen) return ((sum>endsectionsum) ? sum : endsectionsum);    //begining of a new core
             coreseen = 1;
             if (cond) {
                 int n = (skip-6)/2; //number of conditions seen, 2 words each
@@ -171,59 +178,93 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     if (res) break;
                 }
                 if (res == 0) return 0;
-            }
+                dspprintf4("%4d %s validated\n",pos,dspOpcodeText[code]);
+            } else 
+                dspprintf4("%4d %s valid with COND = 0\n",pos,dspOpcodeText[code]);
+            ptr+=skip; pos += skip; continue;
         }
-        if (firstcode == 0) { //no opcode yet, first time
-            if ((code == DSP_NOP) || (code == DSP_PARAM) || (code == DSP_PARAM_NUM) || (code == DSP_CORE_AES)) firstcode=0;
+        if (firstcode == 0) { //no opcode seen yet, first time
+            if ((code == DSP_NOP) || (code == DSP_PARAM) || (code == DSP_PARAM_NUM) ) 
+                 firstcode = 0;
             else firstcode = 1;
-        } else {
-            unsigned val1 = ptr[1].u32;
-            unsigned val2 = ptr[2].u32;
+        } 
+        if (firstcode == 1) {
+            unsigned param1 = ptr[1].u32;
             int inst = 0;
-            if (result>endsectionresult) endsectionresult = result;
+            if (sum > endsectionsum) endsectionsum = sum;
 
             if (ptr == elseskipptr) {
                 //at the end of the section else. count inst and check max.
-                dspprintf3(" (ptr == elseskipptr)\n");
+                if (endsectionsum>sum) { 
+                    sum = endsectionsum;
+                    dspprintf4("end of sectionelse detected, sum adjusted max %d\n",sum);
+                } else
+                    dspprintf4("end of sectionelse detected, sum %d\n",sum);
+                elseskipptr=0;
             }
             switch (code) {
 
                 case DSP_SECTION : {
-                    int elseskip;
-                    if ((ptr[-1].op.opcode == DSP_NOP) && ((elseskip=ptr[-1].op.skip) > 1)) {
+
+                    unsigned elsecode = ptr[-1].op.opcode;
+                    int elseskip = ptr[-1].op.skip;
+                    if ((elsecode == DSP_NOP) && (elseskip > 1)) {
                         elseskipptr = ptr-1+elseskip;
-                        //sectionelse
+                        //sectionelse with condition
+                        sum = lastsectionsum;
+                        dspprintf4("sectionelse (after NOP) with condition\n");
+                        dspprintf4("restart estimation with %d, max %d\n",sum,endsectionsum);
                     } else {
+                        elseskipptr = 0;
                         //totaly new section.
-                        if (endsectionresult>result) result = endsectionresult;
-                        lastsectioninst = result;
+                        if (endsectionsum > sum) { 
+                            sum = endsectionsum;
+                            dspprintf4("new section, sum max adjusted %d\n",sum);
+                        } else 
+                            dspprintf4("new section, sum %d\n",sum);
                     }
-                    int n = (skip-2)/2; //number of conditions seen and multiple of 2
-                    unsigned res=0;
-                    if (cond) {
-                        for (int i=0; i<n ; i++) {
-                            res = (cond & ptr[2+i+i].u32) && ((cond & ptr[3+i+i].u32)==0);
-                            if (res) break;
+                    lastsectionsum = -1;    //this will memorize where we are later
+                    int n = (skip-4); //number of conditions seen (multiple of 2) 
+                    int i=0;
+                    unsigned res = 0;
+                    inst = 1;
+                    while(1) {
+                        inst += 3;
+                        if (cond & ptr[2+i].u32) {
+                            inst++;
+                            if ((cond & ptr[3+i].u32)==0) { inst++; res=1; break; }
                         }
-                        if (res == 0) skip = val1;
-                    } 
-                    inst = 4+n*5; // 9, 14, 19...
+                        inst++;
+                        if (n==0) { 
+                            if (cond == 0) res=1;
+                            inst +=3; break; 
+                        }
+                        n-=2;
+                    }
+                    if (res == 0) {
+                        dspprintf4("section not validated, COND = %X\n",cond);
+                        skip = param1;
+                    } else 
+                        dspprintf4("section validated, COND = %X\n",cond);
                     break;}
+
                 case DSP_NOP : {
-                    if ((skip>1) && (ptr[1].op.opcode == DSP_SECTION)) {
-                        //end of a section and begining of a sectionelse.
+                    if (skip > 1) {
+                        dspprintf4("sectionelse (NOP) identified\n");
                         if (cond == 0) {
                             //as we dont know if the previous one was to be done, then we continue here
-                            if (result>endsectionresult) endsectionresult = result;
-                            result = lastsectioninst;
-                            skip=1;
-                        }
+                            sum += dispatch;
+                            if (sum > endsectionsum) endsectionsum = sum;
+                            sum = lastsectionsum;
+                            dspprintf4("restart estimation with %d, sum %d\n",sum,endsectionsum);
+                            ptr++; pos++;continue;
+                        } 
                     }
-                }
+                    break; }
                 case DSP_LOAD_STORE : //falltrhough
                 case DSP_MIXER :    { inst = (skip-1)/2 * 6; break; }
                 case DSP_LOAD_MUX : {
-                    opcode_t * f = ptr + val1;
+                    opcode_t * f = ptr + param1;
                     short num = f->op.skip;
                     inst = num * 6;
                     break; }
@@ -235,12 +276,12 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                 case DSP_STORE_VOL : 
                 case DSP_STORE_VOL_SAT : 
                 case DSP_STORE_TPDF : {
-                    if (val1 & 0xFF000000) inst = 8;
-                    else if (val1 & 0xFF0000) inst = 6;
-                    else if (val1 & 0xFF00) inst = 3;
+                    if (param1 & 0xFF000000) inst = 8;
+                    else if (param1 & 0xFF0000) inst = 6;
+                    else if (param1 & 0xFF00) inst = 3;
                     break; }
                 case DSP_BIQUADS : {
-                    opcode_t * f = ptr + val2;
+                    opcode_t * f = ptr + ptr[2].u32;
                     short sections = f->op.skip;
                     inst = sections * 18;
                     break; }
@@ -253,32 +294,35 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                              (((freq==6)||(freq==7))  && ((cond & 0x200) || (cond == 0))) ||
                              (((freq==8)||(freq==9))  && ((cond & 0x400) || (cond == 0))) ||
                              (((freq==10)||(freq==11))&& ((cond & 0x800) || (cond == 0))) ) {
-                                int ofset = ptr[2+(freq-minfreq)*mul].i32;
-                                int taps = ptr[ofset].u32;
+                                int taps = ptr[2+1+(freq-minfreq)*(mul+1)].i32;                                
                                 if (taps > maxtaps) maxtaps = taps;
+                                dspprintf4("freq %d, taps %d, max %d\n",freq,taps,maxtaps);
                              }
                     } //for
                     if (code == DSP_FIR) {
                         int mul16 = maxtaps / 16;
                         int min16 = maxtaps % 16;
-                        const unsigned table[16] = { 0, 5, 7, 12, 14, 19,21,26,28, 33,35,40,42, 47,49,54 };
+                        const unsigned table[16] = { 0, 5, 7, 12, 14, 19,21,26,28, 33,35,40,42, 47,49,52 };
                         inst = 44 * mul16 + table[min16];
                         if (mul16) inst++;
                     } else if (code == DSP_WFIR) {
                         int mul8 = maxtaps / 8;
                         int min8 = maxtaps % 8;
-                        const unsigned table[8] = {  6, 13, 18, 24, 29, 35, 40, 46 }; // 50
-                        inst = 39 * mul8 + table[min8];
+                        const unsigned table[8] = {  0, 7, 12, 18, 23, 29, 34, 39 }; 
+                        inst = 39 * mul8 + table[min8] + (mul8==0?1:0);
                     }
                     break;}
                 case DSP_FULL_LOAD : { 
-                    if (val1) inst = val1;
-                    else return ((result>endsectionresult) ? result : endsectionresult);
+                    if (param1) inst = param1;
+                    else return ((sum>endsectionsum) ? sum : endsectionsum);
                     break;}
             } //switch
-            result += dispatch + inst + tableMipsXS2[code];
+            int total = dispatch + inst + tableMipsXS2[code];
+            sum += total;
+            if (lastsectionsum == -1) lastsectionsum = sum;
+            dspprintf4("%4d %s: base %d, inst %d, result %d, sum %d\n",pos,dspOpcodeText[code],tableMipsXS2[code],inst,total,sum);
         }
-        ptr += skip ;
+        ptr += skip ; pos += skip;
     } //while ptr;
-    return ((result>endsectionresult) ? result : endsectionresult);
+    return ((sum>endsectionsum) ? sum : endsectionsum);
 }

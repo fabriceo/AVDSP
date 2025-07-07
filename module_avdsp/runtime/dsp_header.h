@@ -15,25 +15,15 @@
 #define DSP_FORMAT_FLOAT_FLOAT  (5)
 #define DSP_FORMAT_DOUBLE_FLOAT (6)
 
-//#define DSP_PRINTF 3 // 1=basic info encoder sumary and runime context, 2 provides encoder details and runtime, 3 full debug info
-#if defined(DSP_PRINTF) && ( DSP_PRINTF >=1 )
+extern int dspPrintfVal;
+
 #include <stdio.h>
-#define dspprintf(...)  { printf(__VA_ARGS__); }   // we do the normal printf
-#define dspprintf1(...) { printf(__VA_ARGS__); }   // we do the normal printf
-#else
-#define dspprintf(...)  { } // we do nothing
-#define dspprintf1(...) { }
-#endif
-#if defined(DSP_PRINTF) && ( DSP_PRINTF >=2 )
-#define dspprintf2(...) { printf(__VA_ARGS__); }
-#else
-#define dspprintf2(...) { }
-#endif
-#if defined(DSP_PRINTF) && ( DSP_PRINTF >=3 )
-#define dspprintf3(...) { printf(__VA_ARGS__); }
-#else
-#define dspprintf3(...) { }
-#endif
+#define dspprintf(...)  do { if (dspPrintfVal>=1) printf(__VA_ARGS__); } while(0)   // we do the normal printf
+#define dspprintf1(...) do { if (dspPrintfVal>=1) printf(__VA_ARGS__); } while(0)   // we do the normal printf
+#define dspprintf2(...) do { if (dspPrintfVal>=2) printf(__VA_ARGS__); } while(0)
+#define dspprintf3(...) do { if (dspPrintfVal>=3) printf(__VA_ARGS__); } while(0)
+//low level debugging only
+#define dspprintf4(...) do { if (dspPrintfVal>=4) printf(__VA_ARGS__); } while(0)
 
 // special syntax for XMOS XCore compiler...
 #if  defined(__XC__)

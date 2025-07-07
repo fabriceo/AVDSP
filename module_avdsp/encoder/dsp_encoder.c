@@ -39,20 +39,20 @@ static int lastMissingParamSize  =  0;      // expected minimum size of total co
 
 static int dspDumpStarted        =  0;      // as soon as a dsp_dump is executed, this is set to 1
 static int dspOutIndex           =  0;      //used when generatin advspout.cpp file to differentiate some symbols
-static int lastSectionOpcode     =  0;      // opcode associated with the latest section declaration
-static int lastSectionNumber     =  0;      // number expected of data for the started section
-static int lastSectionCount      =  0;      // incremented number each time a dataset is encountered
-static int lastSectionIndex      =  0;      // value of the opcode index when a new section was started
+static int lastParamOpcode     =  0;      // opcode associated with the latest section declaration
+static int lastParamNumber     =  0;      // number expected of data for the started section
+static int lastParamCount      =  0;      // incremented number each time a dataset is encountered
+static int lastParamIndex      =  0;      // value of the opcode index when a new section was started
 static int lastCoreIndex         =  0;      // Index where was the latest dsp_core , used to store IO related to this core
-static int lastCoreIndex_        =  0;      // Index where was the latest dsp_core , used to store IO related to this core
+static int lastCoreIndex_        =  0;      // same as lastCoreIndex but not reseted , so represent always last core start
 static int lastCoreData          =  0;      // value of dspDataCounter of the curent/latest core
 static int lastCoreNum           =  0;      // number of the current core, incrementing
 static int lastCoreOpcode        =  0;      // contains opcode of last core (DSP_CORE or DSP_CORE_EXTERN)
 static int maxOpcodeValue        =  0;      // represent the higher opcode value used in the encoded program
 static int lastTpdfDataAddress   =  0;      //point on the opcode containg shift and factor for normalizing tpdfvalue
 static int lastTpdfDataAddressCore= 0;      //point on the opcode containg shift and factor for normalizing tpdfvalue within current core
-static int lastSectionProg       =  0;      //point on last dsp_SECTION
-static int lastSectionElse       =  0;      //point on last dsp_SECTION_ELSE
+static int lastSectionIndex       =  0;      //point on last dsp_SECTION
+static int lastSectionNOP        =  0;      //point on last dsp_NOP generate by a sectionelse
 static int lastSectionData       =  0;      //value of dspDataCounter at the begining of the section
 static int lastSectionDataMax    =  0;      //value of dspDataCounter at the end of the section (max)
 static unsigned long long  usedInputs           =  0;      // bit patern of all the inputs used by a LOAD command or LOAD_MUX or LOAD_GAIN
@@ -61,8 +61,8 @@ static unsigned long long usedInputsCore        =  0;      // at core level : bi
 static unsigned long long usedOutputsCore       =  0;      // at core level : bit patern of all the output used by a STORE command
 
 static int ALUformat             =  0;      // represent the current format of the ALU known at compile time 0 = s31, 1 = double precision or when a sampled is scaled with a gain
-static int dspFormat;                       // dynamic management of the different format when encoding
-static int dspMant;                         // dynamic value of the DSP_MANT. initialize in encoderinit. 0 if format not integer
+int dspFormat;                              // dynamic management of the different format when encoding
+int dspMant;                                // dynamic value of the DSP_MANT. initialize in encoderinit. 0 if format not integer
 static int dspIOmax;                        // max number of IO that can be used with Load & Store (to avoid out of boundaries vs samples table)
 static int numberFrequencies;               // number of covered frequencies (mainly used in BIQUADS and FIR)
 static float maxParamValue      = 0.0;      // to hold the maximum value pushed as encoded parameter
@@ -71,6 +71,9 @@ static int dspDynamic           = 0;        // 0 means filters are staticaly cal
 int dspMinSamplingFreq = DSP_DEFAULT_MIN_FREQ;
 int dspMaxSamplingFreq = DSP_DEFAULT_MAX_FREQ;
 const int dspIOmaximum = 64; 
+
+unsigned dspCondition = 0;
+unsigned dspProcessor = 0;
 
 
 #ifndef DSP_FILEACCESS_H_
@@ -112,7 +115,7 @@ int addCode(int code) {
     int tmp = opcodeIndex();
     opcodeIndexPtr()->i32 = code;
     opcodeIndexAdd(1);
-    opcodeIndexPtr()->i32 = DSP_END_OF_CODE;    // preventive
+    opcodeIndexPtr()->i32 = 0;    // preventive
     return tmp;
 }
 
@@ -190,13 +193,11 @@ static void printLastOpcodes() {
         dspprintf3("\n");
     } else lastOpcodePrint = lastIndexPrinted;
     if (lastOpcodePrint != opcodeIndex()) {
-#if defined(DSP_PRINTF) && ( DSP_PRINTF >=3 )
-        opcode_t tmp = *opcodePtr(lastOpcodePrint);
+        opcode_t tmp = *opcodePtr(lastOpcodePrint); if (tmp.op.skip) {}
         dspprintf3("%4d : [#%d +%d] ",lastOpcodePrint, tmp.op.opcode, tmp.op.skip);
-#endif
         for (int i = lastOpcodePrint+1; i< opcodeIndex(); i++) {
             int val = opcodePtr(i)->i32;
-            if (val>=0)  dspprintf3("%X ",val)
+            if (val>=0)  dspprintf3("%X ",val);
             else dspprintf3("%X(@%d) ",val,lastOpcodePrint+val);
         }
         dspprintf3("\n");
@@ -216,34 +217,34 @@ static void checkInParamNum(){
 
 
 // check if the last section opened shall be closed properly before opening a new one
-static void checkFinishedParamSection(){
-    if (lastSectionOpcode) {
-        if (lastSectionNumber > 0)
-            dspFatalError("Section already started and not finished.");
+static void checkFinishedParamArea(){
+    if (lastParamOpcode) {
+        if (lastParamNumber > 0)
+            dspFatalError("Param area already started and not finished.");
         // a section is finished and the opcode has not been reseted so we must fill the first byte with some info
-        opcode_t *first = opcodePtr(lastSectionIndex);
+        opcode_t *first = opcodePtr(lastParamIndex);
         int code = first->op.opcode;
         switch(code){
         case DSP_BIQUADS_FS: 
         case DSP_BIQUADS: {
-            dspprintf2("-> %d biquad cell(s) provided\n",lastSectionCount)
-            for (int i=0; i<lastSectionCount ; i++) dspout("{ 0,0,0,0,0,0},");
-            dspout(" }; //%d biquad cell(s) provided\n",lastSectionCount);
-            first->s16.low = lastSectionCount;
-            lastSectionOpcode = 0;  // now finished properly
+            dspprintf2("-> %d biquad cell(s) provided\n",lastParamCount);
+            for (int i=0; i<lastParamCount ; i++) dspout("{ 0,0,0,0,0,0},");
+            dspout(" }; //%d biquad cell(s) provided\n",lastParamCount);
+            first->s16.low = lastParamCount;
+            lastParamOpcode = 0;  // now finished properly
             printFromCurrentIndex();
-            opcodeIndexAdd(lastSectionCount*6);
+            opcodeIndexAdd(lastParamCount*6);
             break;
         }
         case DSP_LOAD_MUX:{
             printLastOpcodes();
-            dspprintf2("-> %d couple(s) provided\n",lastSectionCount)
-            first->s16.low = lastSectionCount;
-            lastSectionOpcode = 0;  // now finished properly
+            dspprintf2("-> %d couple(s) provided\n",lastParamCount);
+            first->s16.low = lastParamCount;
+            lastParamOpcode = 0;  // now finished properly
             break;
         }
         case DSP_FIR: {
-            if (lastSectionCount != numberFrequencies)
+            if (lastParamCount != numberFrequencies)
                 dspFatalError("Missing impulse in the fir param section.");
             break;
         }
@@ -253,46 +254,46 @@ static void checkFinishedParamSection(){
 
 // start a new section in the param num area
 static int startParamSection(int opcode, int num){
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     printLastOpcodes();             // flush any opcode printing before starting with new datasets
     checkInParamNum();              // verify that we are inside a started PARAM or PARAM_NUM section
-    lastSectionOpcode = opcode;
-    lastSectionNumber = num;
-    lastSectionCount  = 0;
-    lastSectionIndex  = opcodeIndex();
+    lastParamOpcode = opcode;
+    lastParamNumber = num;
+    lastParamCount  = 0;
+    lastParamIndex  = opcodeIndex();
     switch(opcode) {
         case DSP_BIQUADS_FS :
         case DSP_BIQUADS : {
             dspOutLabel++;
             dspout("const float %s[][6] = {\n",dspOutLabelName); break; }
     }
-    return lastSectionIndex;
+    return lastParamIndex;
 }
 
 static void checkParamSection(int opcode){
     checkInParamNum();
-    if (lastSectionOpcode == 0)
+    if (lastParamOpcode == 0)
         dspFatalError("No section defined or started.");
     if (opcode)
-        if (lastSectionOpcode != opcode)
+        if (lastParamOpcode != opcode)
             dspFatalError("Section already started for another opcode.");
 }
 
 // shall be used after one section is newly created after startParamSection
 static int nextParamSection(int opcode){
     checkParamSection(opcode);
-    lastSectionCount++;
-    if (lastSectionNumber>0) {
-        lastSectionNumber--;
-        if (lastSectionNumber == 0) { lastSectionOpcode = 0; } // number of expected section reached
+    lastParamCount++;
+    if (lastParamNumber>0) {
+        lastParamNumber--;
+        if (lastParamNumber == 0) { lastParamOpcode = 0; } // number of expected section reached
     } else
-        if (lastSectionNumber == 0) {
+        if (lastParamNumber == 0) {
             // flexible so this request is accepted
         } else { // negative number
-            if (lastSectionCount > (-lastSectionNumber))
+            if (lastParamCount > (-lastParamNumber))
                 dspFatalError("too much parameters in this section.");
         }
-    return lastSectionOpcode;
+    return lastParamOpcode;
 }
 
 
@@ -313,12 +314,12 @@ static void setLastMissingParamIf0(int paramAddr, int size){
 // calculate the number of words till the latest call to addOpcodeUnknownLength
 // and store it in the LSB16 of the latest dsp_opcode generated
 // calclength is called first by all the user dsp_XXX function
-static void calcLength(){
+void calcLength(){
     asm volatile("nop":::"memory"); // memory barier to avoid code reschuffling
     if (dspOpcodesPtr == 0)
         dspFatalError("dspEncoderInit has not been launched first.");   // sanity check
     if (lastParamNumIndex) {   // if we were in a Param Num
-        checkFinishedParamSection();
+        checkFinishedParamArea();
         lastParamNumIndex = 0;  // as we are now going to generate a new dsp_opcode then we close the latest PARAM_NUM
     }
     if (lastMissingParamIndex != 0) {  // check if there was a requirement for a minimum code size below the latest dsp_opcode generated
@@ -333,6 +334,7 @@ static void calcLength(){
     if (lastOpcodeIndexLength != -1) { // check if a lenght of code shall be calculated now (calcLength is called by all opcode functions)
         opcode_t tmp = *opcodePtr(lastOpcodeIndexLength);   // read opcode generated
         tmp.op.skip= (opcodeIndex() - lastOpcodeIndexLength);   // generate the lenght as a futur "skip" so the runtime can do: codePtr += codePtr->skip
+        dspprintf4("patch @%d:%d\n",lastOpcodeIndexLength,tmp.op.skip);
         *opcodePtr(lastOpcodeIndexLength) = tmp;          // update the opcode bin location
         lastOpcodeIndexLength = -1;                       // reset the index as we just solved it
          }
@@ -362,14 +364,14 @@ void dspEncoderFormat(int format){
         dspFormat       = format;
         dspMant         = (format < DSP_FORMAT_FLOAT) ? DSP_MANT : 0;
     }
-    dspprintf("DSP ENCODER : format generated for handling ");
-    if      (dspFormat == DSP_FORMAT_INT32)         dspprintf("integer 32 bits, with %d bits mantissa",dspMant)
-    else if (dspFormat == DSP_FORMAT_INT64)         dspprintf("integer 64 bits, with %d bits mantissa",dspMant)
-    else if (dspFormat == DSP_FORMAT_FLOAT)         dspprintf("float (32bits) with integer samples")
-    else if (dspFormat == DSP_FORMAT_DOUBLE)        dspprintf("double (64bits) with integer samples")
-    else if (dspFormat == DSP_FORMAT_FLOAT_FLOAT)   dspprintf("float (32bits) with float (32bits) samples")
-    else if (dspFormat == DSP_FORMAT_DOUBLE_FLOAT)  dspprintf("double (64bits) with float (32bits) samples");
-    dspprintf("\n");
+    dspprintf2("DSP ENCODER : format generated for handling ");
+    if      (dspFormat == DSP_FORMAT_INT32)         dspprintf2("integer 32 bits, with %d bits mantissa",dspMant);
+    else if (dspFormat == DSP_FORMAT_INT64)         dspprintf2("integer 64 bits, with %d bits mantissa",dspMant);
+    else if (dspFormat == DSP_FORMAT_FLOAT)         dspprintf2("float (32bits) with integer samples");
+    else if (dspFormat == DSP_FORMAT_DOUBLE)        dspprintf2("double (64bits) with integer samples");
+    else if (dspFormat == DSP_FORMAT_FLOAT_FLOAT)   dspprintf2("float (32bits) with float (32bits) samples");
+    else if (dspFormat == DSP_FORMAT_DOUBLE_FLOAT)  dspprintf2("double (64bits) with float (32bits) samples");
+    dspprintf2("\n");
 }
 
 //initialize encoder for a new header
@@ -386,10 +388,10 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     lastParamNumIndex     = 0;
     lastMissingParamIndex = 0;
     lastIndexPrinted      = 0;
-    lastSectionOpcode     = 0;
-    lastSectionIndex      = 0;
-    lastSectionNumber     = 0;
-    lastSectionCount      = 0;
+    lastParamOpcode     = 0;
+    lastParamIndex      = 0;
+    lastParamNumber     = 0;
+    lastParamCount      = 0;
     dspDumpStarted        = 0;
     ALUformat             = 0; // by default we consider to be single precision with ALU containing a 0.31 value
     lastCoreIndex         = 0;
@@ -399,8 +401,8 @@ void dspHeaderInit(opcode_t * opcodeTable) {
     maxParamValue         = 0.0;
     lastTpdfDataAddress   =  0;
     lastTpdfDataAddressCore = 0;
-    lastSectionProg       = 0;
-    lastSectionElse       = 0;
+    lastSectionIndex       = 0;
+    lastSectionNOP        = 0;
     lastSectionData       = 0;
     lastSectionDataMax    = 0;
 
@@ -517,6 +519,14 @@ int dsp_CLOCK(int cpu, int k176, int k192, int prio) {
     return 1;
 }
 
+void dsp_COND(unsigned cond) {
+    dspCondition = cond;
+}
+
+void dsp_PROCESSOR(unsigned proc) {
+    dspProcessor = proc;
+}
+
 // search one PARAM or PARAM_NUM area covering the address provided as a parameter
 int findInParamSpace(int addrParam) {
     int pos = 0;
@@ -561,7 +571,7 @@ static int checkInParamSpace(int index, int size){
         int code = cptr->op.opcode;
         int skip = cptr->op.skip;
         int add = 0;
-        //dspprintf3("%d: opcode %d, skip %d\n",pos,code,skip);
+        //dspprintf4("%d: opcode %d, skip %d\n",pos,code,skip);
         if (code == DSP_PARAM)     add = 1; // position of the first parameter
         if (code == DSP_PARAM_NUM) add = 2; // position of the first parameter following the PARAM_NUM value
         if (add) {
@@ -588,9 +598,14 @@ static int checkInParamSpaceOpcode(int index, int size, int opcode){
 
 extern int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned maxfreq);
 
-static void printMipsEstimate() {
-        int mips = getMipsEstimate(opcodeIndexPtr(lastCoreIndex_),0,dspMinSamplingFreq,dspMaxSamplingFreq);
-        dspprintf1("CORE AT %d:  Estimated instructions = %d\n",lastCoreIndex_,mips);
+static void printMipsEstimate(int core) {
+    if ((dspProcessor == 2)|| (dspProcessor == 3)) {
+        int mips = getMipsEstimate(opcodePtr(lastCoreIndex_),dspCondition,dspMinSamplingFreq,dspMaxSamplingFreq);
+        if (mips) {
+            dspprintf1("XMOS CORE %d estimated instructions max = %d (+core start 16..40)\n",core,mips);
+        } else 
+            dspprintf1("XMOS CORE %d not enabled with given conditions %X\n",core,dspCondition);
+    }
 }
 
 static void updateLastCoreIOs(){
@@ -628,38 +643,42 @@ static int checkCalcTpdf() {
     return lastTpdfDataAddress;
 }
 
-static void updateLastSection(){
-    if (lastSectionElse || lastSectionProg) {
-        int data = dspDataCounter - lastSectionData;
-        if (dspDataCounter > lastSectionDataMax) lastSectionDataMax = dspDataCounter;
-        dspDataCounter = lastSectionDataMax;
-        calcLength();
-        printLastOpcodes();
-        dspprintf3("DSP_SECTION END : data used %d,  dspDataCounter set to %d\n",data,dspDataCounter);
-    } 
-    if (lastSectionElse) {
-
-        //printf("lastSectionElse=%d\n",lastSectionElse);
-        int ofs = opcodeIndex() - lastSectionElse;
-        if (opcodePtr(lastSectionElse)->op.opcode == DSP_NOP) {
-            opcodePtr(lastSectionElse)->op.skip = ofs;
-            dspprintf3("DSP_SECTION ELSE Patching DSP_NOP at %d with ofset %d => %d\n",lastSectionElse,ofs,lastSectionElse+ofs);
-        }
-        lastSectionElse = 0;
+static void addSectionNOP(int pos){
+    opcode_t * ptr = opcodePtr(pos);
+    ptr->op.skip = lastSectionNOP; 
+    lastSectionNOP = pos;
+}
+static void solveSectionNOP() {
+    while(lastSectionNOP) {
+        opcode_t * ptr = opcodePtr(lastSectionNOP);
+        int prev = ptr->op.skip;
+        int skip = opcodeIndex() - lastSectionNOP;
+        ptr->op.skip = skip;
+        dspprintf4("patching DSP_NOP at %4d with ofset %4d -> %d\n",lastSectionNOP, skip, opcodeIndex());
+        lastSectionNOP = prev;
     }
-    if (lastSectionProg) {
-        //printf("lastSectionProg=%d\n",lastSectionProg);
-        int * ptr = (int *)opcodePtr(lastSectionProg);
-        if (opcodePtr(lastSectionProg)->op.opcode == DSP_SECTION) {
+}
+static void updateSectionData() {
+    if (lastSectionNOP) {
+        int data = dspDataCounter - lastSectionData; if (data) {}
+        if (dspDataCounter > lastSectionDataMax) lastSectionDataMax = dspDataCounter;
+        else dspDataCounter = lastSectionDataMax;
+        dspprintf4("section end, data used %4d,  dspDataCounter set to %d\n",data,dspDataCounter);
+    }
+}
+
+static void calcPreviousSectionSkip(){
+    if (lastSectionIndex) {
+        opcode_t * ptr = opcodePtr(lastSectionIndex);
+        if (ptr->op.opcode == DSP_SECTION) {    //snity check
             ptr++;  // point on displacement
-            int ofs = opcodeIndex() - lastSectionProg;
+            int ofs = opcodeIndex() - lastSectionIndex;
             //printf("old= %d, new = %d\n",*ptr,ofs);
-            *ptr = ofs;
+            ptr->i32 = ofs;
             calcLength();
-            printLastOpcodes(); //
-            dspprintf3("DSP_SECTION Patching at %d with ofset %d => %d\n\n",lastSectionProg,ofs,lastSectionProg+ofs);
+            dspprintf4("section patching at %4d, ofset %4d => %d\n",lastSectionIndex,ofs,lastSectionIndex+ofs);
         }
-        lastSectionProg = 0;
+        lastSectionIndex = 0;
     } 
 }
 
@@ -695,10 +714,10 @@ void dsp_dumpParameterNum(int addr, int size, char * name, int num){
 
 //create a dsp_CORE opcode if none has been decalred yet.
 static void check_dsp_CORE() {
-    if ( (lastCoreNum == 0) || (lastCoreOpcode == DSP_CORE_AES) ) {
+    if ( (lastCoreNum == 0) || 
+         (lastCoreOpcode == DSP_CORE_AES) ) {
         dsp_CORE();
-        printLastOpcodes();
-        lastOpcodePrint = opcodeIndex();
+        calcLength();
     }
 }
 
@@ -706,17 +725,19 @@ static void check_dsp_CORE() {
 int dspHeaderDone(){
     if (lastCoreOpcode != DSP_CORE_AES) {
         check_dsp_CORE();
-        updateLastSection();
+        calcPreviousSectionSkip();
+        solveSectionNOP();
+        updateSectionData();
         updateLastCoreIOs();
     }
     calcLength();                       // solve latest opcode length
-    dspprintf2("DSP_END_OF_CODE\n")
-    addOpcodeValue(DSP_END_OF_CODE,0);
+    dspprintf2("DSP_END_OF_CODE\n");
+    addOpcodeValue(DSP_END_OF_CODE,0);  //always force skip to 0 in this case
     int index = opcodeIndex();
     index &= 3;                        //padding/allignement 16 bytes
     if (index) opcodeIndexAdd(4-index);
-    calcLength();                       // just for executing debug print
-    printMipsEstimate();
+    printLastOpcodes();
+    printMipsEstimate(lastCoreNum);
     dspHeaderPtr->totalLength = opcodeIndex();  // total size of the program including header
     dspprintf1("dsptotallength = %d\n",opcodeIndex());
     dspHeaderPtr->dataSize = dspDataCounter;    //not relevant,as each core is dynamically allocating data
@@ -760,16 +781,14 @@ void dspSymbolCreateTable() {
 
 void dspSymbolAdd(dspSymbol_t * s){
     if (symbolStart == 0) dspFatalError("symbol table was not initiated upfront");
-    #if defined(DSP_PRINTF) && ( DSP_PRINTF < 3 )
-    if (s->address) 
-    #endif
+    if (dspPrintfVal>=3) 
     {
         if (symbolNumber == 0) {
-            dspprintf2("EXTERN SYMBOLS TABLE\n")
-            dspprintf2("tile, usedin, address, type, len, name\n");
+            dspprintf3("EXTERN SYMBOLS TABLE\n");
+            dspprintf3("tile, usedin, address, type, len, name\n");
             symbolNumber = 1;
         }
-        dspprintf2("%4d    %4X    %5d    %2d  %3d  %s\n",s->tileNum, s->tileUsed, s->address, s->type, s->length, s->name);
+        dspprintf3("%4d    %4X    %5d    %2d  %3d  %s\n",s->tileNum, s->tileUsed, s->address, s->type, s->length, s->name);
     }
     if (s->address) {
         addCode(s->address);
@@ -924,8 +943,10 @@ int  dsp_singleOpcode(unsigned opcode) {
 //a core will be authorized if any bit in the 1st mask is set to 1, OR any bit in the 2nd mask is set to 0
 int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     calcLength();
-    checkFinishedParamSection();
-    updateLastSection();
+    checkFinishedParamArea();
+    calcPreviousSectionSkip();
+    solveSectionNOP();
+    updateSectionData();
     updateLastCoreIOs();
     printLastOpcodes();             // flush any opcode printing before starting with new datasets
     if (lastTileNum == 0) {
@@ -939,7 +960,7 @@ int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
     if (lastCoreNum > 1) dspout("} //end of core %d\n\n",lastCoreNum-1);
     dspout("void dsp_CORE%d() {\n   if (0==dsp_CORE(0x%x,0x%x)) return;\n",lastCoreNum,progAny1,progAny0);
     int tmp = addOpcodeLengthPrint_without_dsp_CORE(opcode);  //avoid potential recusivity!
-    if (lastCoreNum>1) printMipsEstimate();
+    if (lastCoreNum > 1) printMipsEstimate(lastCoreNum-1);  //done here to benefit from above opcode generation which will stop the estimator
     lastCoreOpcode = opcode;
     lastCoreIndex  = tmp;
     lastCoreIndex_ = tmp;
@@ -971,32 +992,45 @@ int dsp_CORE_num() {
 }
 
 void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
+    //clean new section
     calcLength();
+    checkFinishedParamArea();
     check_dsp_CORE();
-    updateLastSection();
+    calcPreviousSectionSkip();
+    solveSectionNOP();
+    updateSectionData();
     lastSectionData    = dspDataCounter;
     lastSectionDataMax = dspDataCounter;
-    if ((progAny1 == 0xFFFFFFFF) && (progOnly0 == 0)) return;
-    lastSectionProg = addOpcodeLengthPrint(DSP_SECTION);
-    addCode(0);             //offset for jump (at least 4 !)
+    if ((progAny1 == 0xFFFFFFFF) && (progOnly0 == 0)) return;   //no opcode geenration if no conditions
+    lastSectionIndex = addOpcodeLengthPrint(DSP_SECTION);
+    addCode(0);             //offset for jump
     addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
     addCode(progOnly0);     //add a 32bit value representing compatibility of the code with 32 user programs
-    dspprintf3("DSP_SECTION : initial datacounter %d\n",lastSectionData);
+    dspprintf4("section, initial datacounter %d\n",lastSectionData);
 }
 
 void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
     calcLength();   //used to print late data
-    if (lastSectionProg == 0) dspFatalError("no SECTION identified before SECTION ELSE");
+    checkFinishedParamArea();
+    if (lastSectionIndex == 0) dspFatalError("no SECTION identified before SECTION ELSE");
+    updateSectionData();
     int tmp = addSingleOpcodePrint(DSP_NOP);
-    updateLastSection();
-    dspprintf3("DSP_SECTION ELSE : reinitialize datacounter %d\n",lastSectionData);
+    addSectionNOP(tmp);
+    printLastOpcodes();
+    calcPreviousSectionSkip();
+    dspprintf4("sectionelse (NOP): reinitialize datacounter %d\n",lastSectionData);
     dspDataCounter = lastSectionData;
-    int old = lastSectionDataMax;
-    dsp_SECTION(progAny1,progOnly0);
-    lastSectionDataMax = old;
-    lastSectionElse = tmp;
-}
 
+    if ((progAny1 == 0xFFFFFFFF) && (progOnly0 == 0)) { 
+        //nothing
+    } else {
+        lastSectionIndex = addOpcodeLengthPrint(DSP_SECTION);
+        addCode(0);             //offset for jump (at least 4 !)
+        addCode(progAny1);      //add a 32bit value representing compatibility of the code with 32 user programs
+        addCode(progOnly0);     //add a 32bit value representing compatibility of the code with 32 user programs
+        dspprintf4("section initial datacounter %d\n",lastSectionData);
+    }
+}
 
 
 // clear ALU X and Y
@@ -1094,7 +1128,7 @@ int dsp_FUNC_MEM(int op, int paramAddr) {
 
 void dsp_FULL_LOAD(int val) {
     dspout("   dsp_FULL_LOAD();\n");
-    int tmp = addOpcodeLengthPrint(DSP_FULL_LOAD); 
+    int tmp = addOpcodeLengthPrint(DSP_FULL_LOAD); if (tmp) {};
     addCode(val);
 }
 
@@ -1373,7 +1407,7 @@ void dsp_GAIN(int paramAddr){
 // can be used only in a param section
 int dspGain_Default(dspGainParam_t gain){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = addGainCodeQNM(gain);
     lastOpcodePrint = opcodeIndex();
     return tmp;
@@ -1421,7 +1455,7 @@ void dsp_VALUEY(int paramAddr){
 
 int  dspValue_Default(float value){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = addGainCodeQNM(value);
     lastOpcodePrint = opcodeIndex();
     return tmp;
@@ -1432,6 +1466,7 @@ void dsp_INTEGRATOR(){
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_INTEGRATOR);
     int data = addDataSpaceAligned8(2);    // 2 words for supporting 64bits alu
+    if (data) {}
     dspout("   dsp_INTEGRATOR(%d);\n",data);
 }
 
@@ -1440,6 +1475,7 @@ void dsp_DELAY_1(){
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_DELAY_1);
     int data = addDataSpaceAligned8(2);    // 2 words for supporting 64bits alu
+    if (data) {}
     dspout("   dsp_DELAY_1(%d);\n",data);
 }
 
@@ -1453,7 +1489,7 @@ void dsp_SERIAL(unsigned hash) {
 // can be used only in a param space for declaring a list of datas (for example to be used by DATA_TABLE)
 int dspDataTableInt(int * data, int n){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = opcodeIndex();
     for (int i=0; i<n; i++) addCode(*(data+i));
     lastIndexPrinted = opcodeIndex();
@@ -1463,7 +1499,7 @@ int dspDataTableInt(int * data, int n){
 int dspDataTableFloat(float * data, int n){
     printLastOpcodes();
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = opcodeIndex();
     for (int i=0; i<n; i++) addGainCodeQNM(*(data+i));
     printFromCurrentIndex();
@@ -1473,7 +1509,7 @@ int dspDataTableFloat(float * data, int n){
 
 int dspData2(int a,int b){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = opcodeIndex();
     addCode(a);
     addCode(b);
@@ -1483,7 +1519,7 @@ int dspData2(int a,int b){
 
 int dspData4(int a,int b, int c, int d){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = opcodeIndex();
     addCode(a); addCode(b);
     addCode(c); addCode(d);
@@ -1492,7 +1528,7 @@ int dspData4(int a,int b, int c, int d){
 }
 int dspData6(int a,int b, int c, int d, int e, int f){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = opcodeIndex();
     addCode(a); addCode(b);
     addCode(c); addCode(d);
@@ -1502,7 +1538,7 @@ int dspData6(int a,int b, int c, int d, int e, int f){
 }
 int dspData8(int a,int b, int c, int d, int e, int f, int g, int h){
     checkInParamNum();
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     int tmp = opcodeIndex();
     addCode(a); addCode(b); addCode(c); addCode(d);
     addCode(e); addCode(f); addCode(g); addCode(h);
@@ -1607,7 +1643,7 @@ void dsp_STORE_Y_MEM(int paramAddr) {
 
 // generate the space inside the PARAM area for the futur LOAD/STORE_MEM
 int dspMem_LocationMultiple(int number) {
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
     paramAligned8();
     int tmp = opcodeIndex();
@@ -1667,7 +1703,7 @@ void dsp_DELAY_DP_max(int paramAddr, int max){
 // genertae one word code combining the default uS value in LSB and with the max value in MSB
 static int dspDelay_MicroSec(int maxus, int us){
     checkInParamNum();  // check if we are in a PARAM or PARAM_NUM section
-    checkFinishedParamSection();
+    checkFinishedParamArea();
     signed long long maxSamples = (((signed long long)maxus * dspConvertFrequencyFromIndex(dspMaxSamplingFreq) + 500000)) / 1000000;
     addCode(us);    //changed from short to int.  runtime to be verified
     return addCode(maxSamples);
@@ -1707,17 +1743,18 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     unsigned long long delayLineFactor = dspTableDelayFactor[dspMaxSamplingFreq];
     unsigned long long maxSamples_ = (delayLineFactor * microSec);
     maxSamples_ >>= 32;
-    unsigned maxSamples = maxSamples_;
+    unsigned maxSamples = maxSamples_; if (maxSamples) {}
     delayLineFactor = dspTableDelayFactor[dspMinSamplingFreq];
     unsigned long long minSamples_ = (delayLineFactor * microSec);
     minSamples_ >>= 32;
-    unsigned minSamples = minSamples_;
-    int fshi = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
-    int fslo = dspConvertFrequencyFromIndex(dspMinSamplingFreq);
+    unsigned minSamples = minSamples_; if (minSamples) {};
+    int fshi = dspConvertFrequencyFromIndex(dspMaxSamplingFreq); if (fshi) {}
+    int fslo = dspConvertFrequencyFromIndex(dspMinSamplingFreq); if(fslo) {}
     if (maxSamples) {
         addOpcodeLengthPrint(opcode);
         addCode(microSec);  // store the expected delay in uSec
-        int data;
+        int data=0;
+        if (data) {}
         if (DP == 1 ) {
             data = addDataSpace(1 + maxSamples); // request data space (including index) and store the pointer
             if (opcode == DSP_DELAY) dspout("   dsp_DELAY(%d,%d,%d);\n",microSec,data,maxSamples);
@@ -1769,10 +1806,11 @@ void dsp_CIC_FixedMicroSec(int microSec){
     unsigned long long minSamples_ = (delayLineFactor * microSec);
     minSamples_ >>= 32;
     if (minSamples_<2) dspFatalError("minimum 2 samples required");
-    int fs = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
+    int fs = dspConvertFrequencyFromIndex(dspMaxSamplingFreq); if (fs) {}
     dspprintf2("    CIC FILTER %dus -> %d samples @%d -> %.0fus\n",microSec,maxSamples,fs,(float)maxSamples / (float)fs * 1000000.0);
     addCode(microSec);  // store the expected delay in uSec
     int data = addDataSpaceMisAligned8(1 + (maxSamples+1)*2);
+    if (data) {}
     dspout("   dsp_CIC(%d,%d,%d);\n",microSec, data, 1 + (maxSamples+1)*2);
     for (int f = dspMinSamplingFreq; f <= dspMaxSamplingFreq; f++ ) {
         // generate list of divider according to number of samples depending on fs
@@ -1791,6 +1829,7 @@ void dsp_CIC_N(int maxSamples){
     if (maxSamples<2) dspFatalError("minimum 2 samples required");
     addCode(maxSamples);
     int data = addDataSpaceMisAligned8(1 + (maxSamples+1)*2);
+    if (data) {}
     // generate coef according to maxSamples
     double coef = maxSamples;
     coef = 2.0 / coef;
@@ -1802,6 +1841,7 @@ void dsp_EXPMA(double alpha) {
     ALUformat = 1;
     addOpcodeLengthPrint(DSP_EXPMA);
     int data = addDataSpaceAligned8(2);            //book a 64bit location
+    if (data) {}
     dspout("   dsp_EXPMA(%d,%f);\n",data,alpha);
     addDoubleCodeQ31(alpha);
 }
@@ -1831,7 +1871,7 @@ void dsp_DATA_TABLE(int paramAddr, dspGainParam_t gain, int divider, int size){
 
 int dspGenerator_Sine(int samples){
     checkInParamNum();              // check if we are in a PARAM or PARAM_NUM section
-    checkFinishedParamSection();    // verify if there is an ongoing section started
+    checkFinishedParamArea();    // verify if there is an ongoing section started
     int tmp = opcodeIndex();
     checkInRange(samples,4,1024);
     dspprintf3("dspGenerator : 2.PI sinewave in %d values\n",samples);
@@ -1873,6 +1913,7 @@ int dsp_BIQUADS_FS(int paramAddr){
     addCode(num);   //number of section
     addCodeOffset(paramAddr+1+6*num, base);     //ofset of the computed , in the code space
     int data = addDataSpaceAligned8(num*6);     // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
+    if (data) {}
     dspout("   dsp_BIQUADS_FS(&%s[%d],%d,%d,%d);\n",dspOutLabelName,num,num,data,num*6);
     return base;
 }
@@ -1880,11 +1921,11 @@ int dsp_BIQUADS_FS(int paramAddr){
 int dspBiquad_Sections(int number){
     startParamSection(dspDynamic? DSP_BIQUADS_FS:DSP_BIQUADS, number); // check and initialize conditions for the follwoing data in the PARAM section
     int pos = paramMisAligned8();
-    lastSectionIndex = addOpcodeValue(dspDynamic? DSP_BIQUADS_FS:DSP_BIQUADS, number);    // store the number of following sections
-    if (number>0) dspprintf3("\n%4d : biquad section expecting %d cell(s)\n",pos,number)
+    lastParamIndex = addOpcodeValue(dspDynamic? DSP_BIQUADS_FS:DSP_BIQUADS, number);    // store the number of following sections
+    if (number>0) dspprintf3("\n%4d : biquad section expecting %d cell(s)\n",pos,number);
     else
         if (number<0)
-             dspprintf3("\n%4d : biquad section expecting maximum %d cell(s)\n",pos,-number)
+             dspprintf3("\n%4d : biquad section expecting maximum %d cell(s)\n",pos,-number);
         else dspprintf3("\n%4d : biquad section\n",pos);
     if (dspDynamic==0) addCode(1);  // this is the bypass parameter
     return pos;
@@ -1903,7 +1944,7 @@ void sectionBiquadCoeficientsBegin(){
 }
 
 void sectionBiquadCoeficientsEnd(){
-    if (lastSectionOpcode == 0) // last section of biquad
+    if (lastParamOpcode == 0) // last section of biquad
         // cancell printing of coeeficients,  as they have been printed in another way
         printFromCurrentIndex();
 }
@@ -1951,7 +1992,7 @@ int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_
 int dspFir_Impulses(){
     startParamSection(DSP_FIR, numberFrequencies);
     int pos = paramMisAligned8();
-    lastSectionIndex = pos; // to adjust in case the index was not alligned previously
+    lastParamIndex = pos; // to adjust in case the index was not alligned previously
     addOpcodeValue(DSP_FIR, numberFrequencies); // header , will be folowwed by impulses
     return pos;
 }

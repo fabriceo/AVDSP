@@ -208,12 +208,12 @@ int dsp_FilterLT(dspFilterParam_t f0, dspFilterParam_t Q0, dspFilterParam_t fp, 
 
         if (coefPtr==0) {
             coefPtr =  addFilterParams(FLT, f0, Q0, fp, Qp, gain);
-            dspprintf2("FILTER f0 = %5.0f, Q0 = %2.3f, fp = %5.0f, Qp = %2.3f, G = %2.3f\n", f0, Q0, fp, Qp, gain);
-            dspprintf3(" b0 = %2.3f, ",b0);
-            dspprintf3(" b1 = %2.3f,",b1);
-            dspprintf3(" b2 = %2.3f,",b2);
-            dspprintf3(" a1 = %2.3f, ",a1);
-            dspprintf3(" a2 = %2.3f\n",a2); }
+            dspprintf3("FILTER f0 = %5.0f, Q0 = %2.3f, fp = %5.0f, Qp = %2.3f, G = %2.3f\n", f0, Q0, fp, Qp, gain);
+            dspprintf4(" b0 = %2.3f, ",b0);
+            dspprintf4(" b1 = %2.3f,",b1);
+            dspprintf4(" b2 = %2.3f,",b2);
+            dspprintf4(" a1 = %2.3f, ",a1);
+            dspprintf4(" a2 = %2.3f\n",a2); }
         addBiquadCoeficients(b0, b1, b2, a1, a2);
     }
     sectionBiquadCoeficientsEnd();
@@ -231,12 +231,12 @@ int dsp_Filter2ndOrder(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspG
 
         if (coefPtr==0) {
             coefPtr =  addFilterParams(type, freq, Q, 0,0, gain);
-            dspprintf2("FILTER f = %5.0f, Q = %2.3f, G = %2.3f\n", freq, Q, gain);
-            dspprintf3(" b0 = %2.3f, ",b0);
-            dspprintf3(" b1 = %2.3f,",b1);
-            dspprintf3(" b2 = %2.3f,",b2);
-            dspprintf3(" a1 = %2.3f, ",a1);
-            dspprintf3(" a2 = %2.3f\n",a2); }
+            dspprintf3("FILTER f = %5.0f, Q = %2.3f, G = %2.3f\n", freq, Q, gain);
+            dspprintf4(" b0 = %2.3f, ",b0);
+            dspprintf4(" b1 = %2.3f,",b1);
+            dspprintf4(" b2 = %2.3f,",b2);
+            dspprintf4(" a1 = %2.3f, ",a1);
+            dspprintf4(" a2 = %2.3f\n",a2); }
         addBiquadCoeficients(b0, b1, b2, a1, a2);
     }
     sectionBiquadCoeficientsEnd();
@@ -253,12 +253,12 @@ int dsp_Filter1stOrder(int type, dspFilterParam_t freq, dspGainParam_t gain){
 
         if (coefPtr==0) {
             coefPtr =  addFilterParams(type, freq, 0.0, 0,0,gain);
-            dspprintf2("FILTER f = %5.0f, G = %2.3f\n", freq, gain);
-            dspprintf3(" b0 = %2.3f, ",b0);
-            dspprintf3(" b1 = %2.3f,",b1);
-            dspprintf3(" b2 = %2.3f,",b2);
-            dspprintf3(" a1 = %2.3f, ",a1);
-            dspprintf3(" a2 = %2.3f\n",a2); }
+            dspprintf3("FILTER f = %5.0f, G = %2.3f\n", freq, gain);
+            dspprintf4(" b0 = %2.3f, ",b0);
+            dspprintf4(" b1 = %2.3f,",b1);
+            dspprintf4(" b2 = %2.3f,",b2);
+            dspprintf4(" a1 = %2.3f, ",a1);
+            dspprintf4(" a2 = %2.3f\n",a2); }
         addBiquadCoeficients(b0, b1, b2, a1, a2);
     }
     sectionBiquadCoeficientsEnd();
@@ -278,7 +278,7 @@ int dsp_Hilbert(int stages, dspFilterParam_t transition, dspGainParam_t phase){
                 dspprintf3("HILBERT stage = %d, transition = %f, fs=%f\n", stages,transition, fs);
             if (f == dspMinSamplingFreq) {
                 coefPtr =  addFilterParams(FHILB, 1000, transition, 0,0,1.0 );
-                dspprintf3("c%d = %f\n",d, coefs[d]);
+                dspprintf4("c%d = %f\n",d, coefs[d]);
             }                   // xn       xn-1   xn-2    yn-1   yn-2
             addBiquadCoeficients( coefs[d], 0.0,   -1.0,   0.0,   coefs[d] );
         } // for f

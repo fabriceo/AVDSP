@@ -116,6 +116,11 @@ int main(int argc, char **argv) {
             if (argc>i) {
                 defaultType = strtol(argv[i], &perr,10);
                 continue; } }
+        if (strcmp(argv[i],"-dspprintf") == 0) {
+            i++;
+            if (argc>i) {
+                dspPrintfVal = strtol(argv[i], &perr,10);
+                continue; } }
         if (strcmp(argv[i],"-fsmin") == 0) {
             i++;
             if (argc>i) {

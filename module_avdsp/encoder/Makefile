@@ -16,7 +16,7 @@ endif
 
 
 INCLUDES = -I../encoder -I../runtime
-CFLAGS += -DDSP_PRINTF=3 -O3 -fPIC -Wall $(INCLUDES)
+CFLAGS += -DDSP_PRINTF=1 -O3 -fPIC -Wall $(INCLUDES)
 #LIBS = -L. -lavdspencoder -lm -ldl  
 LIBS = -L. -lm -ldl  
 
