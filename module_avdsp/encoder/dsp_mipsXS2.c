@@ -162,10 +162,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
         unsigned code = ptr->op.opcode;
         int skip = ptr->op.skip;
         //dspprintf3("<%s>\n",dspOpcodeText[code])
-        if ((code == DSP_END_OF_CODE)||(skip == 0)) {
-            sum += dispatch;
-            return ((sum > endsectionsum) ? sum : endsectionsum);
-        }
+        if ((code == DSP_END_OF_CODE)||(skip == 0)) return ((sum > endsectionsum) ? sum : endsectionsum);
         if (code == DSP_CORE_AES) return ((sum>endsectionsum) ? sum : endsectionsum);
         if (code == DSP_CORE) { 
             if (coreseen) return ((sum>endsectionsum) ? sum : endsectionsum);    //begining of a new core
