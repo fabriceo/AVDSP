@@ -158,7 +158,7 @@ static inline int isCharEOL(char ch) {
 //basic function to move pointer forward, bypassing all spaces and tabs
 static inline char * skipSpacesBasic(char * * s) {
     char * p = *s;
-    while (isSpaceOrTab(*p)) p++;
+    while (isSpaceOrTab(p[0])) p++;
     *s = p;
     return p;
 }
@@ -172,8 +172,8 @@ static int searchDelimiter(char * * s, char * delim) {
     char * p = skipSpaces(s);
     int len = strlen(delim);
     for (int i = 0; i<len; i++)
-        if (*p == ((delim[i]==1)?0:delim[i])) {
-            if (*p) *s = p+1;
+        if (p[0] == ((delim[i]==1) ? 0 : delim[i])) {
+            if (p[0]) *s = p+1;
             return delim[i]; }
     return 0;
 }
@@ -182,7 +182,7 @@ static int searchDelimiter(char * * s, char * delim) {
 static int goAfterDelimiter(char * * s, char * delim) {
     char * p = *s;
     int len = strlen(delim);
-    while (*p) {
+    while (p[0]) {
         for (int i=0; i< len; i++)
             if (p[0] == delim[i]) {
                 //found one
@@ -206,7 +206,7 @@ static int testDelimiter(char * * s, char * delim) {
 //expect one of the given delimiter otherwise raise an error
 static void getDelimiterError(char * * s, char delim, int err) {
     char * p = skipSpaces(s); 
-    fatalErrorNumIf(err, *p != delim );
+    fatalErrorNumIf(err, p[0] != delim );
     errPtr = p+1;
     *s = p+1;
 }
@@ -229,13 +229,13 @@ static void getSeparatorEOLError(char * * s) {
 //check if current delimiter character is in the given string then return its value otherwise 0
 static int searchString(char * * s, char * * str ) {
     char * p = skipSpaces(s);
-    if (*p == '\"') {
+    if (p[0] == '\"') {
         p++;
         *str = p;   //begining of string
         int len=0;
-        while (isCharOfString(*p)) { len++; p++; }
-        if (*p) {   //expect a quote character
-            *p = 0;
+        while (isCharOfString(p[0])) { len++; p++; }
+        if (p[0]) {   //expect a quote character
+            p[0] = 0;
             errPtr = p+1;
             *s = p+1; 
         } else {
@@ -300,7 +300,7 @@ char * lastLabelName = "";
 static labelptr_t appendNewLabel(char * s) {
     char * p = s;
     int len = 0;
-    while ( isAlphanum(*p) ) { p++; len++; }
+    while ( isAlphanum(p[0]) ) { p++; len++; }
     labelptr_t l = malloc(sizeof(label_t)+len);
     l->s.length = len;
     l->next = NULL;
@@ -393,29 +393,29 @@ static int searchNumerical(char * * s, double * value, int enableDB) {
     char* begin = p;
     errPtr = p;
     *value = 0.0;
-    while (*p) {
+    while (p[0]) {
         if (state == 0) {
             //sign authorized only at the begining
-            if ( (*p) == '-') { 
+            if ( (p[0]) == '-') { 
                 if (sign == 0.0) sign = -1.0; else sign = -sign; 
                 p++; continue; }
-            if ( (*p) == '+') { 
+            if ( (p[0]) == '+') { 
                 if (sign == 0.0) sign = 1.0;
                 p++; continue; }
-            if ( isSpaceOrTab(*p) ) { p++; continue; }
-            if ( ((*p) == 'b') || ((*p) == 'x') || ((*p) == 'o') ) {
+            if ( isSpaceOrTab(p[0]) ) { p++; continue; }
+            if ( ((p[0]) == 'b') || ((p[0]) == 'x') || ((p[0]) == 'o') ) {
                 //potential labels are prioritized
                 char * pos = p;
                 labelptr_t l = searchLabel(&pos);
                 if (l) { *s = begin; return _empty; }
             }
-            if ( (*p) == 'b') { base=2.0;  p++;state |= 1; continue; }
-            if ( (*p) == 'x') { base=16.0; p++;state |= 1; continue; }
-            if ( (*p) == 'o') { base=8.0;  p++;state |= 1; continue; }
+            if ( (p[0]) == 'b') { base=2.0;  p++;state |= 1; continue; }
+            if ( (p[0]) == 'x') { base=16.0; p++;state |= 1; continue; }
+            if ( (p[0]) == 'o') { base=8.0;  p++;state |= 1; continue; }
         }
-        if ((state == 1)&&(base==10.0)) {
+        if ((state == 1) && (base==10.0)) {
             //point authorised only after at least one digit
-            if (*p =='.') { state |= 2; p++; continue; }
+            if (p[0] =='.') { state |= 2; p++; continue; }
         }
         if (state) {
             if ( (base==10.0) && ((p[0]=='%')||(p[0]=='m')) ) {
@@ -433,15 +433,15 @@ static int searchNumerical(char * * s, double * value, int enableDB) {
                 return _valuedb; 
             } //decibel
         }
-        if ( ((base==8.0)  && isNumber(  *p ) && (*p<'8')) ||
-             ((base==10.0) && isNumber(  *p )) ||
-             ((base==16.0) && isHexaNum( *p )) ||
-             ((base==2.0)  && isBinary(  *p ) ) ) {
+        if ( ((base==8.0)  && isNumber(  p[0] ) && (p[0]<'8')) ||
+             ((base==10.0) && isNumber(  p[0] )) ||
+             ((base==16.0) && isHexaNum( p[0] )) ||
+             ((base==2.0)  && isBinary(  p[0] ) ) ) {
             state |= 1; //number description started
             if (state & 2) mantisse /= 10.0;
             else result *= base;
             int num;
-            if ((base == 16.0) && isLetter(*p)) num = (p[0] & 7)+9;
+            if ((base == 16.0) && isLetter(p[0])) num = (p[0] & 7)+9;
             else num = p[0] - '0';
             result += num * mantisse;
             p++; continue;
@@ -645,7 +645,7 @@ static void replaceExpressions( char * * s) {
         else                        lenbuf = sprintf(buf, "???");
         //dspprintf("begin %c, end %c, len %d, size %d, lenbuf %d\n",begin[0],end[0],lenafter,size,lenbuf);
         //eventually adjust bin space (dest, source, size)
-        if (size != lenbuf) memmove(&begin[lenbuf],end,lenafter); //resize to fit requirement
+        if (size != lenbuf) memmove( &begin[lenbuf], end, lenafter); //resize to fit requirement
         memcpy(begin,buf,lenbuf);
         *s = &begin[lenbuf];
     }
@@ -682,7 +682,7 @@ static char * skipSpaces(char * * s){
         errPtr = *s;
         if (isCharEOL(**s)==0) fatalErrorNum(32);
         if (fgetLine()) {
-            (*lineNum)++;
+            lineNum[0]++;
             *s = line;
             errPtr = *s;
             continue;   //while 1
@@ -702,7 +702,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     int fileNum = 0;    //depth for included files
     dspInput = dspInputArray;
     lineNum = lineNumArray;
-    (*lineNum) = 0;
+    lineNum[0] = 0;
     char * nextName = dspbasicName;
     int size = 0;
     int numCore = 1;
@@ -768,17 +768,17 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
 
     while (1) {
 nextline:
-        if ((*lineNum) == 0) {
+        if (lineNum[0] == 0) {
             //analyse all the parameters given on the command line
             if (countarg != argc) {
                 strcpy(line, argv[countarg]);
                 dspprintf1("option %d %s\n",countarg,line);
                 countarg++;
             } else 
-                (*lineNum) = 1;
+                lineNum[0] = 1;
         }
-        pDSPLINE->value = *lineNum;
-        if (*lineNum) {
+        pDSPLINE->value = lineNum[0];
+        if (lineNum[0]) {
             //read next line
             while ( fgetLine() == 0) {
                 //end of file detected
@@ -788,20 +788,20 @@ nextline:
                     fileNum--;
                     lineNum--;
                     dspInput--;
-                    dspprintf2("back to previous file, line %d\n",*lineNum);
+                    dspprintf2("back to previous file, line %d\n",lineNum[0]);
                 } else
                     goto finished;
             }
-            dspprintf4("L%d:%d:%s",*lineNum,ifcondition,line);
-            (*lineNum)++;
+            if (ifcondition) dspprintf4("%4d %s",lineNum[0],line);
+            lineNum[0]++;
 
         }
         double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         char * p = line;   //pointer on the character to analyse
         //main loop to analyse the line
-        while (*p ) {
+        while ( p[0] ) {
             //skip any spaces or tab
-            if ( isSpaceOrTab(*p) || ((*p==';')) ) { p++; continue; }
+            if ( isSpaceOrTab(p[0]) || ((p[0]==';')) ) { p++; continue; }
             else errPtr = p;
             //check special case '#-' as a prefix for printable comments
             if ( ifcondition && (p[0] == '#') && (p[1] == '-') ) {
@@ -813,11 +813,11 @@ nextline:
             }
  
             //load a new line when finding # or cr/lf
-            if ( (*p == 0) || (*p == '#')  || (*p == 0x5C ) || (*p == 0x0A) || (*p == 0x0D) ) break; //goto next line
+            if ( (p[0] == 0) || (p[0] == '#')  || (p[0] == 0x5C ) || (p[0] == 0x0A) || (p[0] == 0x0D) ) break; //goto next line
 
             if (tapsinclude) goto labeltaps;
             //expecting either a label definition or a dsp keyword, all starting by a letter
-            fatalErrorNumIf( 6, isLetter( *p ) == 0 );
+            fatalErrorNumIf( 6, isLetter( p[0] ) == 0 );
             int res;
             int keyw = searchKeywords( &p, dspKeywords, dspKeywordsNumber);
             if (ifcondition == 0) {
@@ -867,7 +867,7 @@ nextline:
                     valueMax[_tmant2] = mant+32;
                     valueMax[_tvalue32] = 1ULL<<(31-mantissa);
                     valueMin[_tvalue32] = -valueMax[_tvalue32];
-                    if ((res = searchDelimiter(&p, ","))) {
+                    if ((res = searchDelimiter( &p, ","))) {
                         searchExpressionRangeError( &p, &mant, _tmant2 );
                         valueMax[_tvalue64] = 1ULL<< ( 63-(int)mant );
                         valueMin[_tvalue64] = -valueMax[_tvalue64];
@@ -910,17 +910,17 @@ nextline:
                 int clockcpu = value;
                 if ((clockcpu != value) || (clockcpu & 3)) fatalErrorNum(50);
                 int clock176k=0,clock192k=0,prio=0;
-                if ((res = searchDelimiter(&p, ","))) {
+                if ((res = searchDelimiter( &p, ","))) {
                     if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                     outOfRangeError(value,480,648);
                     clock176k = value;
                     if ((clock176k != value) || (clock176k & 3)) fatalErrorNum(50);
-                    getDelimiterError(&p, ',',30);
+                    getDelimiterError( &p, ',',30);
                     if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                     outOfRangeError(value,480,600);
                     clock192k = value;
                     if ((clock192k != value) || (clock192k & 3)) fatalErrorNum(50);
-                    if ((res = searchDelimiter(&p, ","))) {
+                    if ((res = searchDelimiter( &p, ","))) {
                         if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
                         outOfRangeError(value,0,3);
                         prio=value;
@@ -931,22 +931,32 @@ nextline:
                 break; }
             case _DSPCOND : {
                 double value = 0.0;
-                fatalErrorNumIf(45, dsp_checkCodeAlready());
+//                fatalErrorNumIf(45, dsp_checkCodeAlready());
                 res = searchExpressionRangeError( &p, &value,_tint32);
                 dsp_COND(value);
                 pDSPCOND->value = value;
                 break; }
             case _DSPXS2 :
             case _DSPXS3 : {
-                fatalErrorNumIf(45, dsp_checkCodeAlready());
                 dsp_PROCESSOR(keyw == _DSPXS2 ? 2 : 3 );
+                double value = 0.0;
+//                fatalErrorNumIf(45, dsp_checkCodeAlready());
+//                res = searchExpressionRangeError( &p, &value, _tint32);
+                res = testExpression( &p,  &value);
+                if (res != _empty) {
+                    outOfRangeError(value,0,0xFFFFFFFF);
+                    dsp_COND(value);
+                    pDSPCOND->value = value;
+                }
                 int freqmax = dspConvertFrequencyFromIndex(dspMaxSamplingFreq);
                 int lastclock = pDSPCLOCK->value;
                 lastclock *= 1000000/5;
                 int inst = lastclock / freqmax;
-                dspprintf2("XMOS instructions per samples %d\n",inst);
+                dspprintf2("XMOS instructions per samples %d, enabling condition 0x%X\n",inst,dspCondition);
                 break;}
                 case _DSPPRINTF : {
+                    calcLength();
+                    clearParamSection();
                     double value;
                     if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
                     outOfRangeError(value,0,4);
@@ -960,7 +970,7 @@ nextline:
                 fileNum--;
                 lineNum--;
                 dspInput--;
-                dspprintf2("back to previous file, line %d\n",*lineNum);
+                dspprintf2("back to previous file, line %d\n",lineNum[0]);
                 goto nextline;
                 break; }
             case _include : {
@@ -968,17 +978,17 @@ nextline:
                 if (fileNum >= (maxIncludedFiles-1)) fatalErrorNum(43);
                 char * str;
                 if (searchString( &p, &str) <= _error) fatalErrorNum(42);
-                getEOLError(&p);
+                getEOLError( &p );
                 fileNum ++;
                 lineNum++;
                 dspInput++;
-                (*lineNum) = 1;
+                lineNum[0] = 1;
                 nextName = str;
                 goto nextfile;  //restart by opening the next file name
                 break; }
 
             case _if : {
-                skipSpacesBasic(&p);
+                skipSpacesBasic( &p );
                 res = testDelimiter( &p, ";#\r\n\01" );
                 if (res) {
                     if (res>=32) p--;
@@ -1008,16 +1018,16 @@ nextline:
                         ifcondition = var ? 1 : 0;
                 }
                 if (ifcondition == 0) {
-                    skipSpacesBasic(&p);
+                    skipSpacesBasic( &p );
                     res = testDelimiter( &p, "#\r\n\01" );
                     if (res == 0) { 
-                        dspprintf3("L%d: IF condition 0, ignoring only this line %s",(*lineNum)-1,p);
+                        dspprintf3("%4d IF condition 0, ignoring only this line %s",lineNum[0]-1,p);
                         ifcondition = 1;
                     } else 
-                        dspprintf3("L%d: IF condition 0, ignoring all next lines\n",(*lineNum)-1);
+                        dspprintf3("%4d IF condition 0, ignoring all next lines\n",lineNum[0]-1);
                     goto nextline;
                 } else {
-                    dspprintf3("L%d: IF condition 1\n",(*lineNum)-1);
+                    dspprintf3("%4d IF condition 1\n",lineNum[0]-1);
                     continue; }
                 break;}
             case _param: {
@@ -1092,8 +1102,8 @@ nextline:
             case _receive: {    //syntax send channel : io,io ...
                 //TODO this requires the opcode calclengthprint to be launched!
                 double tile=0;
-                searchExpressionRangeError(&p, &tile, _ttile);
-                getDelimiterError(&p, ',',30);
+                searchExpressionRangeError( &p, &tile, _ttile);
+                getDelimiterError( &p, ',', 30);
                 int index = addCode(0); //placeholder for opcode+skip
                 opcode_t * ptr = opcodePtr(index);
                 unsigned int outcount;
@@ -1332,11 +1342,13 @@ nextline:
             case _biquad: {
                 labelptr_t l = searchLabel( &p );
                 if (l == NULL) { lastLabelName = ""; fatalErrorNum(3); }
-                if ( (l->s.type != label_filter)&&(l->s.type != label_filters)&&(l->s.type != label_filter8) ) fatalErrorNum(3);
+                if ( (l->s.type != label_filter) 
+                  && (l->s.type != label_filters) 
+                  && (l->s.type != label_filter8) ) fatalErrorNum(3);
                 usedLabelInTile(l);
                 dspOutLabelName = l->s.name;
                 dspprintf3("biquad filter %s, %d\n",dspOutLabelName,l->s.address);
-                if ((l->s.type == label_filter)&&(dspModeDynamic==0)) dsp_BIQUADS( l->s.address );
+                if ((l->s.type == label_filter) && (dspModeDynamic==0)) dsp_BIQUADS( l->s.address );
                 else dsp_BIQUADS_FS( l->s.address );
                 break; }
 
@@ -1465,7 +1477,7 @@ nextline:
             case _memsave:
             case _loadmem: {
                 int op = (keyw - _memclr) + DSP_MEMCLR;
-                int addr = getLabelMemory(&p);
+                int addr = getLabelMemory( &p );
                 dsp_FUNC_MEM(op, addr);
                 break; }
             //TODO interpret parameters and generate opcodes
@@ -1474,7 +1486,7 @@ nextline:
             case _mixermem: {
                 int ofs = 0;
                 do {
-                    int addr = getLabelMemory(&p);
+                    int addr = getLabelMemory( &p );
                     if (ofs == 0) ofs = dsp_FUNC_MEM((keyw - _memclr) + DSP_MEMCLR, addr);
                     else addCodeOffset(addr,ofs);
                     res = searchDelimiter( &p, ",");
@@ -1493,8 +1505,8 @@ nextline:
                 addGainCodeQNM(result);
                 break; }
             case _meminput: { 
-                int addr = getLabelMemory(&p); 
-                getDelimiterError(&p, ',', 30);
+                int addr = getLabelMemory( &p ); 
+                getDelimiterError( &p, ',', 30);
                 searchExpressionRangeError( &p, &input, _tIO  );
                 dsp_FUNC_MEM(DSP_MEMINPUT,addr);
                 addCode(input);
@@ -1540,7 +1552,10 @@ nextline:
                 if ( filterType >= 0 ) {
                     if ( filterNum == 0 ) {
                         //this new label is followed by a filter name for the first time
-                        if ((l->s.type != _empty)&&(l->s.type != label_filter)&&(l->s.type != label_filters)&&(l->s.type != label_filter8)) fatalErrorNum(12);
+                        if ((l->s.type != _empty) 
+                         && (l->s.type != label_filter)
+                         && (l->s.type != label_filters)
+                         && (l->s.type != label_filter8)) fatalErrorNum(12);
                         l->s.type = label_filter;
                         dspOutLabelName = l->s.name;
                         l->s.address = dspBiquad_Sections_Flexible();
@@ -1778,10 +1793,10 @@ nextline:
             } //end of switch keyw
             //dspprintf1("looking next instruction\n");
             //an instruction has been processed now go for next
-            if ((*lineNum) > 0) {
-                getSeparatorEOLError(&p);
+            if (lineNum[0] > 0) {
+                getSeparatorEOLError( &p );
             }
-        } // while(*p)
+        } // while(p[0])
     } //while (1) = read next line
 finished:
 
@@ -1865,8 +1880,8 @@ void fatalError(){
 
     default: break;
     }
-    fprintf(stderr,"l%d: %s",(*lineNum)-1,line);
-    fprintf(stderr,"l%d: ",(*lineNum)-1);
+    fprintf(stderr,"l%d: %s",lineNum[0]-1,line);
+    fprintf(stderr,"l%d: ",lineNum[0]-1);
     char *q = line;
     while (isSpaceOrTab(*errPtr)) errPtr++;
     while (q != errPtr) { fprintf(stderr,"%c",(((*q)==9) ? *q : ' ')); q++; }

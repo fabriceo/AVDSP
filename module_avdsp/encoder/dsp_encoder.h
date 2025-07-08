@@ -31,6 +31,7 @@ void dspEncoderFormat(int format);
 void dspEncoderInit(opcode_t * opcodeTable, int max, int format, int minFreq, int maxFreq, int maxIO);
 int dsp_checkCodeAlready();
 void calcLength();
+void printLastOpcodes();
 int  dsp_FSMIN(int freq);
 int  dsp_FSMAX(int freq);
 int  dsp_FSDYN(int val);

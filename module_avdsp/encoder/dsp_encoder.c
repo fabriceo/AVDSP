@@ -185,7 +185,7 @@ static void printFromCurrentIndex(){
 }
 
 // for debugging purpose, print all the opcode generated since the latest dsp_opcode
-static void printLastOpcodes() {
+void printLastOpcodes() {
     if (lastIndexPrinted < lastOpcodePrint) {
         dspprintf3("%4d : ",lastIndexPrinted);
         for (int i = lastIndexPrinted; i< lastOpcodePrint; i++)
@@ -784,7 +784,7 @@ void dspSymbolAdd(dspSymbol_t * s){
     if (dspPrintfVal>=3) 
     {
         if (symbolNumber == 0) {
-            dspprintf3("EXTERN SYMBOLS TABLE\n");
+            dspprintf3("SYMBOLS TABLE:\n");
             dspprintf3("tile, usedin, address, type, len, name\n");
             symbolNumber = 1;
         }
@@ -942,8 +942,8 @@ int  dsp_singleOpcode(unsigned opcode) {
 // indicate start of a program for a dedicated core/task
 //a core will be authorized if any bit in the 1st mask is set to 1, OR any bit in the 2nd mask is set to 0
 int dsp_CORE_Prog_(unsigned opcode, unsigned progAny1, unsigned progAny0){
-    calcLength();
     checkFinishedParamArea();
+    calcLength();
     calcPreviousSectionSkip();
     solveSectionNOP();
     updateSectionData();
@@ -993,8 +993,8 @@ int dsp_CORE_num() {
 
 void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
     //clean new section
-    calcLength();
     checkFinishedParamArea();
+    calcLength();
     check_dsp_CORE();
     calcPreviousSectionSkip();
     solveSectionNOP();
@@ -1010,8 +1010,8 @@ void dsp_SECTION(unsigned progAny1, unsigned progOnly0){
 }
 
 void dsp_SECTION_ELSE(unsigned progAny1, unsigned progOnly0){
-    calcLength();   //used to print late data
     checkFinishedParamArea();
+    calcLength();   //used to print late data
     if (lastSectionIndex == 0) dspFatalError("no SECTION identified before SECTION ELSE");
     updateSectionData();
     int tmp = addSingleOpcodePrint(DSP_NOP);

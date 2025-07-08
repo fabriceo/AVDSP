@@ -178,7 +178,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                 dspprintf4("%4d %s validated\n",pos,dspOpcodeText[code]);
             } else 
                 dspprintf4("%4d %s valid with COND = 0\n",pos,dspOpcodeText[code]);
-            ptr+=skip; pos += skip; continue;
+            ptr += skip; pos += skip; continue;
         }
         if (firstcode == 0) { //no opcode seen yet, first time
             if ((code == DSP_NOP) || (code == DSP_PARAM) || (code == DSP_PARAM_NUM) ) 
@@ -186,7 +186,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
             else firstcode = 1;
         } 
         if (firstcode == 1) {
-            unsigned param1 = ptr[1].u32;
+            int param1 = ptr[1].u32;
             int inst = 0;
             if (sum > endsectionsum) endsectionsum = sum;
 
@@ -265,8 +265,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                 case DSP_MIXER :      { 
                     inst = ((skip-1)/2-1) * 6; break; }
                 case DSP_LOAD_MUX : {
-                    opcode_t * f = ptr + param1;
-                    short num = f->op.skip;
+                    short num = ptr[param1].s16.low;
                     inst = num * 6;
                     break; }
                 case DSP_ADDMEM : 
@@ -282,8 +281,8 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     else if (param1 & 0xFF00) inst = 3;
                     break; }
                 case DSP_BIQUADS : {
-                    opcode_t * f = ptr + ptr[2].u32;
-                    short sections = f->op.skip;
+                    int param2 = ptr[2].i32;
+                    short sections = ptr[param2].s16.low;
                     inst = sections * 18;
                     break; }
                 case DSP_FIR : 
