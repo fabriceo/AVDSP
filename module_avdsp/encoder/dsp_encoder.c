@@ -1575,7 +1575,11 @@ void dsp_MIXER(){  // this function must be followed by couples of data (input &
     addOpcodeLengthPrint(DSP_MIXER);
     setLastMissingParam(2);   // alway expect the parameters to be provided in the following opcode,
                               // at least 2 words
+}
 
+void dsp_TRANSFER(int opcode) {
+    addOpcodeLengthPrint(opcode);
+    setLastMissingParam(2);   // alway expect the parameters to be provided in the following opcode,
 }
 
 void dspMixer_Data(int in,  dspGainParam_t gain){

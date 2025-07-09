@@ -170,7 +170,7 @@ int  dsp_singleOpcode(unsigned opcode);
  //same as dsp_LOAD_MUX but with parameters just below, not in param section
  void dsp_MIXER();
  void dspMixer_Data(int in,  dspGainParam_t gain);
-
+ void dsp_TRANSFER(int opcode);
 // initialize an area of data (biquad, gain, delay line, matrix...)
  int  dsp_PARAM();
  int  dsp_PARAM_NUM(int num);

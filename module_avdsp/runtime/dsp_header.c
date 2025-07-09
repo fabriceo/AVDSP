@@ -136,6 +136,9 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_FULL_LOAD",
     "DSP_PRIO_ON",
     "DSP_PRIO_OFF",
+    "DSP_TRANSFER2",
+    "DSP_TRANSFER8",
+
 
     "DSP_FLOAD",
     "DSP_FSTORE",
@@ -144,8 +147,6 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_FBIQUADS",
 
 /*
-    "DSP_OP110",
-    "DSP_OP111",
     "DSP_OP112",
     "DSP_OP113",
     "DSP_OP114",

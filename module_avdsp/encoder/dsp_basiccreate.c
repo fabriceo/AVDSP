@@ -46,7 +46,7 @@ const char filterOrders[filterTypesNumber] = {
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,_DSPPRINTF,
     _end, _include, _if, _param, _nop, _core, _section, _sectionelse, _coreaes,
-    _input, _output, _transfer, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
+    _input, _output, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
     _saturate, _saturatevol, _saturategain,
@@ -64,7 +64,7 @@ enum keywords_e {
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3","DSPPRINTF",
     "end", "include", "if", "param", "nop", "core", "section", "sectionelse", "coreaes",
-    "input", "output","transfer", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
+    "input", "output","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
     "delayone", "delayus", "delaydpus", "delayusfbmix",
@@ -1173,7 +1173,23 @@ nextline:
                 } while(res || breaking);   //force an additional loop if "breaking" was used
                 break; }
 
-            case _transfer: {
+            case _transfer8: 
+            case _transfer2: {
+                int mask = (keyw == _transfer2) ? 1 : 7;
+                searchExpressionRangeError( &p, &input , _tIO );
+                int error = (keyw ==  _transfer2) ? 53 : 54;
+                int io1 = input;
+                if (io1 & mask) fatalErrorNum(error);
+                getDelimiterError( &p, ',', 30 );
+                searchExpressionRangeError( &p, &input , _tIO );
+                int io2 = input;
+                if (io2 & mask) fatalErrorNum(error);
+                if (keyw == _transfer2) dsp_TRANSFER(DSP_TRANSFER2);
+                if (keyw == _transfer8) dsp_TRANSFER(DSP_TRANSFER8);
+                addCode(io1);addCode(io2);
+                calcLength();
+                break; }
+            case _transfer : {
                 int transferNum=0;
                 do {
                     getDelimiterError( &p, '(', 28 );
@@ -1913,7 +1929,9 @@ void fatalError(){
     case -49: fprintf(stderr,"Error: cannot be used without a label name upfront\n"); break;
     case -50: fprintf(stderr,"Error: CLOCK must be multiple of 4\n"); break;
     case -51: fprintf(stderr,"Error: opening bracket \"(\" or end-of-line expected\n"); break;
-    case -52: fprintf(stderr,"Error: this instruction does not support DSPFLOAT yet\n");
+    case -52: fprintf(stderr,"Error: this instruction does not support DSPFLOAT yet\n"); break;
+    case -53: fprintf(stderr,"Error: this IO must be multiple of 2\n"); break;
+    case -54: fprintf(stderr,"Error: this IO must be multiple of 8\n"); break;
 
     default: break;
     }
