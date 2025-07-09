@@ -111,6 +111,11 @@ static void fatalError(); //prototype as it is located at botom of this file
 static void fatalErrorNum(int num);
 static void fatalErrorNumIf(int num, int cond);
 
+static void fatalErrorFloat(int test) {
+    if ((dspMant == 0)&&(dspProcessor>0)) {
+        fatalErrorNumIf(52, test);
+    }
+}
 
 //max 3 include files level (4 open in total)
 #define maxIncludedFiles 4         
@@ -730,6 +735,10 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     labelptr_t pDSPMANT = appendNewLabelConst(dspKeywords[_DSPMANT]);
     pDSPMANT->s.type = _valueint;
     pDSPMANT->value = dspMant;
+    labelptr_t pDSPXS2 = appendNewLabelConst(dspKeywords[_DSPXS2]);
+    pDSPXS2->s.type = _valueint;
+    labelptr_t pDSPXS3 = appendNewLabelConst(dspKeywords[_DSPXS3]);
+    pDSPXS3->s.type = _valueint;
 
     dspOutFileInit(dspoutfilename,dspoutheader);
     while (nextName && (*nextName)) {
@@ -939,6 +948,8 @@ nextline:
             case _DSPXS2 :
             case _DSPXS3 : {
                 dsp_PROCESSOR(keyw == _DSPXS2 ? 2 : 3 );
+                pDSPXS2->value = (keyw == _DSPXS2);
+                pDSPXS3->value = (keyw == _DSPXS3);
                 double value = 0.0;
 //                fatalErrorNumIf(45, dsp_checkCodeAlready());
 //                res = searchExpressionRangeError( &p, &value, _tint32);
@@ -1134,7 +1145,7 @@ nextline:
 
             case _outputpdf:
             case _outputvol:
-            case _outputvolsat:
+            case _outputvolsat: fatalErrorFloat(1);
             case _output: {
                 unsigned int outcount;
                 unsigned int finalIO;
@@ -1182,19 +1193,20 @@ nextline:
             case _swapxy : { dsp_SWAPXY(); break; }
             case _copyxy : { dsp_COPYXY(); break; }
             case _copyyx : { dsp_COPYYX(); break; }
-            case _addxy  : { dsp_ADDXY(); break; }
-            case _addyx  : { dsp_ADDYX(); break; }
-            case _subxy  : { dsp_SUBXY(); break; }
-            case _subyx  : { dsp_SUBYX(); break; }
-            case _mulxy  : { dsp_MULXY(); break; }
-            case _mulyx  : { dsp_MULYX(); break; }
-            case _divxy  : { dsp_DIVXY(); break; }
-            case _divyx  : { dsp_DIVYX(); break; }
-            case _avgxy  : { dsp_AVGXY(); break; }
-            case _avgyx  : { dsp_AVGYX(); break; }
-            case _negx   : { dsp_NEGX();  break; }
-            case _negy   : { dsp_NEGY();  break; }
+            case _addxy  : { fatalErrorFloat(1); dsp_ADDXY(); break; }
+            case _addyx  : { fatalErrorFloat(1); dsp_ADDYX(); break; }
+            case _subxy  : { fatalErrorFloat(1); dsp_SUBXY(); break; }
+            case _subyx  : { fatalErrorFloat(1); dsp_SUBYX(); break; }
+            case _mulxy  : { fatalErrorFloat(1); dsp_MULXY(); break; }
+            case _mulyx  : { fatalErrorFloat(1); dsp_MULYX(); break; }
+            case _divxy  : { fatalErrorFloat(1); dsp_DIVXY(); break; }
+            case _divyx  : { fatalErrorFloat(1); dsp_DIVYX(); break; }
+            case _avgxy  : { fatalErrorFloat(1); dsp_AVGXY(); break; }
+            case _avgyx  : { fatalErrorFloat(1); dsp_AVGYX(); break; }
+            case _negx   : { fatalErrorFloat(1); dsp_NEGX();  break; }
+            case _negy   : { fatalErrorFloat(1); dsp_NEGY();  break; }
             case _shift  : {
+                fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &input, _tshift  );
                 dsp_SHIFT_FixedInt( input);
                 break; }
@@ -1205,6 +1217,7 @@ nextline:
                 dsp_VALUEX_Fixed(result);
                 break; }
             case _valuey : {
+                fatalErrorFloat(1);
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
                 dsp_VALUEY_Fixed(result);
@@ -1225,11 +1238,13 @@ nextline:
                 break; }
 
             case _clip : {
+                fatalErrorFloat(1);
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
                 dsp_CLIP_Fixed(result);
                 break; }
             case _mixer: {
+                fatalErrorFloat(1);
                 int mixerNum = 0;
                 do {
                     searchExpressionRangeError( &p, &input , _tIO );
@@ -1243,6 +1258,7 @@ nextline:
             case _mixergain:
             case _inputgain:
             case _outputgain: {
+                fatalErrorFloat(1);
                 int inputgainNum=0;
                 do {
                     getDelimiterError( &p, '(', 28 );
@@ -1265,12 +1281,15 @@ nextline:
                 break; }
 
             case _saturate: {
+                fatalErrorFloat(1);
                 dsp_SAT0DB();
                 break; }
             case _saturatevol:{
+                fatalErrorFloat(1);
                 dsp_SAT0DB_VOL();
                 break; }
             case _saturategain:{
+                fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &gain, _tvalue32 );
                 dsp_SAT0DB_GAIN_Fixed(gain);
                 break; }
@@ -1278,8 +1297,8 @@ nextline:
             case _delayone: {
                 dsp_DELAY_1(); 
                 break; }
-            case _delaydpus:
-            case _delayus: {
+            case _delayus: fatalErrorFloat(1);
+            case _delaydpus: {
                 char * oldp = skipSpaces( &p);
                 labelptr_t l = searchLabel( &p );
                 if (l && (l->s.type == label_valueint)) {
@@ -1297,6 +1316,7 @@ nextline:
                 }
                 break; }
             case _delayusfbmix: {
+                fatalErrorFloat(1);
                 double source,feed,delayed,mix;
                 searchExpressionRangeError( &p, &delay, _tdelay );
                 getDelimiterError( &p, ',', 30 );
@@ -1334,6 +1354,7 @@ nextline:
                 break; }
 
             case _dcblock: {
+                fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &freq, _tfreq );
                 dsp_DCBLOCK( freq );
                 break; }
@@ -1354,6 +1375,7 @@ nextline:
 
             case _warpconvol: //falthrough
             case _convol: {
+                fatalErrorFloat(1);
                 int numFilt = 0;
                 int base = 0;
                 int max = 0;
@@ -1395,23 +1417,28 @@ nextline:
                 break; }
 
             case _integrator: {
+                fatalErrorFloat(1);
                 dsp_INTEGRATOR(); 
                 break; }
             case _cicus: {
+                fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &delay, _tdelay );
                 dsp_CIC_FixedMicroSec( delay );
                 break; }
             case _cicn: {
+                fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &delay, _tdelay );
                 dsp_CIC_N( delay );
                 break; }
             case _expma : {
+                fatalErrorFloat(1);
                 double value = 0;
                 searchExpressionRangeError( &p, &value, _tpercent );
                 dsp_EXPMA(value);
                 break; }
 
             case _thdcomp : {
+                fatalErrorFloat(1);
                 double c2=0.0,c3=0.0;
                 searchExpressionRangeError( &p, &c2, _tpercent );
                 getDelimiterError( &p, ',',30);
@@ -1420,16 +1447,19 @@ nextline:
                 break; }
 
             case _tpdf: {
+                fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &tpdf, _ttpdf );
                 dsp_TPDF(tpdf);
                 break; }
             case _white: {
+                fatalErrorFloat(1);
                 dsp_WHITE();
                 break; }
 
             case _sine:
             case _square:
             case _dirac: {
+                fatalErrorFloat(1);
                 getDelimiterError( &p, '(', 28 );
                 searchExpressionRangeError( &p, &freq, _tfreq );
                 getDelimiterError( &p, ',', 30);
@@ -1450,6 +1480,7 @@ nextline:
             case _noisegate :
             case _compressor :
             case _expander :{
+                fatalErrorFloat(1);
                 labelptr_t drcin = searchLabel( &p );
                 if ((drcin == NULL) || (drcin->s.type != label_drcin)) fatalErrorNum(36);
                 usedLabelInTile(drcin);
@@ -1466,15 +1497,16 @@ nextline:
                 usedLabelInTile(drcout);
                 break; }
 
-            case _memclr:   //fallthrough voluntary
-            case _swapmem:
             case _memadd:
             case _memsub:
             case _mulmem:
             case _divmem:
             case _avgmem:
             case _memavg:
-            case _memneg:
+            case _memneg: fatalErrorFloat(1);
+
+            case _memclr:   //fallthrough voluntary
+            case _swapmem:
             case _memsave:
             case _loadmem: {
                 int op = (keyw - _memclr) + DSP_MEMCLR;
@@ -1485,6 +1517,7 @@ nextline:
             case _addmem:
             case _submem:
             case _mixermem: {
+                fatalErrorFloat(1);
                 int ofs = 0;
                 do {
                     int addr = getLabelMemory( &p );
@@ -1497,6 +1530,7 @@ nextline:
             }
             case _memvalue: 
             case _memgain: { 
+                fatalErrorFloat(1);
                 int addr = getLabelMemory(&p); 
                 getDelimiterError(&p, ',', 30);
                 double result;
@@ -1506,6 +1540,7 @@ nextline:
                 addGainCodeQNM(result);
                 break; }
             case _meminput: { 
+                fatalErrorFloat(1);
                 int addr = getLabelMemory( &p ); 
                 getDelimiterError( &p, ',', 30);
                 searchExpressionRangeError( &p, &input, _tIO  );
@@ -1878,6 +1913,7 @@ void fatalError(){
     case -49: fprintf(stderr,"Error: cannot be used without a label name upfront\n"); break;
     case -50: fprintf(stderr,"Error: CLOCK must be multiple of 4\n"); break;
     case -51: fprintf(stderr,"Error: opening bracket \"(\" or end-of-line expected\n"); break;
+    case -52: fprintf(stderr,"Error: this instruction does not support DSPFLOAT yet\n");
 
     default: break;
     }
