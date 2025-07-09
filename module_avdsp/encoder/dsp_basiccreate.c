@@ -1176,14 +1176,16 @@ nextline:
             case _transfer8: 
             case _transfer2: {
                 int mask = (keyw == _transfer2) ? 1 : 7;
+                int bracket = testDelimiter( &p, "(");
                 searchExpressionRangeError( &p, &input , _tIO );
                 int error = (keyw ==  _transfer2) ? 53 : 54;
                 int io1 = input;
                 if (io1 & mask) fatalErrorNum(error);
                 getDelimiterError( &p, ',', 30 );
                 searchExpressionRangeError( &p, &input , _tIO );
+                if (bracket) getDelimiterError( &p, ')', 20);
                 int io2 = input;
-                if (io2 & mask) fatalErrorNum(error);
+                if (io2 & mask) fatalErrorNum(error); 
                 if (keyw == _transfer2) dsp_TRANSFER(DSP_TRANSFER2);
                 if (keyw == _transfer8) dsp_TRANSFER(DSP_TRANSFER8);
                 addCode(io1);addCode(io2);

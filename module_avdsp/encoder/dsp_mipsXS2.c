@@ -132,7 +132,7 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     2,  //DSP_PRIO_ON,
     2,  //DSP_PRIO_OFF,
     6,  //DSP_TRANSFER2
-    13, //DSP_TRANSFER8
+    14, //DSP_TRANSFER8
 
     11,  //DSP_FLOAD = 106,         //106   same as 2,  //DSP_LOAD but converted to float ieee754
     7,  //DSP_FSTORE,
