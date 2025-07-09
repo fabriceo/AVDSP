@@ -906,18 +906,18 @@ nextline:
                 fatalErrorNumIf(45, dsp_checkCodeAlready());
                 double value = 0.0;
                 if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                outOfRangeError(value,480,600);
+                outOfRangeError(value,480,648);
                 int clockcpu = value;
                 if ((clockcpu != value) || (clockcpu & 3)) fatalErrorNum(50);
                 int clock176k=0,clock192k=0,prio=0;
                 if ((res = searchDelimiter( &p, ","))) {
                     if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                    outOfRangeError(value,480,648);
+                    outOfRangeError(value,480,508);
                     clock176k = value;
                     if ((clock176k != value) || (clock176k & 3)) fatalErrorNum(50);
                     getDelimiterError( &p, ',',30);
                     if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                    outOfRangeError(value,480,600);
+                    outOfRangeError(value,500,548);
                     clock192k = value;
                     if ((clock192k != value) || (clock192k & 3)) fatalErrorNum(50);
                     if ((res = searchDelimiter( &p, ","))) {
@@ -1383,8 +1383,9 @@ nextline:
                 } while(res);
                 int n=dspMaxSamplingFreq-dspMinSamplingFreq+1;
                 for (int i=numFilt; i<n; i++) {
-                    addCodeOffset(0,base);addCode(1);
-                    if (keyw == _warpconvol) addCode(0);
+                    addCodeOffset(base & 1,base);   //alligned 8 !
+                    addCode(1); // 1 tap by default
+                    if (keyw == _warpconvol) addCode(0); //lambda = 0 by default
                 }
                 //TODO addDataSpaceAligned8 is also generating an opcode at the end of the table!
                 if (keyw == _warpconvol) max++; //always add one extra sample in buffer when warped fir requested
