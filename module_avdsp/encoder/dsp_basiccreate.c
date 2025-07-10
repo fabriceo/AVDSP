@@ -708,6 +708,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     dspInput = dspInputArray;
     lineNum = lineNumArray;
     lineNum[0] = 0;
+    int linePrinted = 0;
     char * nextName = dspbasicName;
     int size = 0;
     int numCore = 1;
@@ -801,7 +802,6 @@ nextline:
                 } else
                     goto finished;
             }
-            if (ifcondition) dspprintf4("%4d %s",lineNum[0],line);
             lineNum[0]++;
 
         }
@@ -838,6 +838,11 @@ nextline:
                 clearParamSection();
                 calcLength();
             }
+            if (linePrinted != lineNum[0]) {
+                dspprintf4("%4d %s",lineNum[0],line);
+                linePrinted = lineNum[0];
+            }
+
             switch(keyw) {
             case _DSPFSMIN : 
             case _DSPFSMAX : {
