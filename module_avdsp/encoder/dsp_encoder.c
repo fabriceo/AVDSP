@@ -187,20 +187,20 @@ static void printFromCurrentIndex(){
 // for debugging purpose, print all the opcode generated since the latest dsp_opcode
 void printLastOpcodes() {
     if (lastIndexPrinted < lastOpcodePrint) {
-        dspprintf3("%4d : ",lastIndexPrinted);
+        dspprintf4("%4d : ",lastIndexPrinted);
         for (int i = lastIndexPrinted; i< lastOpcodePrint; i++)
-            dspprintf3("%X ",opcodePtr(i)->i32 );
-        dspprintf3("\n");
+            dspprintf4("%X ",opcodePtr(i)->i32 );
+        dspprintf4("\n");
     } else lastOpcodePrint = lastIndexPrinted;
     if (lastOpcodePrint != opcodeIndex()) {
         opcode_t tmp = *opcodePtr(lastOpcodePrint); if (tmp.op.skip) {}
-        dspprintf3("%4d : [#%d +%d] ",lastOpcodePrint, tmp.op.opcode, tmp.op.skip);
+        dspprintf4("%4d : [#%d +%d] ",lastOpcodePrint, tmp.op.opcode, tmp.op.skip);
         for (int i = lastOpcodePrint+1; i< opcodeIndex(); i++) {
             int val = opcodePtr(i)->i32;
-            if (val>=0)  dspprintf3("%X ",val);
-            else dspprintf3("%X(@%d) ",val,lastOpcodePrint+val);
+            if (val>=0)  dspprintf4("%X ",val);
+            else dspprintf4("%X(@%d) ",val,lastOpcodePrint+val);
         }
-        dspprintf3("\n");
+        dspprintf4("\n");
     }
     printFromCurrentIndex();
 }
@@ -841,7 +841,7 @@ static int addSingleOpcode(int code) {
 // add a single dsp_code without any following parameters
 static int addSingleOpcodePrint(int code) {
     int tmp = addSingleOpcode(code);
-    dspprintf2("%s\n",dspOpcodeText[code]);
+    dspprintf3("%s\n",dspOpcodeText[code]);
     return tmp;
 }
 
@@ -882,7 +882,7 @@ static int addOpcodeLength(int code) {
 
 static int addOpcodeLengthPrint(int code){
     int tmp = addOpcodeLength(code);
-    dspprintf2("%s\n",dspOpcodeText[code]);
+    dspprintf3("%s\n",dspOpcodeText[code]);
     return tmp;
 }
 
@@ -890,7 +890,7 @@ static int addOpcodeLengthPrint(int code){
 static int addOpcodeLengthPrint_without_dsp_CORE(int code){
     calcLength();
     int tmp = addOpcodeUnknownLength(code);
-    dspprintf2("%s\n",dspOpcodeText[code]);
+    dspprintf3("%s\n",dspOpcodeText[code]);
     return tmp;
 }
 
