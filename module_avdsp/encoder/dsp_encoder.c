@@ -1771,7 +1771,7 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     } 
     if (opcode != DSP_DELAY_FB_MIX)
         calcLength();
-    dspprintf2("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText[opcode], microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
+    dspprintf3("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText[opcode], microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
 
 }
 
