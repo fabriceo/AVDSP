@@ -839,10 +839,9 @@ nextline:
                 calcLength();
             }
             if (linePrinted != lineNum[0]) {
-                dspprintf4("%4d %s",lineNum[0],line);
+                dspprintf4("%4d %s",lineNum[0]-1,line);
                 linePrinted = lineNum[0];
             }
-
             switch(keyw) {
             case _DSPFSMIN : 
             case _DSPFSMAX : {
@@ -1026,6 +1025,7 @@ nextline:
                         } else {
                             if (var & val) cond |= 1;
                         }
+                        dspprintf4("num %d, val %d, cond %d\n",num,val,cond);
                         num++;
                     }
                     getDelimiterError( &p, ')', 29);
