@@ -1175,17 +1175,19 @@ nextline:
 
             case _transfer8: 
             case _transfer2: {
-                int mask = (keyw == _transfer2) ? 1 : 7;
+                int max = (keyw == _transfer2) ? dspIOmaximum-2 : dspIOmaximum-8;
                 int bracket = testDelimiter( &p, "(");
+                if (bracket) p++;
                 searchExpressionRangeError( &p, &input , _tIO );
-                int error = (keyw ==  _transfer2) ? 53 : 54;
+                outOfRangeError( input, 0, max);
                 int io1 = input;
-                if (io1 & mask) fatalErrorNum(error);
+                if (io1 & 1) fatalErrorNum(53);
                 getDelimiterError( &p, ',', 30 );
                 searchExpressionRangeError( &p, &input , _tIO );
-                if (bracket) getDelimiterError( &p, ')', 20);
+                outOfRangeError( input, 0, max);
+                if (bracket == '(') getDelimiterError( &p, ')', 20);
                 int io2 = input;
-                if (io2 & mask) fatalErrorNum(error); 
+                if (io2 & 1) fatalErrorNum(53); 
                 if (keyw == _transfer2) dsp_TRANSFER(DSP_TRANSFER2);
                 if (keyw == _transfer8) dsp_TRANSFER(DSP_TRANSFER8);
                 addCode(io1);addCode(io2);
@@ -1933,7 +1935,6 @@ void fatalError(){
     case -51: fprintf(stderr,"Error: opening bracket \"(\" or end-of-line expected\n"); break;
     case -52: fprintf(stderr,"Error: this instruction does not support DSPFLOAT yet\n"); break;
     case -53: fprintf(stderr,"Error: this IO must be multiple of 2\n"); break;
-    case -54: fprintf(stderr,"Error: this IO must be multiple of 8\n"); break;
 
     default: break;
     }
