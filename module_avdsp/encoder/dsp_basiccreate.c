@@ -719,6 +719,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     const int maxIfCondition = 4;
     int ifarray[maxIfCondition];
     int ifinside = 0;
+    int ifinside0 = 0;
     ifarray[ifinside] = 1;
     dsp_PROCESSOR(0);
     char *txtDSPLINE = "DSPLINE";
@@ -1014,10 +1015,16 @@ nextline:
                 if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside == 0) fatalErrorNum(54);
                 if (ifarray[ifinside] == 0) {
-                    goto nextline;
+                    if (ifinside0 != ifinside) {
+                        dspprintf3("%4d IF%d ignore this else statement\n",lineNum[0]-1,ifinside);
+                        goto nextline;
+                    }
                 }
                 ifarray[ifinside] = 1-ifarray[ifinside];
-                dspprintf3("%4d IF%d else result %d\n",lineNum[0]-1, ifinside, ifarray[ifinside]);
+                if (ifarray[ifinside])
+                    dspprintf3("%4d IF%d else result 1, continuing at nex line\n",lineNum[0]-1, ifinside);
+                else
+                    dspprintf3("%4d IF%d else result 0, ignoring all next lines\n",lineNum[0]-1, ifinside);
                 getEOLError(&p);
                 goto nextline;
                 break; }
@@ -1025,7 +1032,7 @@ nextline:
                 if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside == 0) fatalErrorNum(55);
                 if (ifarray[ifinside] == 0) {
-                    dspprintf3("%4d IF%d previous level\n",lineNum[0]-1,ifinside);
+                    dspprintf3("%4d IF%d return previous level\n",lineNum[0]-1,ifinside);
                     ifinside--;
                     goto nextline;
                 }
@@ -1039,7 +1046,7 @@ nextline:
                 if (ifinside >= (maxIfCondition-1)) fatalErrorNum(56);
                 if (ifarray[ifinside] == 0) {
                     ifinside++;
-                    dspprintf3("%4d IF%d next level\n",lineNum[0]-1,ifinside);
+                    dspprintf3("%4d IF%d enter next level\n",lineNum[0]-1,ifinside);
                     ifarray[ifinside] = 0;
                     goto nextline;
                 }
@@ -1079,6 +1086,7 @@ nextline:
                     } else {
                         ifinside++;
                         ifarray[ifinside] = 0;
+                        ifinside0 = ifinside;
                         dspprintf3("%4d IF%d result = 0, ignoring all next lines\n",lineNum[0]-1,ifinside);
                     }
                     goto nextline;
@@ -1086,6 +1094,7 @@ nextline:
                     if (res == 0) {
                         dspprintf3("%4d IF%d result = 1, executing this line: %s",lineNum[0]-1,ifinside,p);
                     } else {
+                        ifinside0 = 0;
                         ifinside++;
                         ifarray[ifinside] = 1;
                         dspprintf3("%4d IF%d result = 1, executing all lines below\n",lineNum[0]-1,ifinside);
