@@ -45,7 +45,7 @@ const char filterOrders[filterTypesNumber] = {
 
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,_DSPPRINTF,
-    _end, _include, _if, _param, _nop, _core, _section, _sectionelse, _coreaes,
+    _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreaes,
     _input, _output, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
@@ -63,7 +63,7 @@ enum keywords_e {
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3","DSPPRINTF",
-    "end", "include", "if", "param", "nop", "core", "section", "sectionelse", "coreaes",
+    "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreaes",
     "input", "output","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
@@ -674,6 +674,7 @@ static int  lineNumArray[maxIncludedFiles];
 static int * lineNum = lineNumArray;
 
 
+
 static char * fgetLine() {
     return fgets( line, sizeof(line), *dspInput );
 }
@@ -715,7 +716,10 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     if (numCore) {} //just to please compiler
     int dspModeDynamic = 0;
     int tapsinclude = 0;
-    int ifcondition = 1;
+    const int maxIfCondition = 4;
+    int ifarray[maxIfCondition];
+    int ifinside = 0;
+    ifarray[ifinside] = 1;
     dsp_PROCESSOR(0);
     char *txtDSPLINE = "DSPLINE";
     labelptr_t pDSPLINE = appendNewLabel(txtDSPLINE);
@@ -803,17 +807,19 @@ nextline:
                     goto finished;
             }
             lineNum[0]++;
-
         }
+
         double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         char * p = line;   //pointer on the character to analyse
         //main loop to analyse the line
         while ( p[0] ) {
+
             //skip any spaces or tab
             if ( isSpaceOrTab(p[0]) || ((p[0]==';')) ) { p++; continue; }
             else errPtr = p;
+
             //check special case '#-' as a prefix for printable comments
-            if ( ifcondition && (p[0] == '#') && (p[1] == '-') ) {
+            if ( (ifarray[ifinside]) && (p[0] == '#') && (p[1] == '-') ) {
                 p += 2;
                 char * line = p;
                 replaceExpressions( &p );
@@ -827,13 +833,13 @@ nextline:
             if (tapsinclude) goto labeltaps;
             //expecting either a label definition or a dsp keyword, all starting by a letter
             fatalErrorNumIf( 6, isLetter( p[0] ) == 0 );
+
             int res;
             int keyw = searchKeywords( &p, dspKeywords, dspKeywordsNumber);
-            if (ifcondition == 0) {
-                if (keyw == _if) {
-                    ifcondition = 1;
-                } else goto nextline;
-            }
+
+            if (ifarray[ifinside] == 0) {   //skip or search for endif or else or elsif
+                if ((keyw != _endif) && (keyw != _else) && (keyw != _elseif)) goto nextline;
+            } 
             if (keyw > _param) {
                 clearParamSection();
                 calcLength();
@@ -1001,50 +1007,72 @@ nextline:
                 nextName = str;
                 goto nextfile;  //restart by opening the next file name
                 break; }
-
+            case _elseif :
+            case _else : {
+                if (ifinside == 0) fatalErrorNum(54);
+                ifarray[ifinside] = 1-ifarray[ifinside];
+                dspprintf3("%4d IF%d else result %d\n",lineNum[0]-1, ifinside, ifarray[ifinside]);
+                getEOLError(&p);
+                goto nextline;
+                break; }
+            case _endif : {
+                if (ifinside == 0) fatalErrorNum(55);
+                dspprintf3("%4d IF%d end\n",lineNum[0]-1,ifinside);
+                ifinside--;
+                getEOLError(&p);
+                goto nextline;
+                break; }
             case _if : {
+                if (ifinside >= (maxIfCondition-1)) fatalErrorNum(56);
                 skipSpacesBasic( &p );
-                res = testDelimiter( &p, ";#\r\n\01" );
-                if (res) {
-                    if (res>=32) p--;
-                    ifcondition = 1; //end of line found : everything is now accepted
-                } else {
-                    double value;
-                    getDelimiterError( &p, '(', 51);
+                //res = testDelimiter( &p, ";#\r\n\01" );
+                //if (res>=32) p--;
+                int result = 0;
+                double value;
+                getDelimiterError( &p, '(', 51);
+                res = searchExpressionRangeError( &p, &value,_tint32);
+                int var  = value;
+                int num  = 0;
+                int cond = 0;
+                while ((searchDelimiter( &p, ","))) {
                     res = searchExpressionRangeError( &p, &value,_tint32);
-                    int var = value;
-                    int num=0;
-                    int cond=0;
-                    while ((searchDelimiter( &p, ","))) {
-                        res = searchExpressionRangeError( &p, &value,_tint32);
-                        if (res != _valueint) fatalErrorNum(2);
-                        int val = value;
-                        if (num & 1) {
-                            if (var & val) cond &= 0xFFFFFFFE;
-                            else if (cond & 1) cond |= 2;
-                        } else {
-                            if (var & val) cond |= 1;
-                        }
-                        dspprintf4("num %d, val %d, cond %d\n",num,val,cond);
-                        num++;
+                    if (res != _valueint) fatalErrorNum(2);
+                    int val = value;
+                    if (num & 1) {
+                        if (var & val) cond &= 0xFFFFFFFE;
+                        else if (cond & 1) cond |= 2;
+                    } else {
+                        if (var & val) cond |= 1;
                     }
-                    getDelimiterError( &p, ')', 29);
-                    if (num) ifcondition = (cond ? 1 : 0);
-                    else 
-                        ifcondition = var ? 1 : 0;
+                    dspprintf4("num %d, val %d, cond %d\n",num,val,cond);
+                    num++;
                 }
-                if (ifcondition == 0) {
-                    skipSpacesBasic( &p );
-                    res = testDelimiter( &p, "#\r\n\01" );
+                getDelimiterError( &p, ')', 29);
+                if (num) result = (cond ? 1 : 0);
+                else 
+                    result = var ? 1 : 0;
+
+                skipSpacesBasic( &p );
+                res = testDelimiter( &p, "#\r\n\01" );
+                if (result == 0) {
                     if (res == 0) { 
-                        dspprintf3("%4d IF condition 0, ignoring only this line %s",lineNum[0]-1,p);
-                        ifcondition = 1;
-                    } else 
-                        dspprintf3("%4d IF condition 0, ignoring all next lines\n",lineNum[0]-1);
+                        dspprintf3("%4d IF%d result = 0, ignoring ONLY this line: %s",lineNum[0]-1,ifinside,p);
+                    } else {
+                        ifinside++;
+                        ifarray[ifinside] = 0;
+                        dspprintf3("%4d IF%d result = 0, ignoring all next lines\n",lineNum[0]-1,ifinside);
+                    }
                     goto nextline;
                 } else {
-                    dspprintf3("%4d IF condition 1\n",lineNum[0]-1);
-                    continue; }
+                    if (res == 0) {
+                        dspprintf3("%4d IF%d result = 1, executing this line: %s",lineNum[0]-1,ifinside,p);
+                    } else {
+                        ifinside++;
+                        ifarray[ifinside] = 1;
+                        dspprintf3("%4d IF%d result = 1, executing all lines below\n",lineNum[0]-1,ifinside);
+                    }
+                    continue; 
+                }
                 break;}
             case _param: {
                 res = testExpression( &p, &input );
@@ -1940,6 +1968,9 @@ void fatalError(){
     case -51: fprintf(stderr,"Error: opening bracket \"(\" or end-of-line expected\n"); break;
     case -52: fprintf(stderr,"Error: this instruction does not support DSPFLOAT yet\n"); break;
     case -53: fprintf(stderr,"Error: this IO must be multiple of 2\n"); break;
+    case -54: fprintf(stderr,"Error: \"else\" without \"if\" above\n"); break;
+    case -55: fprintf(stderr,"Error: \"endif\" without \"if\" above\n"); break;
+    case -56: fprintf(stderr,"Error: too much nested \"if\"\n"); break;
 
     default: break;
     }
