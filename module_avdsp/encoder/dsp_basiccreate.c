@@ -808,9 +808,11 @@ nextline:
             }
             lineNum[0]++;
         }
-
-        double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         char * p = line;   //pointer on the character to analyse
+        skipSpacesBasic( &p );
+        errPtr = p;
+        char * lineBegin = p;
+        double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         //main loop to analyse the line
         while ( p[0] ) {
 
@@ -838,7 +840,7 @@ nextline:
             int keyw = searchKeywords( &p, dspKeywords, dspKeywordsNumber);
 
             if (ifarray[ifinside] == 0) {   //skip or search for endif or else or elsif
-                if ((keyw != _endif) && (keyw != _else) && (keyw != _elseif)) goto nextline;
+                if ((keyw != _if) && (keyw != _endif) && (keyw != _else) && (keyw != _elseif)) goto nextline;
             } 
             if (keyw > _param) {
                 clearParamSection();
@@ -1009,21 +1011,38 @@ nextline:
                 break; }
             case _elseif :
             case _else : {
+                if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside == 0) fatalErrorNum(54);
+                if (ifarray[ifinside] == 0) {
+                    goto nextline;
+                }
                 ifarray[ifinside] = 1-ifarray[ifinside];
                 dspprintf3("%4d IF%d else result %d\n",lineNum[0]-1, ifinside, ifarray[ifinside]);
                 getEOLError(&p);
                 goto nextline;
                 break; }
             case _endif : {
+                if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside == 0) fatalErrorNum(55);
+                if (ifarray[ifinside] == 0) {
+                    dspprintf3("%4d IF%d previous level\n",lineNum[0]-1,ifinside);
+                    ifinside--;
+                    goto nextline;
+                }
                 dspprintf3("%4d IF%d end\n",lineNum[0]-1,ifinside);
                 ifinside--;
                 getEOLError(&p);
                 goto nextline;
                 break; }
             case _if : {
+                if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside >= (maxIfCondition-1)) fatalErrorNum(56);
+                if (ifarray[ifinside] == 0) {
+                    ifinside++;
+                    dspprintf3("%4d IF%d next level\n",lineNum[0]-1,ifinside);
+                    ifarray[ifinside] = 0;
+                    goto nextline;
+                }
                 skipSpacesBasic( &p );
                 //res = testDelimiter( &p, ";#\r\n\01" );
                 //if (res>=32) p--;
@@ -1971,6 +1990,7 @@ void fatalError(){
     case -54: fprintf(stderr,"Error: \"else\" without \"if\" above\n"); break;
     case -55: fprintf(stderr,"Error: \"endif\" without \"if\" above\n"); break;
     case -56: fprintf(stderr,"Error: too much nested \"if\"\n"); break;
+    case -57: fprintf(stderr,"Error: this keyword must be the first on the line\n"); break;
 
     default: break;
     }
