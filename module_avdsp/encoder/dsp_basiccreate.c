@@ -211,6 +211,7 @@ static int testDelimiter(char * * s, char * delim) {
 //expect one of the given delimiter otherwise raise an error
 static void getDelimiterError(char * * s, char delim, int err) {
     char * p = skipSpaces(s); 
+    errPtr = p;
     fatalErrorNumIf(err, p[0] != delim );
     errPtr = p+1;
     *s = p+1;
@@ -264,6 +265,24 @@ static int searchKeywords(char * * s, const char * * keywords, int num){
             return i; }
     }
     return -1;
+}
+
+static int skipExpressionBracket(char ** s) {
+    getDelimiterError( s, '(', 51);
+    char * p = *s;
+    int bracket = 1;
+    while (bracket) {
+        char ch = p[0]; 
+        p++;
+        if (ch == '(') bracket++; 
+        else
+        if (ch == ')') bracket--;
+        else
+        if (isCharEOL(ch)) break;
+    }
+    *s = p;
+    skipSpacesBasic( s );
+    return (bracket == 0);
 }
 
 
@@ -533,30 +552,46 @@ static int testExpression(char * * s, double * value){
         }
         if (res == _empty) {
             if ( isLetter( **s ) ) {
+                char ch = **s;
                 labelptr_t l = searchLabel(s);
-                if (l == NULL) fatalErrorNum(-2);  //numericalValueOrLabelExpected
-                if( l->s.type > _valueint ) fatalErrorNum(27);
-                temp = l->value;
-                //test an optional index
-                int bracket = searchDelimiter( s, "[.");
-                if ((res=bracket)) {
-                    if( l->s.type != _valueint ) fatalErrorNum(11);
-                    double index;
-                    char * e = *s;
-                    if (bracket == '.') res = searchNumerical( s, &index, withoutDB);
-                    else {
-                        if (depth < depthMax) depth++; else fatalErrorNum(48);
-                        res = testExpression(s, &index); //recursive!
-                        depth--;
+                if (l == NULL) {
+                    while (isAlphanum(**s)) (*s)++;
+                    dspprintf4("label not found starting with %c followed by %c %x\n",ch,**s,**s);
+                    int del = searchDelimiter(s,"?");
+                    if (del == 0) fatalErrorNum(-2);  //numericalValueOrLabelExpected
+                    temp = 0;
+                    res = _valueint;
+                } else {
+                    int del = searchDelimiter(s,"?");
+                    if (del) {
+                        temp = 1;
+                        res = _valueint;
+                    } else {
+                        if( l->s.type > _valueint ) fatalErrorNum(27);
+                        temp = l->value;
+                        //test an optional index
+                        int bracket = searchDelimiter( s, "[.");
+                        if ((res=bracket)) {
+                            if( l->s.type != _valueint ) fatalErrorNum(11);
+                            double index;
+                            char * e = *s;
+                            if (bracket == '.') res = searchNumerical( s, &index, withoutDB);
+                            else {
+                                if (depth < depthMax) depth++; else fatalErrorNum(48);
+                                res = testExpression(s, &index); //recursive!
+                                depth--;
+                            }
+                            //check for an integer
+                            if (res != _valueint) { errPtr = e; fatalErrorNum(11);}
+                            if ((index<0)||(index>255)) { 
+                                errPtr = e; errMin=0; errMax=256; fatalErrorNum(5); }
+                            temp += index;
+                            if (bracket == '[') getDelimiterError( s, ']', 26);
+                        } 
+                        res = l->s.type;
                     }
-                    //check for an integer
-                    if (res != _valueint) { errPtr = e; fatalErrorNum(11);}
-                    if ((index<0)||(index>255)) { 
-                        errPtr = e; errMin=0; errMax=256; fatalErrorNum(5); }
-                    temp += index;
-                    if (bracket == '[') getDelimiterError( s, ']', 26);
-                } 
-                res = l->s.type;
+
+                }
             }
         }
         if (res) {
@@ -672,6 +707,7 @@ void clearParamSection() {
 static char line[32768] = ""; //buffer for one line of code
 static int  lineNumArray[maxIncludedFiles];
 static int * lineNum = lineNumArray;
+static int backSlashPossible = 0;
 
 
 
@@ -683,6 +719,7 @@ static char * skipSpaces(char * * s){
     while (1) {
         skipSpacesBasic( s );
         if(**s != '\\') break;
+        if (backSlashPossible == 0) fatalErrorNum(58);
         (*s)++;
         skipSpacesBasic( s );
         errPtr = *s;
@@ -716,10 +753,10 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     if (numCore) {} //just to please compiler
     int dspModeDynamic = 0;
     int tapsinclude = 0;
-    const int maxIfCondition = 4;
+    const int maxIfCondition = 5;
     int ifarray[maxIfCondition];
-    int ifinside = 0;
-    int ifinside0 = 0;
+    int ifinside = 0;   //current level of the if-endif block
+    int ifinside0 = 0;  //level where a first if (0) was encountered
     ifarray[ifinside] = 1;
     dsp_PROCESSOR(0);
     char *txtDSPLINE = "DSPLINE";
@@ -813,6 +850,7 @@ nextline:
         skipSpacesBasic( &p );
         errPtr = p;
         char * lineBegin = p;
+        backSlashPossible = 1;
         double input, output, gain, delay, freq, filterQ, freqLT,filterQLT, tpdf;
         //main loop to analyse the line
         while ( p[0] ) {
@@ -841,7 +879,7 @@ nextline:
             int keyw = searchKeywords( &p, dspKeywords, dspKeywordsNumber);
 
             if (ifarray[ifinside] == 0) {   //skip or search for endif or else or elsif
-                if ((keyw != _if) && (keyw != _endif) && (keyw != _else) && (keyw != _elseif)) goto nextline;
+                if ((keyw != _if) && (keyw != _endif) && (keyw != _else) && (keyw != _elseif) && (keyw != _end)) goto nextline;
             } 
             if (keyw > _param) {
                 clearParamSection();
@@ -987,6 +1025,8 @@ nextline:
                     dspPrintfVal = value;
                     break;}
             case _end:   { 
+                getEOLError(&p);
+                if (ifinside) fatalErrorNum(59);
                 if (fileNum==0) goto finished; 
                 fprintf(stdout,"warning, 'end' instruction found in included file. Ignored\n");
                 fclose(*dspInput);
@@ -1028,6 +1068,7 @@ nextline:
                 getEOLError(&p);
                 goto nextline;
                 break; }
+
             case _endif : {
                 if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside == 0) fatalErrorNum(55);
@@ -1041,45 +1082,54 @@ nextline:
                 getEOLError(&p);
                 goto nextline;
                 break; }
+
             case _if : {
                 if (errPtr != lineBegin) fatalErrorNum(57);
                 if (ifinside >= (maxIfCondition-1)) fatalErrorNum(56);
+                int result = 0;
+                ifretry:
                 if (ifarray[ifinside] == 0) {
-                    ifinside++;
-                    dspprintf3("%4d IF%d enter next level\n",lineNum[0]-1,ifinside);
-                    ifarray[ifinside] = 0;
+                    skipExpressionBracket( &p );
+                } else {
+                    getDelimiterError( &p, '(', 51);
+                    double value;
+                    res = searchExpressionRangeError( &p, &value,_tint32);
+                    int var  = value;
+                    int num  = 0;
+                    int cond = 0;
+                    while ((searchDelimiter( &p, ","))) {
+                        res = searchExpressionRangeError( &p, &value,_tint32);
+                        if (res != _valueint) fatalErrorNum(2);
+                        int val = value;
+                        if (num & 1) {
+                            if (var & val) cond &= 0xFFFFFFFE;
+                            else if (cond & 1) cond |= 2;
+                        } else {
+                            if ((val == 0) || (var & val)) cond |= 1;
+                        }
+                        dspprintf4("if num %d, val %d, cond %d\n",num,val,cond);
+                        num++;
+                    }
+                    getDelimiterError( &p, ')', 29);
+                    if (num) result = (cond ? 1 : 0);
+                    else 
+                        result = var ? 1 : 0;
+                }
+                backSlashPossible = 0;
+                res = testDelimiter( &p, "#\r\n\01" );
+                if (ifarray[ifinside] == 0) {
+                    if (res) {
+                        //end of line detected
+                        ifinside++;
+                        dspprintf3("%4d IF%d enter next level\n",lineNum[0]-1,ifinside);
+                        ifarray[ifinside] = 0;
+                    } else {
+                        dspprintf3("%4d IF%d single line, no level change\n",lineNum[0]-1,ifinside);
+                        if (_if == searchKeywords( &p, dspKeywords, dspKeywordsNumber)) goto ifretry;
+                    }
                     goto nextline;
                 }
-                skipSpacesBasic( &p );
-                //res = testDelimiter( &p, ";#\r\n\01" );
-                //if (res>=32) p--;
-                int result = 0;
-                double value;
-                getDelimiterError( &p, '(', 51);
-                res = searchExpressionRangeError( &p, &value,_tint32);
-                int var  = value;
-                int num  = 0;
-                int cond = 0;
-                while ((searchDelimiter( &p, ","))) {
-                    res = searchExpressionRangeError( &p, &value,_tint32);
-                    if (res != _valueint) fatalErrorNum(2);
-                    int val = value;
-                    if (num & 1) {
-                        if (var & val) cond &= 0xFFFFFFFE;
-                        else if (cond & 1) cond |= 2;
-                    } else {
-                        if (var & val) cond |= 1;
-                    }
-                    dspprintf4("num %d, val %d, cond %d\n",num,val,cond);
-                    num++;
-                }
-                getDelimiterError( &p, ')', 29);
-                if (num) result = (cond ? 1 : 0);
-                else 
-                    result = var ? 1 : 0;
 
-                skipSpacesBasic( &p );
-                res = testDelimiter( &p, "#\r\n\01" );
                 if (result == 0) {
                     if (res == 0) { 
                         dspprintf3("%4d IF%d result = 0, ignoring ONLY this line: %s",lineNum[0]-1,ifinside,p);
@@ -1092,6 +1142,9 @@ nextline:
                     goto nextline;
                 } else {
                     if (res == 0) {
+                        // autorise other if statement on same line
+                        skipSpacesBasic( &p );
+                        lineBegin = p;
                         dspprintf3("%4d IF%d result = 1, executing this line: %s",lineNum[0]-1,ifinside,p);
                     } else {
                         ifinside0 = 0;
@@ -2000,6 +2053,8 @@ void fatalError(){
     case -55: fprintf(stderr,"Error: \"endif\" without \"if\" above\n"); break;
     case -56: fprintf(stderr,"Error: too much nested \"if\"\n"); break;
     case -57: fprintf(stderr,"Error: this keyword must be the first on the line\n"); break;
+    case -58: fprintf(stderr,"Error: \"\\\" is not autorized on this line\n"); break;
+    case -59: fprintf(stderr,"Error: \"if\" with missing \"endif\"\n"); break;
 
     default: break;
     }
