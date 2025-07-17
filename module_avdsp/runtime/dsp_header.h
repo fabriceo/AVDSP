@@ -280,13 +280,13 @@ typedef struct dspHeader_s {    //
 /* 3 */     unsigned checkSum;  // basic calculated value representing the sum of all opcodes used in the program for this header only
 /* 4 */     unsigned numCores;     // number of cores/tasks declared in the dsp program (excluding external cores)
 /* 5 */     unsigned version;      // version of the encoder used MAJOR, MINOR,BUGFIX
-/*   */     unsigned maxOpcode;  // highest op code number used in this program (to check compatibility with runtime)
-/* 6 */     unsigned format;     // contains DSP_MANT used by encoder or 0 for float encoding
-/* 9 */     unsigned mantissa2;    //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
+/* 6 */     unsigned short format;     // contains DSP_MANT used by encoder or 0 for float encoding
+/*   */     unsigned short maxOpcode;  // highest op code number used in this program (to check compatibility with runtime)
 /* 7 */     unsigned freqMin;      // minimum frequency possible for this program
 /* 8 */     unsigned freqMax;      // maximum frequency possible for this program
-/* 10 */    unsigned long long usedInputs;    // bit mapping of all used inputs  (max 64 in this version)
-/* 12 */    unsigned long long usedOutputs;   // bit mapping of all used outputs (max 64 in this version)
+/* 9-10 */  unsigned long long usedInputs;    // bit mapping of all used inputs  (max 64 in this version)
+/* 11-12 */ unsigned long long usedOutputs;   // bit mapping of all used outputs (max 64 in this version)
+/* 13 */    unsigned mantissa2;    //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
 /* 14 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
 /* 15 */    unsigned tileNum;       //number of the tile (0..7) only 8 supported here
 /* 16 */    unsigned clockcpu;      //clock in MHZ
