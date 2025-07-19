@@ -611,15 +611,17 @@ static void printMipsEstimate(int core) {
 static void updateLastCoreIOs(){
     if (lastCoreIndex) {
         int * ptr = (int *)opcodePtr(lastCoreIndex);
-        ptr[1] = usedInputsCore  & 0xFFFFFFFF;
-        ptr[2] = usedOutputsCore & 0xFFFFFFFF;
-        //for compatibility with previous version
-        ptr[3] = usedInputsCore  >>32;
-        ptr[4] = usedOutputsCore >>32;
-        //compute size of data used in this core
-        dspDataCounter += (dspDataCounter & 1);
-        ptr[5]  = dspDataCounter - lastCoreData; 
-        //ptr[6]  = opcodeIndex() - lastCoreIndex;
+            if (opcodePtr(lastCoreIndex)->op.opcode == DSP_CORE) {
+            ptr[1] = usedInputsCore  & 0xFFFFFFFF;
+            ptr[2] = usedOutputsCore & 0xFFFFFFFF;
+            //for compatibility with previous version
+            ptr[3] = usedInputsCore  >>32;
+            ptr[4] = usedOutputsCore >>32;
+            //compute size of data used in this core
+            dspDataCounter += (dspDataCounter & 1);
+            ptr[5]  = dspDataCounter - lastCoreData; 
+            //ptr[6]  = opcodeIndex() - lastCoreIndex;
+        }
         lastCoreIndex = 0;
     }
 }
