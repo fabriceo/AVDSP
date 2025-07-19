@@ -45,7 +45,7 @@ const char filterOrders[filterTypesNumber] = {
 
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,_DSPPRINTF,
-    _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreaes,
+    _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _output, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
@@ -63,7 +63,7 @@ enum keywords_e {
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3","DSPPRINTF",
-    "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreaes",
+    "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "output","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatevol","saturategain",
@@ -552,11 +552,9 @@ static int testExpression(char * * s, double * value){
         }
         if (res == _empty) {
             if ( isLetter( **s ) ) {
-                char ch = **s;
                 labelptr_t l = searchLabel(s);
                 if (l == NULL) {
                     while (isAlphanum(**s)) (*s)++;
-                    dspprintf4("label not found starting with %c followed by %c %x\n",ch,**s,**s);
                     int del = searchDelimiter(s,"?");
                     if (del == 0) fatalErrorNum(-2);  //numericalValueOrLabelExpected
                     temp = 0;
@@ -1184,7 +1182,16 @@ nextline:
             case _section:
             case _sectionelse:
             case _core: 
-            case _coreaes: {
+            case _coreextern: {
+                double value = 0;
+                int valint = 0;
+                if (keyw == _coreextern) {
+                    searchExpressionRangeError( &p, &value, _tint32 );
+                    valint = value;
+                    if (valint == 0) fatalErrorNum(60);
+                    res = searchDelimiter( &p, "," );
+                    if (res == 0) getEOLError( &p );
+                }
                 int num=0;
                 do {        //multiple x,y condition accepted
                     unsigned progAny1 = 0xFFFFFFFF;
@@ -1206,7 +1213,7 @@ nextline:
                         if (keyw == _core) numCore = dsp_CORE_Prog(progAny1,progOnly0);  
                         if (keyw == _section) dsp_SECTION(progAny1,progOnly0);
                         if (keyw == _sectionelse) dsp_SECTION_ELSE(progAny1,progOnly0);
-                        if (keyw == _coreaes) dsp_CORE_EXTERN_Prog(progAny1,progOnly0);
+                        if (keyw == _coreextern) dsp_CORE_EXTERN_Prog(valint,progAny1,progOnly0);
                     } else {
                         addCode(progAny1); addCode(progOnly0);
                     }
@@ -2055,7 +2062,7 @@ void fatalError(){
     case -57: fprintf(stderr,"Error: this keyword must be the first on the line\n"); break;
     case -58: fprintf(stderr,"Error: \"\\\" is not autorized on this line\n"); break;
     case -59: fprintf(stderr,"Error: \"if\" with missing \"endif\"\n"); break;
-
+    case -60: fprintf(stderr,"Error: value 0 not authorized\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",lineNum[0]-1,line);

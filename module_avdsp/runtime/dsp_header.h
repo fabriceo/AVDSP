@@ -160,7 +160,7 @@ enum dspOpcodesEnum {
     DSP_MEMGAIN,
     DSP_MEMINPUT,
 
-    DSP_CORE_AES = 102,       //102  same as DSP_CORE but to declare external core like spdif task
+    DSP_CORE_EXTERN = 102,       //102  same as DSP_CORE but to declare external core like spdif task
     DSP_FULL_LOAD,
     DSP_PRIO_ON,
     DSP_PRIO_OFF,

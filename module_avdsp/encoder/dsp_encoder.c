@@ -715,7 +715,7 @@ void dsp_dumpParameterNum(int addr, int size, char * name, int num){
 //create a dsp_CORE opcode if none has been decalred yet.
 static void check_dsp_CORE() {
     if ( (lastCoreNum == 0) || 
-         (lastCoreOpcode == DSP_CORE_AES) ) {
+         (lastCoreOpcode == DSP_CORE_EXTERN) ) {
         dsp_CORE();
         calcLength();
     }
@@ -723,7 +723,7 @@ static void check_dsp_CORE() {
 
 
 int dspHeaderDone(){
-    if (lastCoreOpcode != DSP_CORE_AES) {
+    if (lastCoreOpcode != DSP_CORE_EXTERN) {
         check_dsp_CORE();
         calcPreviousSectionSkip();
         solveSectionNOP();
@@ -979,8 +979,11 @@ int dsp_CORE_Prog(unsigned progAny1, unsigned progAny0){
     return dsp_CORE_Prog_(DSP_CORE,progAny1,progAny0);
 }
 
-int dsp_CORE_EXTERN_Prog(unsigned progAny1, unsigned progAny0){
-    return dsp_CORE_Prog_(DSP_CORE_AES,progAny1,progAny0);
+int dsp_CORE_EXTERN_Prog(int value, unsigned progAny1, unsigned progAny0){
+    int tmp= dsp_CORE_Prog_(DSP_CORE_EXTERN,progAny1,progAny0);
+    int index = opcodeIndex() - 3;
+    opcodePtr(index)->i32 = value;
+    return tmp;
 }
 //a core will be authorized if any bit in the 1st mask is set to 1, AND all bits set in 2nd mask are 0
 int dsp_CORE(){

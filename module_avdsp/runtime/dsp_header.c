@@ -132,7 +132,7 @@ const char * dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_MEMGAIN",
     "DSP_MEMINPUT",
 
-    "DSP_CORE_AES", //102
+    "DSP_CORE_EXTERN", //102
     "DSP_FULL_LOAD",
     "DSP_PRIO_ON",
     "DSP_PRIO_OFF",
@@ -193,7 +193,7 @@ void dspCalcSumCore(opcode_t * XCunsafe ptr, unsigned int * XCunsafe sum, int * 
         if ( ( *numCore == 0 ) &&   //any first opcode will generate a core
                 (code != DSP_HEADER) &&
                 (code != DSP_NOP) &&
-                (code != DSP_CORE_AES) &&
+                (code != DSP_CORE_EXTERN) &&
                 (code != DSP_PARAM) &&
                 (code != DSP_PARAM_NUM) )  *numCore = 1;
         *sum += ptr->u32;
