@@ -921,8 +921,8 @@ nextline:
                     double mant = 0;
                     searchExpressionRangeError( &p, &mant, _tmant );
                     mantissa = mant;
-                    //mantissa2 should be less or equal to mantissa+32
-                    valueMax[_tmant2] = mant+32;
+                    //mantissa2 should be less or equal to mantissa+32-1
+                    valueMax[_tmant2] = mant+32-1;
                     valueMax[_tvalue32] = 1ULL<<(31-mantissa);
                     valueMin[_tvalue32] = -valueMax[_tvalue32];
                     if ((res = searchDelimiter( &p, ","))) {

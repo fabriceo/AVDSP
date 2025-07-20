@@ -16,7 +16,7 @@ int dspPrintfVal = 0;
 
 
 //used in both dsp_encoder.c and dsp_runtime
-const char * dspOpcodeText[DSP_LAST_OPCODE] = {
+const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE] = {
     "DSP_END_OF_CODE",      //0
     "DSP_HEADER",
     "DSP_PARAM",

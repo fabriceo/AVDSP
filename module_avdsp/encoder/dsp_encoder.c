@@ -602,7 +602,7 @@ static void printMipsEstimate(int core) {
     if ((dspProcessor == 2)|| (dspProcessor == 3)) {
         int mips = getMipsEstimate(opcodePtr(lastCoreIndex_),dspCondition,dspMinSamplingFreq,dspMaxSamplingFreq);
         if (mips) {
-            dspprintf1("XMOS CORE %d estimated instructions max = %d (+core start 16..40)\n",core,mips);
+            dspprintf1("XMOS CORE %d estimated instructions max = %d (+core start 20)\n",core,mips);
         } else 
             dspprintf1("XMOS CORE %d not enabled with given conditions %X\n",core,dspCondition);
     }
@@ -611,7 +611,7 @@ static void printMipsEstimate(int core) {
 static void updateLastCoreIOs(){
     if (lastCoreIndex) {
         int * ptr = (int *)opcodePtr(lastCoreIndex);
-            if (opcodePtr(lastCoreIndex)->op.opcode == DSP_CORE) {
+        if (opcodePtr(lastCoreIndex)->op.opcode == DSP_CORE) {
             ptr[1] = usedInputsCore  & 0xFFFFFFFF;
             ptr[2] = usedOutputsCore & 0xFFFFFFFF;
             //for compatibility with previous version

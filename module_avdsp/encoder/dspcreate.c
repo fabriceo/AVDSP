@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
     char *minidspProgName = NULL;
     char *dspbasicProgName = NULL;
     int outFileType = 0;
-    int defaultType = DSP_FORMAT_FLOAT;
+    int defaultType = DSP_FORMAT_INT64;
     int i,size=0;
 
     opcode_t opcodes[opcodesMax];       // temporary table for dsp code

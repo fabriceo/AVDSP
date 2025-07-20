@@ -31,7 +31,9 @@ extern int dspPrintfVal;
 #define XCunsafe unsafe
 #endif
 #else
+#ifndef XCunsafe
 #define XCunsafe
+#endif
 #endif
 
 
@@ -194,7 +196,7 @@ DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this w
     DSP_LAST_OPCODE
 };
 
-extern const char * dspOpcodeText[DSP_LAST_OPCODE];  //defined in dsp_header.c
+extern const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE];  //defined in dsp_header.c
 
 enum dspFreqs {
     F8000,   F16000,
@@ -271,6 +273,7 @@ typedef union opcode_u {
     unsigned u[1];
 } opcode_t;
 
+typedef opcode_t * opcodePtr_t;
 
 //used at the very begining of the tile dsp program to store basic information
 typedef struct dspHeader_s {    //
