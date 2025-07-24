@@ -640,8 +640,10 @@ static int testExpression(char * * s, double * value){
     *value = sum;
     if (modeDB) return _valuedb;
     int integer = sum;
+    unsigned uinteger = sum;
     double check = integer;
-    if (check == sum) return _valueint;
+    double ucheck = uinteger;
+    if ((check == sum) || (ucheck == sum)) return _valueint;
     else return _value;
 }
 
@@ -1024,7 +1026,7 @@ nextline:
                 break;}
             case _DSPSERIAL: {
                 double value;
-                if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
+                if (_valueint != searchExpression( &p, &value)) fatalErrorNum(11);
                 unsigned val = value;
                 setSerialHash(val);
                 break ;}
