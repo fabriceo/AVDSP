@@ -77,7 +77,7 @@ int  dsp_singleOpcode(unsigned opcode);
  void dsp_SECTION(unsigned progAny1, unsigned progAny0);
  void dsp_SECTION_ELSE(unsigned progAny1, unsigned progAny0);
  void dsp_SERIAL(unsigned hash);
-
+ void setSerialHash(unsigned hash);
  void dsp_SWAPXY();
  void dsp_COPYXY();
  void dsp_COPYYX();

@@ -44,7 +44,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3,_DSPPRINTF,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3, _DSPPRINTF, _DSPSERIAL,
     _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _output, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _clip,
@@ -62,7 +62,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3","DSPPRINTF",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL"
     "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "output","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
@@ -1014,14 +1014,20 @@ nextline:
                 int inst = lastclock / freqmax;
                 dspprintf2("XMOS instructions per samples %d, enabling condition 0x%X\n",inst,dspCondition);
                 break;}
-                case _DSPPRINTF : {
-                    calcLength();
-                    clearParamSection();
-                    double value;
-                    if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
-                    outOfRangeError(value,0,4);
-                    dspPrintfVal = value;
-                    break;}
+            case _DSPPRINTF : {
+                calcLength();
+                clearParamSection();
+                double value;
+                if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
+                outOfRangeError(value,0,4);
+                dspPrintfVal = value;
+                break;}
+            case _DSPSERIAL: {
+                double value;
+                if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
+                unsigned val = value;
+                setSerialHash(val);
+                break ;}
             case _end:   { 
                 getEOLError(&p);
                 if (ifinside) fatalErrorNum(59);
