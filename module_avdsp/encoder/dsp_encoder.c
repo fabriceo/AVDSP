@@ -765,7 +765,8 @@ int dspHeaderDone(){
     dspHeaderPtr->maxOpcode   = maxOpcodeValue;
     dspHeaderPtr->usedInputs  = usedInputs;
     dspHeaderPtr->usedOutputs = usedOutputs;
-    
+    if (dspHeaderPtr->serialHash) 
+        dspprintf1("serial hash    = 0x%X\n",dspHeaderPtr->serialHash);
     dspout("} //end of core %d\n",numCore);
     dspout("int dspDataSpace%d[%d];\n",lastTileNum,dspDataCounter);
     return opcodeIndex();
