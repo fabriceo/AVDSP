@@ -62,7 +62,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL"
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL",
     "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "output","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
