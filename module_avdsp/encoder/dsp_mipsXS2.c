@@ -133,6 +133,16 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     2,  //DSP_PRIO_OFF,
     6,  //DSP_TRANSFER2
     14, //DSP_TRANSFER8
+    
+    7, //DSP_LOADXY,   //TODO XY
+    9, //DSP_STOREXY,
+    16, //DSP_GAINXY,
+    16, //DSP_DELAYUSXY,
+    1, //DSP_SAT0DBXY,
+    1, //DSP_SAT0DBXY_VOL,
+    1, //DSP_SAT0DBXY_GAIN,
+    15, //DSP_BIQUADSXY,
+    1, //DSP_BIQUADSXY_FS,
 
     11,  //DSP_FLOAD = 106,         //106   same as 2,  //DSP_LOAD but converted to float ieee754
     7,  //DSP_FSTORE,
@@ -286,6 +296,11 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     int param2 = ptr[2].i32;
                     short sections = ptr[param2].s16.low;
                     inst = sections * 18;
+                    break; }
+                case DSP_BIQUADSXY : {
+                    int param2 = ptr[2].i32;
+                    short sections = ptr[param2].s16.low;
+                    inst = sections * 33;
                     break; }
                 case DSP_FIR : 
                 case DSP_WFIR : {

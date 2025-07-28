@@ -169,23 +169,26 @@ enum dspOpcodesEnum {
     DSP_TRANSFER2,
     DSP_TRANSFER8,
 
-    DSP_FLOAD = 108,         //108   same as DSP_LOAD but converted to float ieee754
+    DSP_LOADXY, //108
+    DSP_STOREXY,
+    DSP_GAINXY,
+    DSP_DELAYUSXY,
+    DSP_SAT0DBXY,
+    DSP_SAT0DBXY_VOL,
+    DSP_SAT0DBXY_GAIN,
+    DSP_BIQUADSXY,
+    DSP_BIQUADSXY_FS,
+
+    DSP_FLOAD = 117,         //same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
-    DSP_FBIQUADS,       //112
+    DSP_FBIQUADS,
     // new opcodes should come here below
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
 
-    DSP_OP113,
-    DSP_OP114,
-    DSP_OP115,
-    DSP_OP116,
-    DSP_OP117,
-    DSP_OP118,
-    DSP_OP119,
-    DSP_OP120,
+
     DSP_OP121,
     DSP_OP122,
     DSP_OP123,
@@ -193,7 +196,7 @@ DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this w
     DSP_OP125,
     DSP_OP126,
     DSP_OP127, */
-    DSP_LAST_OPCODE
+    DSP_LAST_OPCODE = 123,
 };
 
 extern const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE];  //defined in dsp_header.c

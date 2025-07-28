@@ -334,7 +334,7 @@ void calcLength(){
     if (lastOpcodeIndexLength != -1) { // check if a lenght of code shall be calculated now (calcLength is called by all opcode functions)
         opcode_t tmp = *opcodePtr(lastOpcodeIndexLength);   // read opcode generated
         tmp.op.skip= (opcodeIndex() - lastOpcodeIndexLength);   // generate the lenght as a futur "skip" so the runtime can do: codePtr += codePtr->skip
-        dspprintf4("patch @%d:%d\n",lastOpcodeIndexLength,tmp.op.skip);
+        //dspprintf4("patch @%d:%d\n",lastOpcodeIndexLength,tmp.op.skip);
         *opcodePtr(lastOpcodeIndexLength) = tmp;          // update the opcode bin location
         lastOpcodeIndexLength = -1;                       // reset the index as we just solved it
          }
@@ -1150,9 +1150,21 @@ void dsp_SAT0DB_VOL(){
     ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
 }
 
+void dsp_SAT0DBXY_VOL(){
+    dspout("   dsp_SAT0DBXY_VOL();\n");
+    addSingleOpcodePrint(DSP_SAT0DBXY_VOL);
+    ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
+}
+
 void dsp_SAT0DB() {
     dspout("   dsp_SAT0DB();\n");
     addSingleOpcodePrint(DSP_SAT0DB);
+    ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
+}
+
+void dsp_SAT0DBXY() {
+    dspout("   dsp_SAT0DBXY();\n");
+    addSingleOpcodePrint(DSP_SAT0DBXY);
     ALUformat = 0;  //after this instruction, the ALU contains a 32bit value unscaled, ready to be stored to a DAC output.
 }
 
@@ -1164,10 +1176,23 @@ void dsp_SAT0DB_GAIN(int paramAddr){
     addCodeOffset(paramAddr, tmp);
     setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
 }
+void dsp_SAT0DBXY_GAIN(int paramAddr){
+    ALUformat = 0;
+    int tmp = addOpcodeLengthPrint(DSP_SAT0DBXY_GAIN);
+    if (paramAddr) checkInParamSpace(paramAddr,1);
+    addCodeOffset(paramAddr, tmp);
+    setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
+}
 
 void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain){
     dspout("   dsp_SAT0DB_GAIN(%f);\n",gain);
     dsp_SAT0DB_GAIN(0);
+    addGainCodeQNM(gain);
+}
+
+void dsp_SAT0DBXY_GAIN_Fixed(dspGainParam_t gain){
+    dspout("   dsp_SAT0DBXY_GAIN(%f);\n",gain);
+    dsp_SAT0DBXY_GAIN(0);
     addGainCodeQNM(gain);
 }
 
@@ -1224,6 +1249,19 @@ void dsp_LOAD(int IO) {
     addCode(IO);
 }
 
+ void dsp_LOADXY(int in1, int in2){
+    ALUformat = 0;
+    checkIOmax(in1);
+    checkIOmax(in2);
+    if (in1<64) usedInputs |= 1ULL<<in1;      //keep track of inputs used
+    if (in1<64) usedInputsCore |= 1ULL<<in1;
+    if (in2<64) usedInputs |= 1ULL<<in2;      //keep track of inputs used
+    if (in2<64) usedInputsCore |= 1ULL<<in2;
+    dspout("   dsp_LOADXY(%d,%d);\n",in1,in2);
+    addOpcodeLengthPrint(DSP_LOADXY);
+    addCode(in1);
+    addCode(in2);
+ }
 void dsp_LOAD_GAIN(int IO, int paramAddr){
     ALUformat = 1;
     int tmp = addOpcodeLengthPrint(DSP_LOAD_GAIN);
@@ -1297,6 +1335,17 @@ void dsp_STORE(int IO) {
     dspout("   dsp_STORE(%d);\n",IO);
     addOpcodeLengthPrint(dspMant?DSP_STORE:DSP_FSTORE);
     dsp_STORE_IO(IO);
+}
+
+void dsp_STOREXY(int out1, int out2) {
+    checkIOmax(out1); checkIOmax(out2);
+    if (out1<64) usedOutputs |= 1ULL<<out1;
+    if (out1<64) usedOutputsCore |= 1ULL<<out1;
+    if (out2<64) usedOutputs |= 1ULL<<out2;
+    if (out2<64) usedOutputsCore |= 1ULL<<out2;
+    dspout("   dsp_STOREXY(%d,%d);\n",out1,out2);
+    addOpcodeLengthPrint(DSP_STOREXY);
+    addCode(out1); addCode(out2);
 }
 
 void dsp_STORE_VOL(int IO) {
@@ -1424,6 +1473,14 @@ void dsp_GAIN_Fixed(dspGainParam_t gain){
     ALUformat = 1;
     dspout("   dsp_GAIN(%f);\n",gain);
     int tmp = addOpcodeLengthPrint(dspMant?DSP_GAIN:DSP_FGAIN);
+    addCodeOffset(0, tmp);  // value is just below
+    addGainCodeQNM(gain);
+}
+
+void dsp_GAINXY_Fixed(dspGainParam_t gain){
+    ALUformat = 1;
+    dspout("   dsp_GAINXY(%f);\n",gain);
+    int tmp = addOpcodeLengthPrint(DSP_GAINXY);
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(gain);
 }
@@ -1675,7 +1732,7 @@ static void dsp_DELAY_(int paramAddr, int opcode){
     addCode(size);                              // store the max size of the delay line for runtime to check due to user potential changes
     if (size) {
         if (opcode == DSP_DELAY_DP)
-            addDataSpaceMisAligned8(size*2+1);      // now we can request the data space
+            addDataSpaceAligned8(size*2+2);  // now we can request the data space
         else addDataSpace(size+1);
     } else addCode(0);
     addCodeOffset(paramAddr, tmp);              // point on where is the delay in uSec
@@ -1704,6 +1761,10 @@ static void dsp_DELAY_max_(int paramAddr, int max, int opcode){
 
 void dsp_DELAY_max(int paramAddr, int max){
     dsp_DELAY_max_(paramAddr,max,DSP_DELAY);
+}
+
+void dsp_DELAYXY_max(int paramAddr, int max){
+    dsp_DELAY_max_(paramAddr,max,DSP_DELAY); //TODO
 }
 
 void dsp_DELAY_DP_max(int paramAddr, int max){
@@ -1747,7 +1808,7 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
         dspDelayFactor*705600, dspDelayFactor*768000
 };
 
-static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
+ void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
     int DP = 1;
     if (opcode == DSP_DELAY_DP) { DP = 2; ALUformat = 1; } else ALUformat = 0;
     unsigned long long delayLineFactor = dspTableDelayFactor[dspMaxSamplingFreq];
@@ -1768,9 +1829,10 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
         if (DP == 1 ) {
             data = addDataSpace(1 + maxSamples); // request data space (including index) and store the pointer
             if (opcode == DSP_DELAY) dspout("   dsp_DELAY(%d,%d,%d);\n",microSec,data,maxSamples);
-            else dspout("//dsp_DELAY_FB_MIX(..); //TODO\n");
+            if (opcode == DSP_DELAYUSXY) dspout("   dsp_DELAYXY(%d,%d,%d);\n",microSec,data,maxSamples); 
+            if (opcode == DSP_DELAY_FB_MIX) dspout("//dsp_DELAY_FB_MIX(..); //TODO\n");
         } else {
-            data = addDataSpaceMisAligned8(1 + maxSamples*2);
+            data = addDataSpaceAligned8(2 + maxSamples*2);
             dspout("   dsp_DELAY_DP(%d,%d,%d);\n",microSec,data,maxSamples);
         }
         addCode(0); // this will indicate to runtime that this is a fixed delay line.
@@ -1783,6 +1845,9 @@ static void dsp_DELAY_FixedMicroSec_(int microSec, int opcode){
 
 void dsp_DELAY_FixedMicroSec(int microSec){
     dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY);
+}
+void dsp_DELAYXY_FixedMicroSec(int microSec){
+    dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY); //TODO
 }
 void dsp_DELAY_FixedMilliMeter(int mm,float speed){
     dsp_DELAY_FixedMicroSec(mm * 1000.0 / speed);
@@ -1900,9 +1965,9 @@ int dspGenerator_Sine(int samples){
 // user function to define the start of a biquad section containg coefficient.
 // e.g.     int myBQ = dspBiquadSection(2);
 //
-int dsp_BIQUADS(int paramAddr){
+static int dsp_BIQUADS_(int paramAddr, int opcode){
     ALUformat = 1;
-    int base = addOpcodeLengthPrint(dspMant?DSP_BIQUADS:DSP_FBIQUADS);
+    int base = addOpcodeLengthPrint(opcode);
 //    checkInParamSpaceOpcode(paramAddr,2+6*numberFrequencies, DSP_BIQUADS);  // biquad coef are only store in param section
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     //dspprintf3("biquad filter expected in param area at %d with %d sections\n",paramAddr,num);
@@ -1914,10 +1979,20 @@ int dsp_BIQUADS(int paramAddr){
     return addrValue+((num-1)*6);           // to be tested
 }
 
-int dsp_BIQUADS_FS(int paramAddr){
+int dsp_BIQUADS(int paramAddr){
+    return dsp_BIQUADS_(paramAddr, (dspMant?DSP_BIQUADS:DSP_FBIQUADS));
+}
+
+int dsp_BIQUADSXY(int paramAddr){
+    return dsp_BIQUADS_(paramAddr, DSP_BIQUADSXY);
+}
+
+
+int dsp_BIQUADS_FS_(int paramAddr, int opcode){
     ALUformat = 1;
-    int base = addOpcodeLengthPrint(DSP_BIQUADS_FS);
-    checkInParamSpaceOpcode(paramAddr,1+6*2, DSP_BIQUADS_FS);
+    int base = addOpcodeLengthPrint(opcode);
+    if (opcode == DSP_BIQUADSXY_FS) opcode = DSP_BIQUADS_FS;
+    checkInParamSpaceOpcode(paramAddr,1+6*2, opcode);
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(1+6*num*2));
     addCode(num);   //number of section
@@ -1926,6 +2001,14 @@ int dsp_BIQUADS_FS(int paramAddr){
     if (data) {}
     dspout("   dsp_BIQUADS_FS(&%s[%d],%d,%d,%d);\n",dspOutLabelName,num,num,data,num*6);
     return base;
+}
+
+int dsp_BIQUADS_FS(int paramAddr){
+    return dsp_BIQUADS_FS_( paramAddr, DSP_BIQUADS_FS);
+}
+
+ int dsp_BIQUADSXY_FS(int paramAddr){
+    return dsp_BIQUADS_FS_( paramAddr, DSP_BIQUADSXY_FS);
 }
 
 int dspBiquad_Sections(int number){

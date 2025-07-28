@@ -16,7 +16,7 @@ extern int dspbasicCreate(char * fileName, int argc, char ** argv);
 
 #define opcodesMax 65000                // just to define a maximum, could be up to 65000 (=256kbytes)
 
-#define inputOutputMax 32               
+#define inputOutputMax 64               
 
 int freqMin = DSP_DEFAULT_MIN_FREQ;     // default value from header.h
 int freqMax = DSP_DEFAULT_MAX_FREQ;

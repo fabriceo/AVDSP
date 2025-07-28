@@ -46,13 +46,13 @@ const char filterOrders[filterTypesNumber] = {
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3, _DSPPRINTF, _DSPSERIAL,
     _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreextern,
-    _input, _output, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
-    _mixer, _mixergain, _gain, _clip,
+    _input, _inputxy, _output, _outputxy, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
+    _mixer, _mixergain, _gain, _gainxy, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
-    _saturate, _saturatevol, _saturategain,
-    _delayone, _delayus, _delaydpus, _delayusfbmix,
+    _saturate, _saturatexy, _saturatevol, _saturatevolxy, _saturategain, _saturategainxy,
+    _delayone, _delayus, _delayxyus, _delaydpus, _delayusfbmix,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
-    _dcblock, _biquad, _biquad8, _convol, _warpconvol,
+    _dcblock, _biquad, _biquadxy, _biquad8, _convol, _warpconvol,
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
@@ -64,17 +64,19 @@ enum keywords_e {
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL",
     "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
-    "input", "output","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", "mixer","mixergain","gain","clip",
+    "input", "inputxy", "output", "outputxy","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", 
+    "mixer","mixergain","gain","gainxy","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
-    "saturate", "saturatevol","saturategain",
-    "delayone", "delayus", "delaydpus", "delayusfbmix",
+    "saturate", "saturatexy", "saturatevol", "saturatevolxy","saturategain","saturategainxy",
+    "delayone", "delayus", "delayxyus", "delaydpus", "delayusfbmix",
     "savexmem", "loadxmem","saveymem", "loadymem",
-    "dcblock", "biquad", "biquad8", "convol", "warpconvol",
+    "dcblock", "biquad", "biquadxy", "biquad8", "convol", "warpconvol",
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
     "tile","send","receive","instructions","priorityon","priorityoff",
-    "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem","memvalue","mixermem","memgain","meminput",
+    "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem",
+    "memvalue","mixermem","memgain","meminput",
 };
 
 enum paramkeywords_e {
@@ -1272,6 +1274,15 @@ nextline:
                 dsp_LOAD( input);
                 break; }
 
+            case _inputxy: {
+                searchExpressionRangeError( &p, &input, _tIO  );
+                int in1 = input;
+                fatalErrorNumIf( 30, 0 == searchDelimiter( &p, "," ));
+                searchExpressionRangeError( &p, &input, _tIO  );
+                int in2 = input;
+                dsp_LOADXY( in1, in2);
+                break; }
+
             case _outputpdf:
             case _outputvol:
             case _outputvolsat: fatalErrorFloat(1);
@@ -1301,6 +1312,15 @@ nextline:
                     else dsp_STORE_VOL_SAT( finalIO );
                 } while(res || breaking);   //force an additional loop if "breaking" was used
                 break; }
+
+            case _outputxy: {
+                searchExpressionRangeError( &p, &output , _tIO );
+                int out1 = output;
+                fatalErrorNumIf( 30, 0 == searchDelimiter( &p, "," ));
+                searchExpressionRangeError( &p, &output , _tIO );
+                int out2 = output;
+                dsp_STOREXY(out1,out2);
+                break;}
 
             case _transfer8: 
             case _transfer2: {
@@ -1372,7 +1392,8 @@ nextline:
                 dsp_VALUEY_Fixed(result);
                 break; }
 
-            case _gain : {
+                case _gainxy:
+                case _gain : {
                 char * oldp = skipSpaces( &p);
                 labelptr_t l = searchLabel( &p );
                 if ((l) && ((l->s.type == label_drcout) || (l->s.type == label_value))) {
@@ -1382,7 +1403,8 @@ nextline:
                     p = oldp;
                     double result;
                     searchExpressionRangeError( &p, &result, _tvalue32);
-                    dsp_GAIN_Fixed(result);
+                    if (keyw == _gain)   dsp_GAIN_Fixed(result);
+                    if (keyw == _gainxy) dsp_GAINXY_Fixed(result);
                 }
                 break; }
 
@@ -1433,19 +1455,34 @@ nextline:
                 fatalErrorFloat(1);
                 dsp_SAT0DB();
                 break; }
+            case _saturatexy: {
+                fatalErrorFloat(1);
+                dsp_SAT0DBXY();
+                break; }            
             case _saturatevol:{
                 fatalErrorFloat(1);
                 dsp_SAT0DB_VOL();
+                break; }
+            case _saturatevolxy:{
+                fatalErrorFloat(1);
+                dsp_SAT0DBXY_VOL();
                 break; }
             case _saturategain:{
                 fatalErrorFloat(1);
                 searchExpressionRangeError( &p, &gain, _tvalue32 );
                 dsp_SAT0DB_GAIN_Fixed(gain);
                 break; }
+            case _saturategainxy:{
+                fatalErrorFloat(1);
+                searchExpressionRangeError( &p, &gain, _tvalue32 );
+                dsp_SAT0DBXY_GAIN_Fixed(gain);
+                break; }
 
             case _delayone: {
                 dsp_DELAY_1(); 
                 break; }
+
+            case _delayxyus:
             case _delayus: fatalErrorFloat(1);
             case _delaydpus: {
                 char * oldp = skipSpaces( &p);
@@ -1456,12 +1493,14 @@ nextline:
                     double max=0;
                     searchExpressionRangeError( &p, &max, _tdelay );
                     if (keyw == _delaydpus)  dsp_DELAY_DP_max( l->s.address, max );
-                    else dsp_DELAY_max( l->s.address, max );
+                    if (keyw == _delayus)    dsp_DELAY_max( l->s.address, max );
+                    if (keyw == _delayxyus)  dsp_DELAYXY_max( l->s.address, max );
                 } else {
                     p = oldp;
                     searchExpressionRangeError( &p, &delay, _tdelay );
                     if (keyw == _delaydpus)  dsp_DELAY_DP_FixedMicroSec( delay );
-                    else dsp_DELAY_FixedMicroSec( delay );
+                    if (keyw == _delayus)    dsp_DELAY_FixedMicroSec( delay );
+                    if (keyw == _delayxyus)  dsp_DELAYXY_FixedMicroSec( delay );
                 }
                 break; }
             case _delayusfbmix: {
@@ -1508,7 +1547,8 @@ nextline:
                 dsp_DCBLOCK( freq );
                 break; }
 
-            case _biquad8:
+            case _biquad8: //TODO
+            case _biquadxy:
             case _biquad: {
                 labelptr_t l = searchLabel( &p );
                 if (l == NULL) { lastLabelName = ""; fatalErrorNum(3); }
@@ -1518,8 +1558,10 @@ nextline:
                 usedLabelInTile(l);
                 dspOutLabelName = l->s.name;
                 dspprintf3("biquad filter %s, %d\n",dspOutLabelName,l->s.address);
-                if ((l->s.type == label_filter) && (dspModeDynamic==0)) dsp_BIQUADS( l->s.address );
-                else dsp_BIQUADS_FS( l->s.address );
+                if ((l->s.type == label_filter) && (dspModeDynamic==0)) {
+                    if (keyw == _biquad)   dsp_BIQUADS( l->s.address );
+                    if (keyw == _biquadxy) dsp_BIQUADSXY( l->s.address );
+                } else dsp_BIQUADS_FS( l->s.address );
                 break; }
 
             case _warpconvol: //falthrough

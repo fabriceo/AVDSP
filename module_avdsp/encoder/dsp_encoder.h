@@ -105,11 +105,15 @@ int  dsp_singleOpcode(unsigned opcode);
  void dsp_WHITE();
  //saturate the ALU to keep value between -1..+1 and apply a volume and a potential reduction computed automatically
  void dsp_SAT0DB_VOL();
+ void dsp_SAT0DBXY_VOL();
  //saturate the ALU to keep value between -1..+1 and transform to s.31 format (for int64 ALU)
  void dsp_SAT0DB();
+ void dsp_SAT0DBXY();
  //apply a gain before saturation
  void dsp_SAT0DB_GAIN(int paramAddr);
  void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain);
+ void dsp_SAT0DBXY_GAIN(int paramAddr);
+ void dsp_SAT0DBXY_GAIN_Fixed(dspGainParam_t gain);
 
 // shit ALU left (positive) or right (negative), corresponding to multiply by 2^n or 2^-n
  void dsp_SHIFT(int bits);
@@ -118,6 +122,7 @@ int  dsp_singleOpcode(unsigned opcode);
 
 // load the ALU with the raw sample s.31. ALU is 33.31 and can be used only for DELAY or STORE.
  void dsp_LOAD(int IO);
+ void dsp_LOADXY(int in1, int in2);
 // load a sample in s.31 and apply a gain (4.28) resulting in format 5.59
  void dsp_LOAD_GAIN(int IO, int paramAddr);
  void dsp_LOAD_GAIN_Fixed(int IO, dspGainParam_t gain);
@@ -131,6 +136,7 @@ int  dsp_singleOpcode(unsigned opcode);
 
  // store a s.31 sample from ALU
  void dsp_STORE(int IO);
+ void dsp_STOREXY(int out1, int out2);
  // store a s.31 sample from ALU and apply digital volume
  void dsp_STORE_VOL(int IO);
  // store a s.31 sample from ALU and apply digital volume and potentail saturation gain and verify extra saturation of result
@@ -186,6 +192,7 @@ int  dsp_singleOpcode(unsigned opcode);
 
  //directly apply a gain (4.28) on the ALU
  void dsp_GAIN_Fixed(dspGainParam_t gain);
+ void dsp_GAINXY_Fixed(dspGainParam_t gain);
  void dsp_GAIN(int paramAddr);
  int  dspGain_Default(dspGainParam_t gain);
 
@@ -200,6 +207,7 @@ int  dsp_singleOpcode(unsigned opcode);
  // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);
  void dsp_DELAY_max(int paramAddr, int max);
+ void dsp_DELAYXY_max(int paramAddr, int max);
   void dsp_DELAY_1();
  // used to define the delay , in a PARAM or PARAMNUM section
  int  dspDelay_MicroSec_Max(int maxus);
@@ -208,6 +216,7 @@ int  dsp_singleOpcode(unsigned opcode);
  int  dspDelay_MilliMeter_Max_Default(int maxmm, int mm, float speed);
 
  void dsp_DELAY_FixedMicroSec(int microSec);
+ void dsp_DELAYXY_FixedMicroSec(int microSec);
  void dsp_DELAY_FixedMilliMeter(int mm,float speed);
 
  void dsp_DELAY_DP(int paramAddr);
@@ -225,8 +234,11 @@ int  dsp_singleOpcode(unsigned opcode);
 
 // calculate cascaded biquads with predefined coefficient for all frequencies
  int dsp_BIQUADS(int paramAddr);
+ int dsp_BIQUADSXY(int paramAddr);
  //same but only one frequency : expect the coefficient to be updated when fs is changing
  int dsp_BIQUADS_FS(int paramAddr);
+ //same but only one frequency : expect the coefficient to be updated when fs is changing
+ int dsp_BIQUADSXY_FS(int paramAddr);
 
  //use dsp_FSDYN() to defne if the coefficient are pre-computed or not for each frequency
  //define the list of biquad within a PARAM structure
