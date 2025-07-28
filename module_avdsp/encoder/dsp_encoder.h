@@ -112,8 +112,6 @@ int  dsp_singleOpcode(unsigned opcode);
  //apply a gain before saturation
  void dsp_SAT0DB_GAIN(int paramAddr);
  void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain);
- void dsp_SAT0DBXY_GAIN(int paramAddr);
- void dsp_SAT0DBXY_GAIN_Fixed(dspGainParam_t gain);
 
 // shit ALU left (positive) or right (negative), corresponding to multiply by 2^n or 2^-n
  void dsp_SHIFT(int bits);
@@ -192,7 +190,9 @@ int  dsp_singleOpcode(unsigned opcode);
 
  //directly apply a gain (4.28) on the ALU
  void dsp_GAIN_Fixed(dspGainParam_t gain);
+ void dsp_GAINY_Fixed(dspGainParam_t gain);
  void dsp_GAINXY_Fixed(dspGainParam_t gain);
+ void dsp_GAIN_X_Y_Fixed(dspGainParam_t gainX,dspGainParam_t gainY);
  void dsp_GAIN(int paramAddr);
  int  dspGain_Default(dspGainParam_t gain);
 
@@ -207,7 +207,7 @@ int  dsp_singleOpcode(unsigned opcode);
  // apply a delay line. to be used just before STORE or after LOAD as this works only on ALY lsb. msb discarded
  void dsp_DELAY(int paramAddr);
  void dsp_DELAY_max(int paramAddr, int max);
- void dsp_DELAYXY_max(int paramAddr, int max);
+ void dsp_DELAYY_max(int paramAddr, int max);
   void dsp_DELAY_1();
  // used to define the delay , in a PARAM or PARAMNUM section
  int  dspDelay_MicroSec_Max(int maxus);
@@ -216,7 +216,7 @@ int  dsp_singleOpcode(unsigned opcode);
  int  dspDelay_MilliMeter_Max_Default(int maxmm, int mm, float speed);
 
  void dsp_DELAY_FixedMicroSec(int microSec);
- void dsp_DELAYXY_FixedMicroSec(int microSec);
+ void dsp_DELAYY_FixedMicroSec(int microSec);
  void dsp_DELAY_FixedMilliMeter(int mm,float speed);
 
  void dsp_DELAY_DP(int paramAddr);

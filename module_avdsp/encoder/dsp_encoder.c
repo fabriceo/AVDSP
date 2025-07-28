@@ -602,7 +602,7 @@ static void printMipsEstimate(int core) {
     if ((dspProcessor == 2)|| (dspProcessor == 3)) {
         int mips = getMipsEstimate(opcodePtr(lastCoreIndex_),dspCondition,dspMinSamplingFreq,dspMaxSamplingFreq);
         if (mips) {
-            dspprintf1("XMOS CORE %d estimated instructions max = %d (+core start 20)\n",core,mips);
+            dspprintf1("XMOS CORE %d estimated instructions max = %d (+core start 20, total %d)\n",core,mips,20+mips);
         } else 
             dspprintf1("XMOS CORE %d not enabled with given conditions %X\n",core,dspCondition);
     }
@@ -1176,13 +1176,6 @@ void dsp_SAT0DB_GAIN(int paramAddr){
     addCodeOffset(paramAddr, tmp);
     setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
 }
-void dsp_SAT0DBXY_GAIN(int paramAddr){
-    ALUformat = 0;
-    int tmp = addOpcodeLengthPrint(DSP_SAT0DBXY_GAIN);
-    if (paramAddr) checkInParamSpace(paramAddr,1);
-    addCodeOffset(paramAddr, tmp);
-    setLastMissingParamIf0(paramAddr, 1);   // possibility to define the gain just below the opcode
-}
 
 void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain){
     dspout("   dsp_SAT0DB_GAIN(%f);\n",gain);
@@ -1190,11 +1183,6 @@ void dsp_SAT0DB_GAIN_Fixed(dspGainParam_t gain){
     addGainCodeQNM(gain);
 }
 
-void dsp_SAT0DBXY_GAIN_Fixed(dspGainParam_t gain){
-    dspout("   dsp_SAT0DBXY_GAIN(%f);\n",gain);
-    dsp_SAT0DBXY_GAIN(0);
-    addGainCodeQNM(gain);
-}
 
 int dsp_TPDF_CALC(int dither){
     if (lastTpdfDataAddress == 0) {
@@ -1477,12 +1465,30 @@ void dsp_GAIN_Fixed(dspGainParam_t gain){
     addGainCodeQNM(gain);
 }
 
+void dsp_GAINY_Fixed(dspGainParam_t gain){
+    ALUformat = 1;
+    dspout("   dsp_GAINY(%f);\n",gain);
+    int tmp = addOpcodeLengthPrint(DSP_GAINY);
+    addCodeOffset(0, tmp);  // value is just below
+    addGainCodeQNM(gain);
+}
+
 void dsp_GAINXY_Fixed(dspGainParam_t gain){
     ALUformat = 1;
     dspout("   dsp_GAINXY(%f);\n",gain);
     int tmp = addOpcodeLengthPrint(DSP_GAINXY);
     addCodeOffset(0, tmp);  // value is just below
     addGainCodeQNM(gain);
+}
+
+void dsp_GAIN_X_Y_Fixed(dspGainParam_t gainX,dspGainParam_t gainY){
+    ALUformat = 1;
+    dspout("   dsp_GAIN_X_Y(%f);\n",gain);
+    int tmp = addOpcodeLengthPrint(DSP_GAIN_X_Y);
+    addCodeOffset(0, tmp-1);  // value is just below
+    addCodeOffset(0, tmp-1);  // value is just below
+    addGainCodeQNM(gainX);
+    addGainCodeQNM(gainY);
 }
 
 
@@ -1754,7 +1760,7 @@ static void dsp_DELAY_max_(int paramAddr, int max, int opcode){
     int tmp = addOpcodeLengthPrint(opcode);
     addCode(max);                              // store the max size of the delay line for runtime to check due to user potential changes
     if (opcode == DSP_DELAY_DP)
-         addDataSpaceMisAligned8(max*2+1);      // now we can request the data space
+         addDataSpaceAligned8(max*2+2);      // now we can request the data space
     else addDataSpace(max+1);
     addCodeOffset(paramAddr, tmp);              // point on where is the delay in uSec
 }
@@ -1763,8 +1769,8 @@ void dsp_DELAY_max(int paramAddr, int max){
     dsp_DELAY_max_(paramAddr,max,DSP_DELAY);
 }
 
-void dsp_DELAYXY_max(int paramAddr, int max){
-    dsp_DELAY_max_(paramAddr,max,DSP_DELAY); //TODO
+void dsp_DELAYY_max(int paramAddr, int max){
+    dsp_DELAY_max_(paramAddr,max,DSP_DELAYY);
 }
 
 void dsp_DELAY_DP_max(int paramAddr, int max){
@@ -1829,7 +1835,7 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
         if (DP == 1 ) {
             data = addDataSpace(1 + maxSamples); // request data space (including index) and store the pointer
             if (opcode == DSP_DELAY) dspout("   dsp_DELAY(%d,%d,%d);\n",microSec,data,maxSamples);
-            if (opcode == DSP_DELAYUSXY) dspout("   dsp_DELAYXY(%d,%d,%d);\n",microSec,data,maxSamples); 
+            if (opcode == DSP_DELAYY) dspout("   dsp_DELAYY(%d,%d,%d);\n",microSec,data,maxSamples); 
             if (opcode == DSP_DELAY_FB_MIX) dspout("//dsp_DELAY_FB_MIX(..); //TODO\n");
         } else {
             data = addDataSpaceAligned8(2 + maxSamples*2);
@@ -1846,8 +1852,8 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
 void dsp_DELAY_FixedMicroSec(int microSec){
     dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY);
 }
-void dsp_DELAYXY_FixedMicroSec(int microSec){
-    dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAY); //TODO
+void dsp_DELAYY_FixedMicroSec(int microSec){
+    dsp_DELAY_FixedMicroSec_(microSec, DSP_DELAYY);
 }
 void dsp_DELAY_FixedMilliMeter(int mm,float speed){
     dsp_DELAY_FixedMicroSec(mm * 1000.0 / speed);
@@ -1972,7 +1978,7 @@ static int dsp_BIQUADS_(int paramAddr, int opcode){
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     //dspprintf3("biquad filter expected in param area at %d with %d sections\n",paramAddr,num);
     checkInParamSpace(paramAddr,(2+6*numberFrequencies)*num);
-    int addrValue = addDataSpaceAligned8(num*(dspMant?6:8));  // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
+    int addrValue = addDataSpaceAligned8(((opcode == DSP_BIQUADSXY)?2:1)*num*(dspMant?6:8));  // 2 words for mantissa reintegration + 4 words for each data (xn-1, xn-2, yn-1, yn-2)
     dspout("   dsp_BIQUADS(&%s,%d,%d,%d); //TODO\n",dspOutLabelName,num,addrValue,num*6);
     addCodeOffset(paramAddr, base);        // store pointer on the table of coefficients
     // from release 1.0 this returns the adress where the Biquaed calculated value is stored

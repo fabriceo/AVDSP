@@ -47,17 +47,17 @@ enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3, _DSPPRINTF, _DSPSERIAL,
     _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _inputxy, _output, _outputxy, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
-    _mixer, _mixergain, _gain, _gainxy, _clip,
+    _mixer, _mixergain, _gain, _gainx, _gainy, _gainxy, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
-    _saturate, _saturatexy, _saturatevol, _saturatevolxy, _saturategain, _saturategainxy,
-    _delayone, _delayus, _delayxyus, _delaydpus, _delayusfbmix,
+    _saturate, _saturatexy, _saturatevol, _saturatevolxy, _saturategain,
+    _delayone, _delayus, _delayusx, _delayusy, _delaydpus, _delayusfbmix,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
     _dcblock, _biquad, _biquadxy, _biquad8, _convol, _warpconvol,
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
     _tile,_send,_receive,_instructions,_priorityon,_priorityoff,
-    _memclr,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_memsave,_loadmem,
+    _memclr,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_memsave,_loadmem,_memsavexy,_loadmemxy,
     _memvalue,_mixermem,_memgain,_meminput,
     dspKeywordsNumber
 };
@@ -65,17 +65,17 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL",
     "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "inputxy", "output", "outputxy","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", 
-    "mixer","mixergain","gain","gainxy","clip",
+    "mixer","mixergain","gain","gainx","gainy","gainxy","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
-    "saturate", "saturatexy", "saturatevol", "saturatevolxy","saturategain","saturategainxy",
-    "delayone", "delayus", "delayxyus", "delaydpus", "delayusfbmix",
+    "saturate", "saturatexy", "saturatevol", "saturatevolxy","saturategain",
+    "delayone", "delayus", "delayusx", "delayusy", "delaydpus", "delayusfbmix",
     "savexmem", "loadxmem","saveymem", "loadymem",
     "dcblock", "biquad", "biquadxy", "biquad8", "convol", "warpconvol",
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
     "tile","send","receive","instructions","priorityon","priorityoff",
-    "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem",
+    "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem","memsavexy","loadmemxy",
     "memvalue","mixermem","memgain","meminput",
 };
 
@@ -497,7 +497,7 @@ static void outOfRangeError(double x,double Min,double Max){
 }
 
 
-static int getLabelMemory(char ** s) {
+static int getLabelMemory(char ** s, int size) {
     char * p = skipSpaces(s);
     labelptr_t l = findLabel(p);
     if (l) {
@@ -516,6 +516,7 @@ static int getLabelMemory(char ** s) {
             if (bracket == '[') getDelimiterError( s, ']', 26);
             val += val + l->s.address;
         }
+        if ((val+size*2) > (l->s.address+l->value*2)) fatalErrorNum(61);
         return val;
     } else fatalErrorNum(41);
     return 0;
@@ -891,6 +892,7 @@ nextline:
                 dspprintf4("%4d %s",lineNum[0]-1,line);
                 linePrinted = lineNum[0];
             }
+            //if (keyw != -1) dspprintf4("keyw %d < %s >\n",keyw,dspKeywords[keyw]);
             switch(keyw) {
             case _DSPFSMIN : 
             case _DSPFSMAX : {
@@ -1392,6 +1394,8 @@ nextline:
                 dsp_VALUEY_Fixed(result);
                 break; }
 
+                case _gainy:
+                case _gainx:
                 case _gainxy:
                 case _gain : {
                 char * oldp = skipSpaces( &p);
@@ -1403,8 +1407,17 @@ nextline:
                     p = oldp;
                     double result;
                     searchExpressionRangeError( &p, &result, _tvalue32);
-                    if (keyw == _gain)   dsp_GAIN_Fixed(result);
-                    if (keyw == _gainxy) dsp_GAINXY_Fixed(result);
+                    if ((keyw == _gain)||(keyw == _gainx))   dsp_GAIN_Fixed(result);
+                    if (keyw == _gainy) dsp_GAINY_Fixed(result);
+                    if (keyw == _gainxy) { 
+                        res = searchDelimiter( &p, ",");
+                        if (res) {
+                            double gainY;
+                            searchExpressionRangeError( &p, &gainY, _tvalue32);
+                            dsp_GAIN_X_Y_Fixed(result,gainY);
+                        } else
+                            dsp_GAINXY_Fixed(result);
+                    }
                 }
                 break; }
 
@@ -1472,17 +1485,13 @@ nextline:
                 searchExpressionRangeError( &p, &gain, _tvalue32 );
                 dsp_SAT0DB_GAIN_Fixed(gain);
                 break; }
-            case _saturategainxy:{
-                fatalErrorFloat(1);
-                searchExpressionRangeError( &p, &gain, _tvalue32 );
-                dsp_SAT0DBXY_GAIN_Fixed(gain);
-                break; }
 
             case _delayone: {
                 dsp_DELAY_1(); 
                 break; }
 
-            case _delayxyus:
+            case _delayusy:
+            case _delayusx:
             case _delayus: fatalErrorFloat(1);
             case _delaydpus: {
                 char * oldp = skipSpaces( &p);
@@ -1493,14 +1502,14 @@ nextline:
                     double max=0;
                     searchExpressionRangeError( &p, &max, _tdelay );
                     if (keyw == _delaydpus)  dsp_DELAY_DP_max( l->s.address, max );
-                    if (keyw == _delayus)    dsp_DELAY_max( l->s.address, max );
-                    if (keyw == _delayxyus)  dsp_DELAYXY_max( l->s.address, max );
+                    if ((keyw == _delayus)||(keyw == _delayusx))    dsp_DELAY_max( l->s.address, max );
+                    if (keyw == _delayusy)  dsp_DELAYY_max( l->s.address, max );
                 } else {
                     p = oldp;
                     searchExpressionRangeError( &p, &delay, _tdelay );
                     if (keyw == _delaydpus)  dsp_DELAY_DP_FixedMicroSec( delay );
-                    if (keyw == _delayus)    dsp_DELAY_FixedMicroSec( delay );
-                    if (keyw == _delayxyus)  dsp_DELAYXY_FixedMicroSec( delay );
+                    if ((keyw == _delayus)||(keyw == _delayusx))    dsp_DELAY_FixedMicroSec( delay );
+                    if (keyw == _delayusy)  dsp_DELAYY_FixedMicroSec( delay );
                 }
                 break; }
             case _delayusfbmix: {
@@ -1699,9 +1708,14 @@ nextline:
             case _memclr:   //fallthrough voluntary
             case _swapmem:
             case _memsave:
+            case _memsavexy:
+            case _loadmemxy: 
             case _loadmem: {
                 int op = (keyw - _memclr) + DSP_MEMCLR;
-                int addr = getLabelMemory( &p );
+                int size = 1;
+                if (keyw == _loadmemxy) size=2;
+                if (keyw == _memsavexy) size=2;
+                int addr = getLabelMemory( &p, size );
                 dsp_FUNC_MEM(op, addr);
                 break; }
             //TODO interpret parameters and generate opcodes
@@ -1711,7 +1725,7 @@ nextline:
                 fatalErrorFloat(1);
                 int ofs = 0;
                 do {
-                    int addr = getLabelMemory( &p );
+                    int addr = getLabelMemory( &p, 1 );
                     if (ofs == 0) ofs = dsp_FUNC_MEM((keyw - _memclr) + DSP_MEMCLR, addr);
                     else addCodeOffset(addr,ofs);
                     res = searchDelimiter( &p, ",");
@@ -1722,7 +1736,7 @@ nextline:
             case _memvalue: 
             case _memgain: { 
                 fatalErrorFloat(1);
-                int addr = getLabelMemory(&p); 
+                int addr = getLabelMemory( &p, 1); 
                 getDelimiterError(&p, ',', 30);
                 double result;
                 searchExpressionRangeError( &p, &result, _tvalue32);
@@ -1732,7 +1746,7 @@ nextline:
                 break; }
             case _meminput: { 
                 fatalErrorFloat(1);
-                int addr = getLabelMemory( &p ); 
+                int addr = getLabelMemory( &p, 1 ); 
                 getDelimiterError( &p, ',', 30);
                 searchExpressionRangeError( &p, &input, _tIO  );
                 dsp_FUNC_MEM(DSP_MEMINPUT,addr);
@@ -2113,6 +2127,7 @@ void fatalError(){
     case -58: fprintf(stderr,"Error: \"\\\" is not autorized on this line\n"); break;
     case -59: fprintf(stderr,"Error: \"if\" with missing \"endif\"\n"); break;
     case -60: fprintf(stderr,"Error: value 0 not authorized\n"); break;
+    case -61: fprintf(stderr,"Error: memory location out of range\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",lineNum[0]-1,line);

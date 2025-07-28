@@ -155,31 +155,34 @@ enum dspOpcodesEnum {
     DSP_AVGMEM,
     DSP_MEMAVG,
     DSP_MEMNEG,
-    DSP_SAVEMEM,
+    DSP_MEMSAVE,
     DSP_LOADMEM,
+    DSP_MEMSAVEXY,
+    DSP_LOADMEMXY,
     DSP_MEMVALUE,
     DSP_MIXERMEM,
     DSP_MEMGAIN,
     DSP_MEMINPUT,
 
-    DSP_CORE_EXTERN = 102,       //102  same as DSP_CORE but to declare external core like spdif task
+    DSP_CORE_EXTERN = 104,       //102  same as DSP_CORE but to declare external core like spdif task
     DSP_FULL_LOAD,
     DSP_PRIO_ON,
     DSP_PRIO_OFF,
     DSP_TRANSFER2,
     DSP_TRANSFER8,
 
-    DSP_LOADXY, //108
+    DSP_LOADXY, //110
     DSP_STOREXY,
+    DSP_GAINY,
     DSP_GAINXY,
-    DSP_DELAYUSXY,
+    DSP_GAIN_X_Y,
+    DSP_DELAYY,
     DSP_SAT0DBXY,
     DSP_SAT0DBXY_VOL,
-    DSP_SAT0DBXY_GAIN,
     DSP_BIQUADSXY,
     DSP_BIQUADSXY_FS,
 
-    DSP_FLOAD = 117,         //same as DSP_LOAD but converted to float ieee754
+    DSP_FLOAD,         //same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,
     DSP_FGAIN,
@@ -188,15 +191,12 @@ enum dspOpcodesEnum {
 DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this will be compared with header at runtimeinit
 /*
 
-
-    DSP_OP121,
-    DSP_OP122,
     DSP_OP123,
     DSP_OP124,
     DSP_OP125,
     DSP_OP126,
     DSP_OP127, */
-    DSP_LAST_OPCODE = 123,
+    DSP_LAST_OPCODE
 };
 
 extern const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE];  //defined in dsp_header.c

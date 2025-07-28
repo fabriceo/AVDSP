@@ -122,6 +122,8 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     7,  //DSP_MEMNEG,
     4,  //DSP_SAVEMEM,
     4,  //DSP_LOADMEM,
+    5,  //DSP_MEMSAVEXY,
+    5,  //DSP_LOADMEMXY,
     7,  //DSP_MEMVALUE,
     0,  //DSP_MIXERMEM,
     0,  //DSP_MEMGAIN,
@@ -136,11 +138,12 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     
     7, //DSP_LOADXY,   //TODO XY
     9, //DSP_STOREXY,
-    16, //DSP_GAINXY,
-    16, //DSP_DELAYUSXY,
+    10, //DSP_GAINY,
+    17, //DSP_GAINXY,
+    19, //DSP_GAIN_X_Y,
+    15, //DSP_DELAYY,
     1, //DSP_SAT0DBXY,
     1, //DSP_SAT0DBXY_VOL,
-    1, //DSP_SAT0DBXY_GAIN,
     15, //DSP_BIQUADSXY,
     1, //DSP_BIQUADSXY_FS,
 
@@ -187,9 +190,9 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     if (res) break;
                 }
                 if (res == 0) return 0;
-                dspprintf4("%4d %s validated\n",pos,dspOpcodeText[code]);
+                dspprintf4("%4d %16s validated\n",pos,dspOpcodeText[code]);
             } else 
-                dspprintf4("%4d %s valid with COND = 0\n",pos,dspOpcodeText[code]);
+                dspprintf4("%4d %16s valid with COND = 0\n",pos,dspOpcodeText[code]);
             ptr += skip; pos += skip; continue;
         }
         if (firstcode == 0) { //no opcode seen yet, first time
@@ -337,7 +340,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
             int total = dispatch + inst + tableMipsXS2[code];
             sum += total;
             if (lastsectionsum == -1) lastsectionsum = sum;
-            dspprintf3("%4d %s: base %d, inst %d, result %d, sum %d\n",pos,dspOpcodeText[code],tableMipsXS2[code],inst,total,sum);
+            dspprintf3("%4d %16s: base %2d, inst %3d, result %3d, sum %d\n",pos,dspOpcodeText[code],tableMipsXS2[code],inst,total,sum);
         }
         ptr += skip ; pos += skip;
     } //while ptr;
