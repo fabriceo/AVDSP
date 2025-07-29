@@ -171,7 +171,9 @@ enum dspOpcodesEnum {
     DSP_TRANSFER2,
     DSP_TRANSFER8,
 
-    DSP_LOADXY, //110
+    DSP_LOADY, //110
+    DSP_LOADXY,
+    DSP_STOREY,
     DSP_STOREXY,
     DSP_GAINY,
     DSP_GAINXY,

@@ -1237,6 +1237,16 @@ void dsp_LOAD(int IO) {
     addCode(IO);
 }
 
+void dsp_LOADY(int IO) {
+    ALUformat = 0;
+    checkIOmax(IO);
+    if (IO<64) usedInputs |= 1ULL<<IO;      //keep track of inputs used
+    if (IO<64) usedInputsCore |= 1ULL<<IO;
+    dspout("   dsp_LOADY(%d);\n",IO);
+    addOpcodeLengthPrint(DSP_LOADY);
+    addCode(IO);
+}
+
  void dsp_LOADXY(int in1, int in2){
     ALUformat = 0;
     checkIOmax(in1);
@@ -1322,6 +1332,12 @@ static void dsp_STORE_IO(int IO) {
 void dsp_STORE(int IO) {
     dspout("   dsp_STORE(%d);\n",IO);
     addOpcodeLengthPrint(dspMant?DSP_STORE:DSP_FSTORE);
+    dsp_STORE_IO(IO);
+}
+
+void dsp_STOREY(int IO) {
+    dspout("   dsp_STOREY(%d);\n",IO);
+    addOpcodeLengthPrint(DSP_STOREY);
     dsp_STORE_IO(IO);
 }
 

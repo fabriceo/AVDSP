@@ -46,7 +46,7 @@ const char filterOrders[filterTypesNumber] = {
 enum keywords_e {
     _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3, _DSPPRINTF, _DSPSERIAL,
     _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreextern,
-    _input, _inputxy, _output, _outputxy, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
+    _input, _inputx, _inputy, _inputxy, _output, _outputx, _outputy, _outputxy, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _gainx, _gainy, _gainxy, _clip,
     _clrxy,_swapxy,_copyxy,_copyyx,_addxy,_addyx,_subxy,_subyx,_mulxy,_mulyx, _divxy,_divyx,_avgxy,_avgyx,_negx,_negy,_shift,_valuex,_valuey,
     _saturate, _saturatexy, _saturatevol, _saturatevolxy, _saturategain,
@@ -56,7 +56,7 @@ enum keywords_e {
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
-    _tile,_send,_receive,_instructions,_priorityon,_priorityoff,
+    _tile,_send,_receive,_instructions,_priorityon,_priorityoff,_pipeline,_pipelinevolsat,
     _memclr,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_memsave,_loadmem,_memsavexy,_loadmemxy,
     _memvalue,_mixermem,_memgain,_meminput,
     dspKeywordsNumber
@@ -64,7 +64,7 @@ enum keywords_e {
 static const char * dspKeywords[dspKeywordsNumber] = {
     "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL",
     "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
-    "input", "inputxy", "output", "outputxy","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", 
+    "input", "inputx", "inputy", "inputxy", "output", "outputx", "outputy", "outputxy","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", 
     "mixer","mixergain","gain","gainx","gainy","gainxy","clip",
     "clrxy","swapxy","copyxy","copyyx","addxy","addyx","subxy","subyx","mulxy","mulyx","divxy","divyx","avgxy","avgyx","negx","negy","shift","valuex","valuey",
     "saturate", "saturatexy", "saturatevol", "saturatevolxy","saturategain",
@@ -74,7 +74,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
-    "tile","send","receive","instructions","priorityon","priorityoff",
+    "tile","send","receive","instructions","priorityon","priorityoff","pipeline","pipelinevolsat",
     "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem","memsavexy","loadmemxy",
     "memvalue","mixermem","memgain","meminput",
 };
@@ -1271,9 +1271,15 @@ nextline:
                 //ptr->op.skip   = index;
                 break; }
 
+            case _inputx:
             case _input: {
                 searchExpressionRangeError( &p, &input, _tIO  );
                 dsp_LOAD( input);
+                break; }
+
+            case _inputy: {
+                searchExpressionRangeError( &p, &input, _tIO  );
+                dsp_LOADY( input);
                 break; }
 
             case _inputxy: {
@@ -1288,6 +1294,8 @@ nextline:
             case _outputpdf:
             case _outputvol:
             case _outputvolsat: fatalErrorFloat(1);
+            case _outputx:
+            case _outputy:
             case _output: {
                 unsigned int outcount;
                 unsigned int finalIO;
@@ -1308,7 +1316,8 @@ nextline:
                         outcount++;
                         res = searchDelimiter( &p, "," );
                     } while ( res && (outcount<4) );
-                    if (keyw == _output) dsp_STORE( finalIO );
+                    if ((keyw == _output)||(keyw == _outputx)) dsp_STORE( finalIO );
+                    else  if (keyw == _outputy)   dsp_STOREY( finalIO );
                     else  if (keyw == _outputpdf) dsp_STORE_TPDF( finalIO );
                     else  if (keyw == _outputvol) dsp_STORE_VOL( finalIO );
                     else dsp_STORE_VOL_SAT( finalIO );
@@ -1321,7 +1330,7 @@ nextline:
                 fatalErrorNumIf( 30, 0 == searchDelimiter( &p, "," ));
                 searchExpressionRangeError( &p, &output , _tIO );
                 int out2 = output;
-                dsp_STOREXY(out1,out2);
+                dsp_STOREXY( out1, out2 );
                 break;}
 
             case _transfer8: 
@@ -1566,7 +1575,7 @@ nextline:
                   && (l->s.type != label_filter8) ) fatalErrorNum(3);
                 usedLabelInTile(l);
                 dspOutLabelName = l->s.name;
-                dspprintf3("biquad filter %s, %d\n",dspOutLabelName,l->s.address);
+                dspprintf4("biquad filter %s, %d\n",dspOutLabelName,l->s.address);
                 if ((l->s.type == label_filter) && (dspModeDynamic==0)) {
                     if (keyw == _biquad)   dsp_BIQUADS( l->s.address );
                     if (keyw == _biquadxy) dsp_BIQUADSXY( l->s.address );
@@ -1765,6 +1774,34 @@ nextline:
 
             case _priorityon :  { dsp_singleOpcode(DSP_PRIO_ON); break; }
             case _priorityoff : { dsp_singleOpcode(DSP_PRIO_OFF); break; }
+
+            case _pipelinevolsat: //fallthrough
+            case _pipeline : {
+                searchExpressionRangeError( &p, &input, _tIO  );
+                getDelimiterError( &p, ',', 30);
+
+                double gain;
+                searchExpressionRangeError( &p, &gain, _tvalue32);
+                getDelimiterError( &p, ',', 30);
+
+                searchExpressionRangeError( &p, &output, _tIO  );
+                res = searchDelimiter( &p, ",");
+                if (res) {
+                    labelptr_t l = searchLabel( &p );
+                    if (l == NULL) { lastLabelName = ""; fatalErrorNum(3); }
+                    if ( (l->s.type != label_filter) 
+                    && (l->s.type != label_filters) 
+                    && (l->s.type != label_filter8) ) fatalErrorNum(3);
+                    usedLabelInTile(l);
+                    dspOutLabelName = l->s.name;
+
+                    res = searchDelimiter( &p, ",");
+                    if (res) {
+                        searchExpressionRangeError( &p, &delay, _tdelay );
+                    }
+                }
+
+                break;}
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then

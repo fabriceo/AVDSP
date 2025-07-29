@@ -120,6 +120,7 @@ int  dsp_singleOpcode(unsigned opcode);
 
 // load the ALU with the raw sample s.31. ALU is 33.31 and can be used only for DELAY or STORE.
  void dsp_LOAD(int IO);
+ void dsp_LOADY(int IO);
  void dsp_LOADXY(int in1, int in2);
 // load a sample in s.31 and apply a gain (4.28) resulting in format 5.59
  void dsp_LOAD_GAIN(int IO, int paramAddr);
@@ -134,6 +135,7 @@ int  dsp_singleOpcode(unsigned opcode);
 
  // store a s.31 sample from ALU
  void dsp_STORE(int IO);
+ void dsp_STOREY(int IO);
  void dsp_STOREXY(int out1, int out2);
  // store a s.31 sample from ALU and apply digital volume
  void dsp_STORE_VOL(int IO);

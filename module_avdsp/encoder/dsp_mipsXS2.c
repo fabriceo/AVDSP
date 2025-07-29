@@ -39,10 +39,10 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     3,  //DSP_ADDYX,          // perform Y = X + Y
     3,  //DSP_SUBXY,          // perform X = X - Y
     3,  //DSP_SUBYX,          // perform Y = Y - X
-    13,  //DSP_MULXY,          // perform X = X * Y
-    13,  //DSP_MULYX,          // perform X = X * Y
-    25,  //DSP_DIVXY,          // perform X = X / Y
-    25,  //DSP_DIVYX,          // perform Y = Y / X
+    13,  //DSP_MULXY,         // perform X = X * Y
+    13,  //DSP_MULYX,         // perform X = X * Y
+    25,  //DSP_DIVXY,         // perform X = X / Y
+    25,  //DSP_DIVYX,         // perform Y = Y / X
     6,  //DSP_AVGXY,          // perform X = X/2 + Y/2;
     6,  //DSP_AVGYX,          // perform Y = X/2 + Y/2;
     3,  //DSP_NEGX,           // perform X = -X
@@ -58,34 +58,34 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
 
     11,  //DSP_SAT0DB,         // verify boundaries -1/+1. and set a flag in case of saturation
     11,  //DSP_SAT0DB_VOL,     // apply volume and then verify boundaries -1/+1.
-    7+3,  //DSP_STORE_VOL,      // store the accumulator in the target location and apply digital volume
+    7+3,  //DSP_STORE_VOL,     // store the accumulator in the target location and apply digital volume
     20,  //DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries as above
-    2+3,  //DSP_STORE_VOL_SAT,  // store the accumulator in the target location and apply digital volume and eventually apply saturation gain and detect extra saturation
-    2,  //DSP_SERIAL,         // if not equal to product serial number, then DSP will reduce its output by 24db !
+    2+3,  //DSP_STORE_VOL_SAT, // store the accumulator in the target location and apply digital volume and eventually apply saturation gain and detect extra saturation
+    2,  //DSP_SERIAL,          // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* delays */
-    6,  //DSP_DELAY_1 = 47,   // equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
+    6,  //DSP_DELAY_1 = 47,    // equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
     15,  //DSP_DELAY,          // 48 execute a delay line (32 bits ONLY). to be used just before a 2,  //DSP_STORE for example.
     16,  //DSP_DELAY_DP,       // 49 same as 2,  //DSP_DELAY but 64bits (twice data space required ofcourse)
 
 
 /* filters */
     14,  //DSP_BIQUADS,        // 50 execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
-    0,  //DSP_DCBLOCK,        // remove any DC offset. equivalent to first order high pass with noise reinjection
+    0,  //DSP_DCBLOCK,         // remove any DC offset. equivalent to first order high pass with noise reinjection
 
 /* specials */
     0,  //DSP_DATA_TABLE,      // extract one sample of a data block. typically used for wave generation
     14,  //DSP_TPDF_CALC,      // generate radom number (white & triangular) and prepare for dithering bit Nth
-    0,  //DSP_TPDF,           // prepare for dithering at bit N as parameter
-    8,  //DSP_WHITE,          // load the random int32 number that was generated for the tpdf
-    0,  //DSP_DITHER,         // add dithering on bit x and noise shapping
-    0,  //DSP_DITHER_NS2,     // same with custom noise shapping factors
-    0,  //DSP_DISTRIB,        // experimental : distribute the value of ALU towards a table[N] and provide table[i] as outcome. Used to show the noise distibution on a scope view
-    0,  //DSP_DIRAC,          // generate a single sample pulse at a given frequency. frequency and pulse amplitude depends on provided float number
-    0,  //DSP_SQUAREWAVE,     // generate a square waved (zero symetrical) at a given frequency and amplitude
+    0,  //DSP_TPDF,            // prepare for dithering at bit N as parameter
+    8,  //DSP_WHITE,           // load the random int32 number that was generated for the tpdf
+    0,  //DSP_DITHER,          // add dithering on bit x and noise shapping
+    0,  //DSP_DITHER_NS2,      // same with custom noise shapping factors
+    0,  //DSP_DISTRIB,         // experimental : distribute the value of ALU towards a table[N] and provide table[i] as outcome. Used to show the noise distibution on a scope view
+    0,  //DSP_DIRAC,           // generate a single sample pulse at a given frequency. frequency and pulse amplitude depends on provided float number
+    0,  //DSP_SQUAREWAVE,      // generate a square waved (zero symetrical) at a given frequency and amplitude
     25,  //DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
-    2,  //DSP_SQRTX,          // perfomr X = sqrt(x) where x is int64 or float
-    2,  //DSP_RMS,            // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
+    2,  //DSP_SQRTX,           // perfomr X = sqrt(x) where x is int64 or float
+    2,  //DSP_RMS,             // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     16,  //DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency
     20,  //DSP_WFIR,           // execute a warped fir filter with many possible impulse depending on frequency
 
@@ -95,21 +95,21 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     26,  //DSP_CICN,
     16,  //DSP_EXPMA,
     19,  //DSP_THDCOMP,
-    2,  //DSP_BIQUADS_FS,     //accept cascaded biquads parameters. single raw of coefficicients expected to be computed at each fs change
-    2,  //DSP_BIQUADS_FS_FAST,    //same, using VPU capabilities, increasing THD+N at lowfrequency and high sampling rate
+    2,  //DSP_BIQUADS_FS,      //accept cascaded biquads parameters. single raw of coefficicients expected to be computed at each fs change
+    2,  //DSP_BIQUADS_FS_FAST, //same, using VPU capabilities, increasing THD+N at lowfrequency and high sampling rate
     2,  //DSP_BIQUADS_FS_FAST8,   //same using specific VPU capability to handle 8 biquad section as fast as possible
-    2,  //DSP_SEND,           //send data to other tiles
-    2,  //DSP_RECEIVE,        //receive data from other tiles
-    2,  //DSP_DRC_ENV_PEAK,   //compute peak enveloppe, given an attack+release alpha coeficient
-    2,  //DSP_DRC_ENV_RMS,    //compute rms enveloppe, , given an attack+release alpha coeficient
-    2,  //DSP_DRC_LIM_PEAK,   //gain limiter based on peak enveloppe
-    2,  //DSP_DRC_LIM_RMS,    //gain limiter based on rms enveloppe
+    2,  //DSP_SEND,            //send data to other tiles
+    2,  //DSP_RECEIVE,         //receive data from other tiles
+    2,  //DSP_DRC_ENV_PEAK,    //compute peak enveloppe, given an attack+release alpha coeficient
+    2,  //DSP_DRC_ENV_RMS,     //compute rms enveloppe, , given an attack+release alpha coeficient
+    2,  //DSP_DRC_LIM_PEAK,    //gain limiter based on peak enveloppe
+    2,  //DSP_DRC_LIM_RMS,     //gain limiter based on rms enveloppe
     2,  //DSP_DRC_LIM_PEAK_CLIP,  //gain limiter based on peak enveloppe, and hard clipping anyway
-    2,  //DSP_DRC_COMPRESSOR, // compressor based on rms enveloppe, with threshold, gain and slope
-    2,  //DSP_DRC_EXPANDER,   // expander based on rms enveloppe, with threshold, gain and slope
-    2,  //DSP_DRC_NOISE_GATE, //remove low level signal based on rms enveloppe, with threshold, gain
+    2,  //DSP_DRC_COMPRESSOR,  // compressor based on rms enveloppe, with threshold, gain and slope
+    2,  //DSP_DRC_EXPANDER,    // expander based on rms enveloppe, with threshold, gain and slope
+    2,  //DSP_DRC_NOISE_GATE,  //remove low level signal based on rms enveloppe, with threshold, gain
 
-    4,  //DSP_MEMCLR = 85,         //these functions extends the possibilities already offered with Y accumulator
+    4,  //DSP_MEMCLR = 85,     //these functions extends the possibilities already offered with Y accumulator
     6,  //DSP_SWAPMEM,
     2,  //DSP_ADDMEM,
     7,  //DSP_MEMADD,
@@ -129,29 +129,31 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     0,  //DSP_MEMGAIN,
     0,  //DSP_MEMINPUT,
 
-    0,  //DSP_CORE_AES = 102,       //102  same as 2,  //DSP_CORE but to declare external core like spdif task
+    0,  //DSP_CORE_AES,
     0,  //DSP_FULL_LOAD,
     2,  //DSP_PRIO_ON,
     2,  //DSP_PRIO_OFF,
     6,  //DSP_TRANSFER2
     14, //DSP_TRANSFER8
     
-    7, //DSP_LOADXY,   //TODO XY
+    5, //DSP_LOADY,
+    7, //DSP_LOADXY,
+    7, //DSP_STOREY,
     9, //DSP_STOREXY,
     10, //DSP_GAINY,
     17, //DSP_GAINXY,
     19, //DSP_GAIN_X_Y,
     15, //DSP_DELAYY,
-    1, //DSP_SAT0DBXY,
-    1, //DSP_SAT0DBXY_VOL,
+    20, //DSP_SAT0DBXY,
+    20, //DSP_SAT0DBXY_VOL,
     15, //DSP_BIQUADSXY,
     1, //DSP_BIQUADSXY_FS,
 
-    11,  //DSP_FLOAD = 106,         //106   same as 2,  //DSP_LOAD but converted to float ieee754
-    7,  //DSP_FSTORE,
+    11,  //DSP_FLOAD,
+    7,   //DSP_FSTORE,
     10,  //DSP_FVALUEX,
     19,  //DSP_FGAIN,
-    2,   //DSP_FBIQUADS,       //110
+    2,   //DSP_FBIQUADS,  
     // new opcodes should come here below
 };
 
@@ -269,7 +271,8 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                             if (sum > endsectionsum) endsectionsum = sum;
                             sum = lastsectionsum;
                             dspprintf4("restart estimation with %d, sum %d\n",sum,endsectionsum);
-                            ptr++; pos++;continue;
+                            ptr++; pos++;
+                            continue;
                         } 
                     }
                     break; }
@@ -288,6 +291,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                 case DSP_MIXERMEM : { 
                     inst = (skip-1) * 6; break; }
                 case DSP_STORE : //fallthrough
+                case DSP_STOREY:
                 case DSP_STORE_VOL : 
                 case DSP_STORE_VOL_SAT : 
                 case DSP_STORE_TPDF : {
