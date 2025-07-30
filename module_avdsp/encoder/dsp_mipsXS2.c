@@ -137,7 +137,7 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     14, //DSP_TRANSFER8
     
     5, //DSP_LOADY,
-    7, //DSP_LOADXY,
+    8, //DSP_LOADXY,
     7, //DSP_STOREY,
     9, //DSP_STOREXY,
     10, //DSP_GAINY,
