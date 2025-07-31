@@ -16,11 +16,11 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     5,  //DSP_LOAD = 7,           //load a sample from the sample array location Z into the ALU "X" without conversion in s.31 format
     6,  //DSP_STORE,          // store the LSB of ALU "X" into the sample aray location Z without conversion. sat0db expected upfront
     5,  //DSP_LOAD_STORE,     // move many samples from location X to Y without conversion (int32 or float) for N entries
-    6+7,  //DSP_STORE_TPDF,     // apply a gain and store sum in an output
-    11,  //DSP_STORE_GAIN,     // apply a gain and store sum in an output
-    10,  //DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. sum is double precision
+    6+7,//DSP_STORE_TPDF,     // apply a gain and store sum in an output
+    11, //DSP_STORE_GAIN,     // apply a gain and store sum in an output
+    10, //DSP_LOAD_GAIN,      // load a sample from the sample array location Z into the ALU "X" and apply a Qnm gain. sum is double precision
     6,  //DSP_LOAD_MUX,       // combine many inputs samples into a value, same as summing many 2,  
-    10,  //DSP_MIXER,          // load all inputs with their respective gain, couples stores below opcode
+    10, //DSP_MIXER,          // load all inputs with their respective gain, couples stores below opcode
 
     4,  //DSP_LOAD_X_MEM,       // load a memory location 64bits into the ALU "X" without any conversion.
     4,  //DSP_STORE_X_MEM,      // store the ALU "X" into a memory location without conversion (raw  64bits)
@@ -39,10 +39,10 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     3,  //DSP_ADDYX,          // perform Y = X + Y
     3,  //DSP_SUBXY,          // perform X = X - Y
     3,  //DSP_SUBYX,          // perform Y = Y - X
-    13,  //DSP_MULXY,         // perform X = X * Y
-    13,  //DSP_MULYX,         // perform X = X * Y
-    25,  //DSP_DIVXY,         // perform X = X / Y
-    25,  //DSP_DIVYX,         // perform Y = Y / X
+    13, //DSP_MULXY,         // perform X = X * Y
+    13, //DSP_MULYX,         // perform X = X * Y
+    25, //DSP_DIVXY,         // perform X = X / Y
+    25, //DSP_DIVYX,         // perform Y = Y / X
     6,  //DSP_AVGXY,          // perform X = X/2 + Y/2;
     6,  //DSP_AVGYX,          // perform Y = X/2 + Y/2;
     3,  //DSP_NEGX,           // perform X = -X
@@ -58,24 +58,24 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
 
     11,  //DSP_SAT0DB,         // verify boundaries -1/+1. and set a flag in case of saturation
     11,  //DSP_SAT0DB_VOL,     // apply volume and then verify boundaries -1/+1.
-    7+3,  //DSP_STORE_VOL,     // store the accumulator in the target location and apply digital volume
+    7+3, //DSP_STORE_VOL,     // store the accumulator in the target location and apply digital volume
     20,  //DSP_SAT0DB_GAIN,    // apply a gain and then check boundaries as above
-    2+3,  //DSP_STORE_VOL_SAT, // store the accumulator in the target location and apply digital volume and eventually apply saturation gain and detect extra saturation
-    2,  //DSP_SERIAL,          // if not equal to product serial number, then DSP will reduce its output by 24db !
+    2+3, //DSP_STORE_VOL_SAT, // store the accumulator in the target location and apply digital volume and eventually apply saturation gain and detect extra saturation
+    2,   //DSP_SERIAL,          // if not equal to product serial number, then DSP will reduce its output by 24db !
 
 /* delays */
     6,  //DSP_DELAY_1 = 47,    // equivalent to a delay of 1 sample (Z-1), used to synchronize multi-core output.
-    15,  //DSP_DELAY,          // 48 execute a delay line (32 bits ONLY). to be used just before a 2,  //DSP_STORE for example.
-    16,  //DSP_DELAY_DP,       // 49 same as 2,  //DSP_DELAY but 64bits (twice data space required ofcourse)
+    15, //DSP_DELAY,          // 48 execute a delay line (32 bits ONLY). to be used just before a 2,  //DSP_STORE for example.
+    16, //DSP_DELAY_DP,       // 49 same as 2,  //DSP_DELAY but 64bits (twice data space required ofcourse)
 
 
 /* filters */
-    14,  //DSP_BIQUADS,        // 50 execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
+    14, //DSP_BIQUADS,        // 50 execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
     0,  //DSP_DCBLOCK,         // remove any DC offset. equivalent to first order high pass with noise reinjection
 
 /* specials */
     0,  //DSP_DATA_TABLE,      // extract one sample of a data block. typically used for wave generation
-    14,  //DSP_TPDF_CALC,      // generate radom number (white & triangular) and prepare for dithering bit Nth
+    14, //DSP_TPDF_CALC,      // generate radom number (white & triangular) and prepare for dithering bit Nth
     0,  //DSP_TPDF,            // prepare for dithering at bit N as parameter
     8,  //DSP_WHITE,           // load the random int32 number that was generated for the tpdf
     0,  //DSP_DITHER,          // add dithering on bit x and noise shapping
@@ -83,7 +83,7 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     0,  //DSP_DISTRIB,         // experimental : distribute the value of ALU towards a table[N] and provide table[i] as outcome. Used to show the noise distibution on a scope view
     0,  //DSP_DIRAC,           // generate a single sample pulse at a given frequency. frequency and pulse amplitude depends on provided float number
     0,  //DSP_SQUAREWAVE,      // generate a square waved (zero symetrical) at a given frequency and amplitude
-    25,  //DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
+    25, //DSP_SINE,           // generate a sine wave (zero symetrical) at a given frequency using modified coupled form oscillator.
     2,  //DSP_SQRTX,           // perfomr X = sqrt(x) where x is int64 or float
     2,  //DSP_RMS,             // compute sum of square during a given period then compute moving overage with sqrt (64bits->32bits)
     16,  //DSP_FIR,            // execute a fir filter with many possible impulse depending on frequency
@@ -115,8 +115,8 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     7,  //DSP_MEMADD,
     2,  //DSP_SUBMEM,
     7,  //DSP_MEMSUB,
-    18,  //DSP_MULMEM,
-    29,  //DSP_DIVMEM,
+    18, //DSP_MULMEM,
+    29, //DSP_DIVMEM,
     8,  //DSP_AVGMEM,
     9,  //DSP_MEMAVG,
     7,  //DSP_MEMNEG,
@@ -136,10 +136,10 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     6,  //DSP_TRANSFER2
     14, //DSP_TRANSFER8
     
-    5, //DSP_LOADY,
-    8, //DSP_LOADXY,
-    7, //DSP_STOREY,
-    9, //DSP_STOREXY,
+    5,  //DSP_LOADY,
+    8,  //DSP_LOADXY,
+    7,  //DSP_STOREY,
+    9,  //DSP_STOREXY,
     10, //DSP_GAINY,
     17, //DSP_GAINXY,
     19, //DSP_GAIN_X_Y,
@@ -147,7 +147,7 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     20, //DSP_SAT0DBXY,
     20, //DSP_SAT0DBXY_VOL,
     15, //DSP_BIQUADSXY,
-    1, //DSP_BIQUADSXY_FS,
+    1,  //DSP_BIQUADSXY_FS,
 
     11,  //DSP_FLOAD,
     7,   //DSP_FSTORE,

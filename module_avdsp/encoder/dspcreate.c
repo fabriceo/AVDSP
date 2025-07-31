@@ -44,6 +44,9 @@ int main(int argc, char **argv) {
     char * binFileName  = "dspcreate.bin";
     char * hexFileName  = "dspcreate.hex";
     char * asmFileName  = "dspcreate.asm";
+    char * xmosusbcall  = "xmosusb --dspload ";
+    char systemcallcmd[1024] = { 0 }; 
+    char * xmosusbcmd = systemcallcmd;
 
 //    char *outFileName = NULL;
     char *dumpFileName = NULL;
@@ -53,6 +56,7 @@ int main(int argc, char **argv) {
     int outFileType = 0;
     int defaultType = DSP_FORMAT_INT64;
     int i,size=0;
+    int xmosusbload = 0;
 
     opcode_t opcodes[opcodesMax];       // temporary table for dsp code
     const int max = opcodesMax;
@@ -121,6 +125,9 @@ int main(int argc, char **argv) {
             if (argc>i) {
                 dspPrintfVal = strtol(argv[i], &perr,10);
                 continue; } }
+        if (strcmp(argv[i],"-dspload") == 0) {
+            xmosusbload=1;
+            continue;  }
         if (strcmp(argv[i],"-fsmin") == 0) {
             i++;
             if (argc>i) {
@@ -213,6 +220,18 @@ int main(int argc, char **argv) {
     } else {
         dspprintf("... problem...\n");
     	return -1;
+    }
+    if (xmosusbload) {
+        if (system(NULL)) {
+            if (binFileName){
+                xmosusbcmd = strcat(systemcallcmd,xmosusbcall);
+                xmosusbcmd = strcat(systemcallcmd,binFileName);
+                dspprintf("system call < %s >\n",xmosusbcmd);
+                return system(xmosusbcmd);
+            } else 
+                dspprintf("no -binfile provided to launch system call\n");
+        } else 
+            dspprintf("system calls not supported\n");
     }
     return 0;
 }
