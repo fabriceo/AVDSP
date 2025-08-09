@@ -5,6 +5,7 @@
  *      Author: Fabrice
  */
 
+#include "dsp_header.h"
 
 #if defined(DSP_PRINTF)
 int dspPrintfVal = DSP_PRINTF;
@@ -12,10 +13,10 @@ int dspPrintfVal = DSP_PRINTF;
 int dspPrintfVal = 0;
 #endif
 
-#include "dsp_header.h"
-
 //used in both dsp_encoder.c and dsp_runtime
-const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE] = {
+
+#if defined(DSP_PRINTF)
+const char * dspOpcodeText_[DSP_LAST_OPCODE] = {
 "DSP_END_OF_CODE" ,
 "DSP_HEADER" ,
 "DSP_PARAM" ,
@@ -144,6 +145,9 @@ const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE] = {
 "DSP_FGAIN" ,
 "DSP_FBIQUADS" ,
 };
+#else
+const char * dspOpcodeText_[1] = { "" };
+#endif
 
 
 long long dspQNM(double x, int n, int m){
@@ -158,7 +162,7 @@ int dspQM32(double x, int m){
     return DSP_QM32(x,m);
 }
 
-void dspCalcSumCore(opcode_t * XCunsafe ptr, unsigned int * XCunsafe sum, int * XCunsafe numCore, unsigned int maxcode){
+void dspCalcSumCore(opcode_t * ptr, unsigned int * sum, int * numCore, unsigned int maxcode){
     XCunsafe {
     *sum = 0;
     *numCore = 0;

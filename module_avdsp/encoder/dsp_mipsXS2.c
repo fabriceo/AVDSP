@@ -178,7 +178,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
         if (sum > summax) summax = sum;
         unsigned code = ptr->op.opcode;
         int skip = ptr->op.skip;
-        //dspprintf3("<%s>\n",dspOpcodeText[code])
+        //dspprintf3("<%s>\n",dspOpcodeText(code))
         if ((code == DSP_END_OF_CODE)||(skip == 0)) return ((sum > endsectionsum) ? sum : endsectionsum);
         if (code == DSP_CORE_EXTERN) return ((sum>endsectionsum) ? sum : endsectionsum);
         if (code == DSP_CORE) { 
@@ -192,9 +192,9 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     if (res) break;
                 }
                 if (res == 0) return 0;
-                dspprintf4("%4d %16s validated\n",pos,dspOpcodeText[code]);
+                dspprintf4("%4d %16s validated\n",pos,dspOpcodeText(code));
             } else 
-                dspprintf4("%4d %16s valid with COND = 0\n",pos,dspOpcodeText[code]);
+                dspprintf4("%4d %16s valid with COND = 0\n",pos,dspOpcodeText(code));
             ptr += skip; pos += skip; continue;
         }
         if (firstcode == 0) { //no opcode seen yet, first time
@@ -344,7 +344,7 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
             int total = dispatch + inst + tableMipsXS2[code];
             sum += total;
             if (lastsectionsum == -1) lastsectionsum = sum;
-            dspprintf3("%4d %16s: base %2d, inst %3d, result %3d, sum %d\n",pos,dspOpcodeText[code],tableMipsXS2[code],inst,total,sum);
+            dspprintf3("%4d %16s: base %2d, inst %3d, result %3d, sum %d\n",pos,dspOpcodeText(code),tableMipsXS2[code],inst,total,sum);
         }
         ptr += skip ; pos += skip;
     } //while ptr;

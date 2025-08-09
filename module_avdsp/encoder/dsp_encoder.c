@@ -844,7 +844,7 @@ static int addSingleOpcode(int code) {
 // add a single dsp_code without any following parameters
 static int addSingleOpcodePrint(int code) {
     int tmp = addSingleOpcode(code);
-    dspprintf3("%s\n",dspOpcodeText[code]);
+    dspprintf3("%s\n",dspOpcodeText(code));
     return tmp;
 }
 
@@ -885,7 +885,7 @@ static int addOpcodeLength(int code) {
 
 static int addOpcodeLengthPrint(int code){
     int tmp = addOpcodeLength(code);
-    dspprintf3("%s\n",dspOpcodeText[code]);
+    dspprintf3("%s\n",dspOpcodeText(code));
     return tmp;
 }
 
@@ -893,7 +893,7 @@ static int addOpcodeLengthPrint(int code){
 static int addOpcodeLengthPrint_without_dsp_CORE(int code){
     calcLength();
     int tmp = addOpcodeUnknownLength(code);
-    dspprintf3("%s\n",dspOpcodeText[code]);
+    dspprintf3("%s\n",dspOpcodeText(code));
     return tmp;
 }
 
@@ -1861,7 +1861,7 @@ const unsigned int dspTableDelayFactor[FMAXpos] = {
     } 
     if (opcode != DSP_DELAY_FB_MIX)
         calcLength();
-    dspprintf3("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText[opcode], microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
+    dspprintf3("%s %dus -> %d samples @%d -> %.0fus. @%d -> %.0fus\n",dspOpcodeText(opcode), microSec,maxSamples,fshi,(float)maxSamples / (float)fshi * 1000000.0,fslo,(float)minSamples / (float)fslo * 1000000.0);
 
 }
 
@@ -2203,7 +2203,7 @@ void dsp_RMS_(int timetot, int delay, int delayInSteps, int pwr){
     ALUformat = 1;
     dspout("//dsp_RMS(...); //TODO\n");
     addOpcodeLength(DSP_RMS);
-    dspprintf3("%s %dms total integration time, ",dspOpcodeText[DSP_RMS],timetot);
+    dspprintf3("%s %dms total integration time, ",dspOpcodeText(DSP_RMS),timetot);
     checkInRange(timetot, 10, 7200000);
 
     double twoP32 = 1ULL<<32;

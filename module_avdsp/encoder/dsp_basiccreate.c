@@ -95,9 +95,9 @@ static const char * paramKeywords[paramKeywordsNumber] = {
 
 enum { dspIOmaximum = 64};
 
-enum   tvalue_e                  {   _tIO          , _tfreq, _tvalue32, _tq31,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tdrc_attack, _tnone };
-static double valueMin[_tnone] = {                0,     10,      -8.0,  -1.0,  -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  0.001 };
-static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,  +1.0,  +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  4.0   };
+enum   tvalue_e                  {   _tIO          , _tfreq, _tvalue32, _tq31,  _tvalue64,    _tint32,  _tdelay, _tfilterQ, _tmem, _tshift, _ttpdf, _tpercent, _ttile, _tmant, _tmant2, _tclock, _tdrc_attack, _tnone };
+static double valueMin[_tnone] = {                0,     10,      -8.0,  -1.0,  -128.0,  -0x7FFFFFFF,        0,        0 ,     1,     -32,      8,         0,      1,     15,      31,  480    ,0.001 };
+static double valueMax[_tnone] = {   dspIOmaximum-1,  95999,      +8.0,  +1.0,  +128.0,   0x7FFFFFFF, 10000000,       20 ,    32,      32,     31,         1,      4,     30,      62,  648    ,4.0   };
 
 
 int numTile = 0;    //current tile number 0 means all following tile have visibility on current symbols
@@ -662,7 +662,7 @@ static int searchExpressionRangeError(char * * s, double * value, int range){
     int res = searchExpression( s , value );
     if (range != _tnone) { 
         if ((res != _valueint) && 
-            ((range == _tIO) || (range == _tmem)|| (range == _ttpdf)|| (range == _tint32)|| (range == _tshift)|| (range == _ttile)|| (range == _tmant)|| (range == _tmant2))) fatalErrorNum(11);
+            ((range == _tIO) || (range == _tmem)|| (range == _ttpdf)|| (range == _tint32)|| (range == _tshift)|| (range == _ttile)|| (range == _tmant)|| (range == _tmant2)|| (range == _tclock))) fatalErrorNum(11);
         outOfRangeError( *value, valueMin[range], valueMax[range]);
     } 
 
@@ -969,8 +969,9 @@ nextline:
             case _DSPCLOCK : {
                 fatalErrorNumIf(45, dsp_checkCodeAlready());
                 double value = 0.0;
-                if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
-                outOfRangeError(value,480,648);
+                searchExpressionRangeError( &p, &value, _tclock);
+                //if (_valueint != searchNumerical( &p, &value, withoutDB)) fatalErrorNum(5);
+                //outOfRangeError(value,480,648);
                 int clockcpu = value;
                 if ((clockcpu != value) || (clockcpu & 3)) fatalErrorNum(50);
                 int clock176k=0,clock192k=0,prio=0;
@@ -1252,6 +1253,7 @@ nextline:
                 opcode_t * ptr = opcodePtr(index);
                 unsigned int outcount;
                 unsigned int finalIO;
+                unsigned int zero=0;
                 do {
                     outcount=0;
                     finalIO=0;
@@ -1259,9 +1261,10 @@ nextline:
                         searchExpressionRangeError( &p, &output , _tIO );
                         unsigned int out = output;   //convert to integer
                         finalIO |= (out << (8*outcount));
-                        outcount++;
+                        if (out == 0) zero=1; else outcount++;
                         res = searchDelimiter( &p, "," );
-                    } while ( res && (outcount<4) );
+                    } while ( res && ((outcount+zero)<4) );
+                    if (zero) finalIO <<= 8;
                     addCode(finalIO);                
                 } while(res);
                 index = opcodeIndex() - index;
@@ -1300,28 +1303,26 @@ nextline:
                 unsigned int outcount;
                 unsigned int finalIO;
                 unsigned int out;
-                int breaking=0;
+                int zero;
                 do {
-                    outcount=0;
-                    finalIO=0;
-                    do {
-                        if (breaking == 0) {
-                            searchExpressionRangeError( &p, &output , _tIO );
-                            out = output;   //convert to integer
-                        } else {
-                            breaking = 0; out = 0; //from last loop
-                        }
-                        if ((out == 0) && (outcount)) { breaking = 1; break; }
+                    zero = 0;
+                    outcount = 0;
+                    finalIO = 0;
+                    do { 
+                        searchExpressionRangeError( &p, &output , _tIO );
+                        out = output;           //convert to integer
                         finalIO |= (out << (8*outcount));
-                        outcount++;
+                        if (out == 0) zero=1;   //output to zero is done at the end
+                        else outcount++;
                         res = searchDelimiter( &p, "," );
-                    } while ( res && (outcount<4) );
+                    } while ( res && ((outcount+zero)<4) );
+                    if (zero) finalIO <<= 8; //insert zero output as the first output value
                     if ((keyw == _output)||(keyw == _outputx)) dsp_STORE( finalIO );
                     else  if (keyw == _outputy)   dsp_STOREY( finalIO );
                     else  if (keyw == _outputpdf) dsp_STORE_TPDF( finalIO );
                     else  if (keyw == _outputvol) dsp_STORE_VOL( finalIO );
                     else dsp_STORE_VOL_SAT( finalIO );
-                } while(res || breaking);   //force an additional loop if "breaking" was used
+                } while(res);   //force an additional loop if "breaking" was used
                 break; }
 
             case _outputxy: {

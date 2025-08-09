@@ -18,8 +18,8 @@
 extern int dspPrintfVal;
 
 #include <stdio.h>
-#define dspprintf(...)  do { if (dspPrintfVal>=1) printf(__VA_ARGS__); } while(0)   // we do the normal printf
-#define dspprintf1(...) do { if (dspPrintfVal>=1) printf(__VA_ARGS__); } while(0)   // we do the normal printf
+#define dspprintf(...)  do { if (dspPrintfVal>=1) printf(__VA_ARGS__); } while(0)
+#define dspprintf1(...) do { if (dspPrintfVal>=1) printf(__VA_ARGS__); } while(0)
 #define dspprintf2(...) do { if (dspPrintfVal>=2) printf(__VA_ARGS__); } while(0)
 #define dspprintf3(...) do { if (dspPrintfVal>=3) printf(__VA_ARGS__); } while(0)
 //low level debugging only
@@ -37,8 +37,9 @@ extern int dspPrintfVal;
 #endif
 
 
-// list of all DSP supported opcode as of this version. The last opcode is marked in the header
+// list of all DSP supported opcode as of this version. The larger opcode used is marked in the header
 enum dspOpcodesEnum {
+
     DSP_END_OF_CODE = 0,// this opcode value is 0 and its length is 0 as a convention
     DSP_HEADER,         // contain summary information about the program.
     DSP_PARAM,          // define an area of data (or parameters), like a sine wave or biquad coefs or any kind of data in fact
@@ -201,7 +202,18 @@ DSP_MAX_OPCODE,      // latest opcode, supported by this runtime version. this w
     DSP_LAST_OPCODE
 };
 
-extern const char * XCunsafe dspOpcodeText[DSP_LAST_OPCODE];  //defined in dsp_header.c
+#ifndef DSP_PRINTF
+#if (defined(__XS2A__) || defined(__XS3A__)) && defined(PRINTF) && defined(XSCOPE)
+#define DSP_PRINTF 1
+#endif
+#endif
+#if defined(DSP_PRINTF)
+extern const char * XCunsafe dspOpcodeText_[DSP_LAST_OPCODE];
+#define dspOpcodeText(_n) dspOpcodeText_[ _n ]
+#else
+extern const char * XCunsafe dspOpcodeText_[1];
+#define dspOpcodeText(_n) dspOpcodeText_[ _n - _n ]
+#endif
 
 enum dspFreqs {
     F8000,   F16000,
@@ -292,7 +304,7 @@ typedef struct dspHeader_s {    //
 /* 7 */     unsigned maxOpcode;  // highest op code number used in this program (to check compatibility with runtime)
 /* 8 */     unsigned freqMin;      // minimum frequency possible for this program
 /* 9 */     unsigned freqMax;      // maximum frequency possible for this program
-/* 10-11 */  unsigned long long usedInputs;    // bit mapping of all used inputs  (max 64 in this version)
+/* 10-11 */ unsigned long long usedInputs;    // bit mapping of all used inputs  (max 64 in this version)
 /* 12-13 */ unsigned long long usedOutputs;   // bit mapping of all used outputs (max 64 in this version)
 /* 14 */    unsigned serialHash;    // hash code to enable 0dbFS output (otherwise -24db)
 /* 15 */    unsigned mantissa2;    //for integer runtime, this value (if not 0) provides the expected size of fractional part of accumulator
@@ -309,11 +321,7 @@ typedef struct dspSymbol_s {
     char tileNum;
     char tileUsed;
     char length;
-#ifdef __XC__
-    char * unsafe name;
-#else
-    char * name;
-#endif
+    char * XCunsafe name;
     char name_[1];  //asciiz extended by malloc. mandatory to keep at the end of the structure!
 } dspSymbol_t;
 
