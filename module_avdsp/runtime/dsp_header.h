@@ -185,6 +185,8 @@ enum dspOpcodesEnum {
     DSP_BIQUADSXY,
     DSP_BIQUADSXY_FS,
 
+    DSP_DOWNSAMPLE,
+    DSP_UPSAMPLE,
     DSP_FLOAD,         //same as DSP_LOAD but converted to float ieee754
     DSP_FSTORE,
     DSP_FVALUEX,

@@ -2381,6 +2381,12 @@ void dsp_SINE_Fixed(int freq, dspGainParam_t gain){
 }
 
 
+void dsp_DOWNSAMPLE(int val){
+    addOpcodeLengthPrint(DSP_DOWNSAMPLE);
+    addDataSpace(1);
+    addCode(val);
+};
+
 void dspoutFilters3(int type, int order, float freq,float Q,float gain, const char * name) {
     dspout("   { %d, %f, %f, %f, 0, 0 }, //%s\n",type, freq, Q, gain, name);
     order +=1; order >>= 2;

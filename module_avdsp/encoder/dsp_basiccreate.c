@@ -57,6 +57,7 @@ enum keywords_e {
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
     _tile,_send,_receive,_instructions,_priorityon,_priorityoff,_pipeline,_pipelinevolsat,
+    _downsample,_upsample,
     _memclr,_swapmem,_addmem,_memadd,_submem,_memsub,_mulmem,_divmem,_avgmem,_memavg,_memneg,_memsave,_loadmem,_memsavexy,_loadmemxy,
     _memvalue,_mixermem,_memgain,_meminput,
     dspKeywordsNumber
@@ -75,6 +76,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
     "tile","send","receive","instructions","priorityon","priorityoff","pipeline","pipelinevolsat",
+    "downsample","upsample",
     "memclr","swapmem","addmem","memadd","submem","memsub","mulmem","divmem","avgmem","memavg","memneg","memsave","loadmem","memsavexy","loadmemxy",
     "memvalue","mixermem","memgain","meminput",
 };
@@ -1803,6 +1805,15 @@ nextline:
                 }
 
                 break;}
+            case _downsample: {
+                double value;
+                searchExpressionRangeError( &p, &value, _tint32 );
+                int val = value;
+                dsp_DOWNSAMPLE(val);
+                
+                break; }
+            case _upsample: fatalErrorNum(62);
+            break;
 
 //end of dsp keywords
             case -1: { //this is not a keyword so it must be a label then
@@ -2166,6 +2177,7 @@ void fatalError(){
     case -59: fprintf(stderr,"Error: \"if\" with missing \"endif\"\n"); break;
     case -60: fprintf(stderr,"Error: value 0 not authorized\n"); break;
     case -61: fprintf(stderr,"Error: memory location out of range\n"); break;
+    case -62: fprintf(stderr,"Error: non supported function\n"); break;
     default: break;
     }
     fprintf(stderr,"l%d: %s",lineNum[0]-1,line);
