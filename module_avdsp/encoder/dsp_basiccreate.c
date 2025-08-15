@@ -1623,6 +1623,7 @@ nextline:
                 }
                 //TODO addDataSpaceAligned8 is also generating an opcode at the end of the table!
                 if (keyw == _warpconvol) max++; //always add one extra sample in buffer when warped fir requested
+                max++;
                 dspprintf3("%d impulses, max %d taps\n",numFilt,max);
                 opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
                 calcLength();

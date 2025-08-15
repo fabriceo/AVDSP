@@ -148,7 +148,8 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     20, //DSP_SAT0DBXY_VOL,
     15, //DSP_BIQUADSXY,
     1,  //DSP_BIQUADSXY_FS,
-
+    1,  //DSP_DOWNSAMPLE TODO
+    1,  //DSP_UPSAMPLE TODO
     11,  //DSP_FLOAD,
     7,   //DSP_FSTORE,
     10,  //DSP_FVALUEX,
