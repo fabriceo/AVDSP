@@ -44,7 +44,7 @@ const char filterOrders[filterTypesNumber] = {
 };
 
 enum keywords_e {
-    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3, _DSPPRINTF, _DSPSERIAL,
+    _DSPFSMIN, _DSPFSMAX, _DSPFSDYN, _DSPMANT, _DSPFLOAT, _DSPIOMAX, _DSPCLOCK, _DSPCOND, _DSPXS2, _DSPXS3, _DSPPRINTF, _DSPSERIAL,_DSPSYMBOLS,
     _end, _include, _if, _else, _elseif, _endif, _param, _nop, _core, _section, _sectionelse, _coreextern,
     _input, _inputx, _inputy, _inputxy, _output, _outputx, _outputy, _outputxy, _transfer, _transfer2, _transfer8, _inputgain, _outputgain, _outputpdf, _outputvol, _outputvolsat,
     _mixer, _mixergain, _gain, _gainx, _gainy, _gainxy, _clip,
@@ -63,7 +63,7 @@ enum keywords_e {
     dspKeywordsNumber
 };
 static const char * dspKeywords[dspKeywordsNumber] = {
-    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL",
+    "DSPFSMIN","DSPFSMAX","DSPFSDYN","DSPMANT","DSPFLOAT","DSPIOMAX","DSPCLOCK","DSPCOND","DSPXS2","DSPXS3", "DSPPRINTF", "DSPSERIAL","DSPSYMBOLS",
     "end", "include", "if", "else", "elseif", "endif", "param", "nop", "core", "section", "sectionelse", "coreextern",
     "input", "inputx", "inputy", "inputxy", "output", "outputx", "outputy", "outputxy","transfer","transfer2","transfer8", "inputgain", "outputgain", "outputtpdf", "outputvol", "outputvolsat", 
     "mixer","mixergain","gain","gainx","gainy","gainxy","clip",
@@ -1037,6 +1037,12 @@ nextline:
                 unsigned val = value;
                 setSerialHash(val);
                 break ;}
+            case _DSPSYMBOLS: {
+                double value;
+                if (_valueint != searchExpression( &p, &value)) fatalErrorNum(5);
+                outOfRangeError(value,0,1);
+                dspSymbolsVal = value;
+                break; }
             case _end:   { 
                 getEOLError(&p);
                 if (ifinside) fatalErrorNum(59);

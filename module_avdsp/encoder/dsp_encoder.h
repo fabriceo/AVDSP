@@ -24,7 +24,7 @@ extern unsigned dspCondition;
 extern unsigned dspProcessor;
 extern int dspFormat;
 extern int dspMant; 
-
+extern unsigned dspSymbolsVal;
 
 //prototypes from dsp_encoder.c
 void dspEncoderFormat(int format);

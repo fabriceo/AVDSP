@@ -74,7 +74,7 @@ const int dspIOmaximum = 64;
 
 unsigned dspCondition = 0;
 unsigned dspProcessor = 0;
-
+unsigned dspSymbolsVal = 0;
 
 #ifndef DSP_FILEACCESS_H_
 #define dspout(...)
@@ -778,13 +778,15 @@ void dspSymbolCreateTable() {
     dspOpcodesPtr       = &dspOpcodesPtr[dspOpcodeIndex];
     dspOpcodeIndex      = 0;
     symbolStart = opcodeIndexPtr();
-    addOpcodeValue(DSP_PARAM_NUM,0);
-    addCode(0x7FFFFFFE);    //magic number
+    if (dspSymbolsVal) {
+        addOpcodeValue(DSP_PARAM_NUM,0);
+        addCode(0x7FFFFFFE);    //magic number
+    }
 }
 
 void dspSymbolAdd(dspSymbol_t * s){
     if (symbolStart == 0) dspFatalError("symbol table was not initiated upfront");
-    if (dspPrintfVal>=3) 
+    if (dspSymbolsVal && (dspPrintfVal>=3)) 
     {
         if (symbolNumber == 0) {
             dspprintf3("SYMBOLS TABLE:\n");
@@ -793,7 +795,7 @@ void dspSymbolAdd(dspSymbol_t * s){
         }
         dspprintf3("%4d    %4X    %5d    %2d  %3d  %s\n",s->tileNum, s->tileUsed, s->address, s->type, s->length, s->name);
     }
-    if (s->address) {
+    if (dspSymbolsVal && (s->address || (s->type >= 4))) {
         addCode(s->address);
         unsigned f = s->type | (s->tileNum << 8) | (s->tileUsed << 12) | (s->length << 16);
         addCode(f);
@@ -807,8 +809,10 @@ void dspSymbolAdd(dspSymbol_t * s){
 
 int dspSymbolEndOfTable(){
     if (symbolStart == 0) dspFatalError("symbol table was not initiated upfront");
-    symbolStart->op.skip = opcodeIndex();
-    return opcodeIndex();  // size of the program
+    if (dspSymbolsVal) {
+        symbolStart->op.skip = opcodeIndex();
+        return opcodeIndex();  // size of the program
+    } else return 0;
 }
 
 // DSP_END_OF_CODE

@@ -32,11 +32,12 @@ const char * hexEnd =
 
 void usage() {
     fprintf(stderr,"command line options:\n");
-    fprintf(stderr,"-dspprog   <libfilename> \n");
+    fprintf(stderr,"-dspprog   <libfilename>\n");
     fprintf(stderr,"-dsptext   <textfilename> or file.avdsp or file.avd\n");
     fprintf(stderr,"-dspformat <2..6> \n");
     fprintf(stderr,"-binfile   <filename> -hexfile <filename> -dumpfile <filename>\n");
-    fprintf(stderr,"[dsprogs paramaters ...] \n");
+    fprintf(stderr,"-dspload\n");
+    fprintf(stderr,"[paramaters ...]\n");
 }
 
 int main(int argc, char **argv) {
@@ -127,6 +128,9 @@ int main(int argc, char **argv) {
                 continue; } }
         if (strcmp(argv[i],"-dspload") == 0) {
             xmosusbload=1;
+            continue;  }
+        if (strcmp(argv[i],"-dspsymbols") == 0) {
+            dspSymbolsVal=1;
             continue;  }
         if (strcmp(argv[i],"-fsmin") == 0) {
             i++;
