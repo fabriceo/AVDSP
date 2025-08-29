@@ -60,7 +60,8 @@ libavdspencoder.so:	$(FILESENCODER)
 	$(CC) $(CFLAGS) -shared -o $@ ../encoder/dsp_*.c ../runtime/dsp_header.c
 
 dspcreate:	 ../encoder/dspcreate.c libavdspencoder.so
-	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS) -lavdspencoder
+#	$(CC) $(CFLAGS) ../encoder/dspcreate.c -o $@ $(LIBS) -lavdspencoder
+	$(CC) $(CFLAGS) -o $@ -DNODYLIB ../encoder/dspcreate.c ../encoder/dsp_*.c ../runtime/dsp_header.c $(LIBS)
 
 clean:
 	@rm -f dspcreate libavdspencoder.so *.o
