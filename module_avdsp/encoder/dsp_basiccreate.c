@@ -52,7 +52,7 @@ enum keywords_e {
     _saturate, _saturatexy, _saturatevol, _saturatevolxy, _saturategain,
     _delayone, _delayus, _delayusx, _delayusy, _delaydpus, _delayusfbmix,
     _savexmem, _loadxmem,  _saveymem, _loadymem,
-    _dcblock, _biquad, _biquadxy, _biquad8, _convol, _warpconvol,
+    _dcblock, _biquad, _biquadx, _biquady, _biquadxy, _biquad8, _convol, _warpconvol,
     _tpdf, _white, _sine,_square,_dirac,
     _integrator, _cicus, _cicn,_expma,_thdcomp,
     _envpeak,_envrms,_limiterpeak,_limiterrms,_limiterpeakhard,_compressor,_expander,_noisegate,
@@ -71,7 +71,7 @@ static const char * dspKeywords[dspKeywordsNumber] = {
     "saturate", "saturatexy", "saturatevol", "saturatevolxy","saturategain",
     "delayone", "delayus", "delayusx", "delayusy", "delaydpus", "delayusfbmix",
     "savexmem", "loadxmem","saveymem", "loadymem",
-    "dcblock", "biquad", "biquadxy", "biquad8", "convol", "warpconvol",
+    "dcblock", "biquad", "biquadx", "biquady", "biquadxy", "biquad8", "convol", "warpconvol",
     "tpdf", "white", "sine","square","dirac",
     "integrator","movingavgus","movingavgn","expmovingavg","thdcomp",
     "envpeak","envrms","limiterpeak","limiterrms","limiterpeakhard","compressor","expander","noisegate",
@@ -1575,6 +1575,8 @@ nextline:
                 break; }
 
             case _biquad8: //TODO
+            case _biquady:
+            case _biquadx:
             case _biquadxy:
             case _biquad: {
                 labelptr_t l = searchLabel( &p );
@@ -1587,8 +1589,15 @@ nextline:
                 dspprintf4("biquad filter %s, %d\n",dspOutLabelName,l->s.address);
                 if ((l->s.type == label_filter) && (dspModeDynamic==0)) {
                     if (keyw == _biquad)   dsp_BIQUADS( l->s.address );
+                    if (keyw == _biquadx)  dsp_BIQUADS( l->s.address );
                     if (keyw == _biquadxy) dsp_BIQUADSXY( l->s.address );
-                } else dsp_BIQUADS_FS( l->s.address );
+                    if (keyw == _biquady)  dsp_BIQUADSY( l->s.address );
+                } else {
+                    if (keyw == _biquad)   dsp_BIQUADS_FS( l->s.address );
+                    if (keyw == _biquadx)  dsp_BIQUADS_FS( l->s.address );
+                    if (keyw == _biquadxy) dsp_BIQUADSXY_FS( l->s.address );
+                    if (keyw == _biquady)  dsp_BIQUADSY_FS( l->s.address );
+                }
                 break; }
 
             case _warpconvol: //falthrough
@@ -1622,6 +1631,7 @@ nextline:
                     res = searchDelimiter( &p, ",");
                 } while(res);
                 int n=dspMaxSamplingFreq-dspMinSamplingFreq+1;
+                //fill the remaining bins not provided with default values
                 for (int i=numFilt; i<n; i++) {
                     addCodeOffset(base & 1,base);   //alligned 8 !
                     addCode(1); // 1 tap by default
@@ -1629,8 +1639,8 @@ nextline:
                 }
                 //TODO addDataSpaceAligned8 is also generating an opcode at the end of the table!
                 if (keyw == _warpconvol) max++; //always add one extra sample in buffer when warped fir requested
-                max++;
                 dspprintf3("%d impulses, max %d taps\n",numFilt,max);
+                max++;
                 opcodePtr(base+1)->i32 = addDataSpaceAligned8(max);
                 calcLength();
                 break; }
@@ -1778,7 +1788,7 @@ nextline:
                 int maxinst = 128000000/freq;
                 res = testExpression( &p, &input);
                 if (res == _empty) input = 0.0;
-                else outOfRangeError(input,8,maxinst);
+                else if (input) outOfRangeError(input,10,maxinst);
                 dsp_FULL_LOAD(input);
                 break; }
 
@@ -1932,6 +1942,12 @@ nextline:
                     if (l->s.type != _empty) fatalErrorNum(12);
                     l->s.type = label_taps;
                     l->s.address = dspMem_LocationMultiple(0);
+                    int bracket = searchDelimiter( &p, "(" );
+                    if (bracket) {
+                        searchExpressionRangeError( &p, &gain, _tvalue64 );
+                        getDelimiterError( &p, ')', 20);
+                        getDelimiterError( &p, ',', 21);
+                    }
                     if (testDelimiter( &p, "\"")) {
                         tapsinclude = 1;    //to come back here
                         goto gotoinclude;   //will consider this string as a new file name
@@ -1939,8 +1955,13 @@ nextline:
                 labeltaps:
                     tapsinclude = 0;
                     int numTaps = 0;
+                    int numTapMax = 0;
+                    double tapMax = 0.0;
+                    double tapSum = 0.0;
                     do {
+                        if (p[0] == 0) break;
                         if (testDelimiter( &p, "#\r\n\01" )) {
+                        if (p[0] == 0) break;
                             //special case : autorise taps across lines without needing "\"
                             if (fgetLine() == 0) fatalErrorNum(1);
                             p = line; errPtr = line;
@@ -1948,13 +1969,19 @@ nextline:
                         }
                         double tap = 0.0;
                         searchExpressionRangeError( &p, &tap, _tq31 );
+                        tap *= gain;
                         l->value = 0;
                         addDoubleCodeQ31(tap);
+                        if (fabs(tap)>tapMax) {
+                            tapMax = fabs(tap);
+                            numTapMax = numTaps;
+                        }
+                        tapSum += (tap);
                         numTaps++;
                         res = searchDelimiter( &p, "," );
                     } while (res);
                     if (numTaps & 1) addCode(0);//always round up to even number
-                    //dspprintf2("*** %d TAPS ***\n",numTaps);
+                    dspprintf3("TAPS : %d coefs, sum %f, max %f, pos %d\n",numTaps,tapSum,tapMax,numTapMax);
                     l->numValues = numTaps;
                     break; }
                 case _VALUE :
@@ -2088,8 +2115,8 @@ nextline:
                     fatalErrorNum(6);
                 break; }
             } //end of switch keyw
-            //dspprintf1("looking next instruction\n");
             //an instruction has been processed now go for next
+            if (p[0]==0) break;
             if (lineNum[0] > 0) {
                 getSeparatorEOLError( &p );
             }

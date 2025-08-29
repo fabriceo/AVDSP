@@ -70,7 +70,7 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
 
 
 /* filters */
-    14, //DSP_BIQUADS,        // 50 execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
+    15, //DSP_BIQUADS,        // 50 execute N biquad cell. ALU is expected s4.59 and will be return as s4.59
     0,  //DSP_DCBLOCK,         // remove any DC offset. equivalent to first order high pass with noise reinjection
 
 /* specials */
@@ -146,7 +146,9 @@ static const unsigned tableMipsXS2[DSP_MAX_OPCODE] = {
     15, //DSP_DELAYY,
     20, //DSP_SAT0DBXY,
     20, //DSP_SAT0DBXY_VOL,
-    15, //DSP_BIQUADSXY,
+    15, //DSP_BIQUADSY,
+    1,  //DSP_BIQUADSY_FS,
+    17, //DSP_BIQUADSXY,
     1,  //DSP_BIQUADSXY_FS,
     11,  //DSP_DOWNSAMPLE
     1,  //DSP_UPSAMPLE TODO
@@ -300,15 +302,16 @@ int getMipsEstimate(opcode_t * ptr, unsigned cond, unsigned minfreq, unsigned ma
                     else if (param1 & 0xFF0000) inst = 6;
                     else if (param1 & 0xFF00) inst = 3;
                     break; }
+                case DSP_BIQUADSY : 
                 case DSP_BIQUADS : {
                     int param2 = ptr[2].i32;
                     short sections = ptr[param2].s16.low;
-                    inst = sections * 18;
+                    inst = sections * 16;
                     break; }
                 case DSP_BIQUADSXY : {
                     int param2 = ptr[2].i32;
                     short sections = ptr[param2].s16.low;
-                    inst = sections * 33;
+                    inst = sections * 31;
                     break; }
                 case DSP_FIR : 
                 case DSP_WFIR : {

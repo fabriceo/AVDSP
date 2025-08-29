@@ -237,10 +237,12 @@ int  dsp_singleOpcode(unsigned opcode);
 // calculate cascaded biquads with predefined coefficient for all frequencies
  int dsp_BIQUADS(int paramAddr);
  int dsp_BIQUADSXY(int paramAddr);
+ int dsp_BIQUADSY(int paramAddr);
  //same but only one frequency : expect the coefficient to be updated when fs is changing
  int dsp_BIQUADS_FS(int paramAddr);
  //same but only one frequency : expect the coefficient to be updated when fs is changing
  int dsp_BIQUADSXY_FS(int paramAddr);
+ int dsp_BIQUADSY_FS(int paramAddr);
 
  //use dsp_FSDYN() to defne if the coefficient are pre-computed or not for each frequency
  //define the list of biquad within a PARAM structure

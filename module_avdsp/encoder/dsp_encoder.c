@@ -2013,11 +2013,15 @@ int dsp_BIQUADSXY(int paramAddr){
     return dsp_BIQUADS_(paramAddr, DSP_BIQUADSXY);
 }
 
+int dsp_BIQUADSY(int paramAddr){
+    return dsp_BIQUADS_(paramAddr, DSP_BIQUADSY);
+}
+
 
 int dsp_BIQUADS_FS_(int paramAddr, int opcode){
     ALUformat = 1;
     int base = addOpcodeLengthPrint(opcode);
-    if (opcode == DSP_BIQUADSXY_FS) opcode = DSP_BIQUADS_FS;
+    if (opcode == DSP_BIQUADSXY_FS) opcode = DSP_BIQUADS_FS;    //TODO
     checkInParamSpaceOpcode(paramAddr,1+6*2, opcode);
     int num = opcodePtr(paramAddr)->s16.low;  // get number of sections provided
     checkInParamSpace(paramAddr,(1+6*num*2));
@@ -2037,7 +2041,16 @@ int dsp_BIQUADS_FS(int paramAddr){
     return dsp_BIQUADS_FS_( paramAddr, DSP_BIQUADSXY_FS);
 }
 
+ int dsp_BIQUADSY_FS(int paramAddr){
+    return dsp_BIQUADS_FS_( paramAddr, DSP_BIQUADSY_FS);
+}
+
+int bqshift[10]; // this is used to store the shift factor for biquad coefficients
+int bqcountfs=0;
+
+
 int dspBiquad_Sections(int number){
+    for (int i=0; i<10; i++) bqshift[i] = 0; // reset the shift factor
     startParamSection(dspDynamic? DSP_BIQUADS_FS:DSP_BIQUADS, number); // check and initialize conditions for the follwoing data in the PARAM section
     int pos = paramMisAligned8();
     lastParamIndex = addOpcodeValue(dspDynamic? DSP_BIQUADS_FS:DSP_BIQUADS, number);    // store the number of following sections
@@ -2057,8 +2070,8 @@ int  dspBiquad_Sections_Maximum(int number){
     return dspBiquad_Sections(-number);
 }
 
-
 void sectionBiquadCoeficientsBegin(){
+    bqcountfs = 0;
     nextParamSection(dspDynamic? DSP_BIQUADS_FS:DSP_BIQUADS);
 }
 
@@ -2070,6 +2083,7 @@ void sectionBiquadCoeficientsEnd(){
 
 int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspFilterParam_t freq2, dspFilterParam_t Q2, dspGainParam_t gain){
     if (dspDynamic == 0) {
+        #if 0
         int tmp = addOpcodeValue(type, freq);
         if (tmp & 1) {
             addFloat(Q);
@@ -2077,6 +2091,10 @@ int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspFilt
         }else
             dspFatalError("Encoder bug (not expected). Adress should be misalligned here");
         return tmp;
+        #else
+        addFloat(0); addFloat(0);
+        return 1;
+        #endif
     } else {
         int tmp = addCode(type);
         if (tmp & 1) dspFatalError("Encoder bug (not expected). Adress should be 64bits alligned here");
@@ -2090,18 +2108,28 @@ int addFilterParams(int type, dspFilterParam_t freq, dspFilterParam_t Q, dspFilt
 }
 
 int addBiquadCoeficients(dspFilterParam_t b0,dspFilterParam_t b1,dspFilterParam_t b2,dspFilterParam_t a1,dspFilterParam_t a2){
-    calcMaxParamValue(b0);
-    calcMaxParamValue(b1);
-    calcMaxParamValue(b2);
-    calcMaxParamValue(a1-(dspMant?1.0:0.0));
-    calcMaxParamValue(a2);
     if (dspDynamic==0) {
         int tmp = paramAligned8();    // this enforce that coefficient are alligned 8, so 6 words per biquads and per frequency
-        addGainCodeQNM(b0);
-        addGainCodeQNM(b1);
-        addGainCodeQNM(b2);
-        addGainCodeQNM(a1 - (dspMant?1.0:0.0)); // to make things bette for integer routines
+        dspFilterParam_t bqcoef = 1.0;
+        //dspFilterParam_t max = 0.0, 
+        //if (fabs(b0)>max) max = fabs(b0);
+        //if (fabs(b1)>max) max = fabs(b1);
+        //if (fabs(b2)>max) max = fabs(b2);
+        //while(max>=2.0) { max /= 2.0; bqshift[bqcountfs]++; bqcoef /= 2.0;}
+        //while(max<0.5)  { max *= 2.0; bqshift[bqcountfs]--; bqcoef *= 2.0;}
+        addGainCodeQNM(b0 * bqcoef);
+        addGainCodeQNM(b1 * bqcoef);
+        addGainCodeQNM(b2 * bqcoef);
+        addGainCodeQNM(a1 - (dspMant?1.0:0.0)); // to make things better for integer routines
         addGainCodeQNM(a2);
+        calcMaxParamValue(b0 * bqcoef);
+        calcMaxParamValue(b1 * bqcoef);
+        calcMaxParamValue(b2 * bqcoef);
+        calcMaxParamValue(a1-(dspMant?1.0:0.0));
+        calcMaxParamValue(a2);
+        if (bqshift[bqcountfs]) dspprintf2("freq %d, Biquad coeficients shift %d, bqcoef = %f\n",bqcountfs,bqshift[bqcountfs],bqcoef);
+        if (bqshift[bqcountfs]>=0) addCode(bqshift[bqcountfs]); else addCode((-bqshift[bqcountfs])<<16); // store the bqcoef in the last word
+        bqcountfs++;
         return tmp;
     } else {
         return opcodeIndex();   //no coefficient creation in dynamic mode
