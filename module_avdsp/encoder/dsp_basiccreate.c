@@ -758,6 +758,7 @@ int dspbasicCreate(char * dspbasicName, int argc, char **argv){
     if (numCore) {} //just to please compiler
     int dspModeDynamic = 0;
     int tapsinclude = 0;
+    labelptr_t l;   //declared here (kinda global) due to "goto labeltap" when included file is closed
     const int maxIfCondition = 5;
     int ifarray[maxIfCondition];
     int ifinside = 0;   //current level of the if-endif block
@@ -1417,7 +1418,7 @@ nextline:
                 case _gainxy:
                 case _gain : {
                 char * oldp = skipSpaces( &p);
-                labelptr_t l = searchLabel( &p );
+                l = searchLabel( &p );
                 if ((l) && ((l->s.type == label_drcout) || (l->s.type == label_value))) {
                     dsp_GAIN( l->s.address + ( (l->s.type == label_drcout) ? 1 : 0 ) );
                     usedLabelInTile(l);
@@ -1513,7 +1514,7 @@ nextline:
             case _delayus: fatalErrorFloat(1);
             case _delaydpus: {
                 char * oldp = skipSpaces( &p);
-                labelptr_t l = searchLabel( &p );
+                l = searchLabel( &p );
                 if (l && (l->s.type == label_valueint)) {
                     usedLabelInTile(l);
                     getDelimiterError( &p, ',', 30 );
@@ -1550,7 +1551,7 @@ nextline:
             case _loadymem:
             case _saveymem:{
                 input = 0.0;
-                labelptr_t l = searchLabel( &p );
+                l = searchLabel( &p );
                 if ((l==NULL)||(l->s.type != label_memory)) fatalErrorNum(10);
                 usedLabelInTile(l);
                 int bracket = searchDelimiter( &p, "[.");
@@ -1579,7 +1580,7 @@ nextline:
             case _biquadx:
             case _biquadxy:
             case _biquad: {
-                labelptr_t l = searchLabel( &p );
+                l = searchLabel( &p );
                 if (l == NULL) { lastLabelName = ""; fatalErrorNum(3); }
                 if ( (l->s.type != label_filter) 
                   && (l->s.type != label_filters) 
@@ -1615,7 +1616,7 @@ nextline:
                         if (numFilt == 0) base = dsp_WARPCONVOL();
                     } else 
                         if (numFilt == 0) base = dsp_CONVOL();
-                    labelptr_t l = searchLabel( &p );
+                    l = searchLabel( &p );
                     if (l == NULL) fatalErrorNum(33);
                     if (l->s.type != label_taps) fatalErrorNum(33);
                     usedLabelInTile(l);
@@ -1807,7 +1808,7 @@ nextline:
                 searchExpressionRangeError( &p, &output, _tIO  );
                 res = searchDelimiter( &p, ",");
                 if (res) {
-                    labelptr_t l = searchLabel( &p );
+                    l = searchLabel( &p );
                     if (l == NULL) { lastLabelName = ""; fatalErrorNum(3); }
                     if ( (l->s.type != label_filter) 
                     && (l->s.type != label_filters) 
@@ -1836,7 +1837,7 @@ nextline:
             case -1: { //this is not a keyword so it must be a label then
                 if (searchKeywords( &p, paramKeywords, paramKeywordsNumber )>=0) fatalErrorNum(49);
                 if (searchKeywords( &p, filterNames, filterTypesNumber )>=0) fatalErrorNum(49);
-                labelptr_t l = searchLabel( &p );
+                l = searchLabel( &p );
                 if (l) {
                     //label found, make sure user wants to overload label definition (?)
                     //only for numerical labels
@@ -1960,8 +1961,8 @@ nextline:
                     double tapSum = 0.0;
                     do {
                         if (p[0] == 0) break;
-                        if (testDelimiter( &p, "#\r\n\01" )) {
-                        if (p[0] == 0) break;
+                        if ((res = testDelimiter( &p, "#\r\n\01" ))) {
+                            if (p[0] == 0) break;
                             //special case : autorise taps across lines without needing "\"
                             if (fgetLine() == 0) fatalErrorNum(1);
                             p = line; errPtr = line;
