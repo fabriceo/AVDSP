@@ -1,9 +1,9 @@
 g ? -3db
 
 core
-	input 16
-	gain g
-	output 0
+	inputx 16
+	gainx g
+	outputx 0
 
 	inputgain (17,g)
 	output 1
