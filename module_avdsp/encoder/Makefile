@@ -9,6 +9,10 @@ ifeq ($(uname_S), Windows)
 else 
 ifeq ($(uname_S), Darwin)
     CFLAGS = -DOSX
+	# tested successfully on imac 2010 intel with high sierra
+	OSXX86 = -target x86_64-apple-macos10.13
+	# so far all ARM silicon product support sequoia macos15
+	OSXARM = -target arm64-apple-macos15 
 else
 	CFLAGS = -DLINUX -std=gnu99
 endif
@@ -40,9 +44,18 @@ libavdspencoder.dylib: $(FILESENCODER)
 	$(CC) $(CFLAGS) -dynamiclib  -o $@ ../encoder/dsp_*.c ../runtime/dsp_header.c 
 	@rm -rf *.dSYM
 
-dspcreate:	 ../encoder/dspcreate.c libavdspencoder.dylib
-	$(CC) $(CFLAGS) -o $@ -DNODYLIB ../encoder/dspcreate.c ../encoder/dsp_*.c ../runtime/dsp_header.c $(LIBS)
+dspcreate_arm:	 ../encoder/dspcreate.c $(FILESENCODER)
+	$(CC) $(CFLAGS) -o $@ -DNODYLIB ../encoder/dspcreate.c ../encoder/dsp_*.c ../runtime/dsp_header.c $(LIBS) $(OSXARM)
 	@rm -f -r *.dSYM
+
+dspcreate_x86:	 ../encoder/dspcreate.c $(FILESENCODER)
+	$(CC) $(CFLAGS) -o $@ -DNODYLIB ../encoder/dspcreate.c ../encoder/dsp_*.c ../runtime/dsp_header.c $(LIBS) $(OSXX86)
+	@rm -f -r *.dSYM
+
+dspcreate:	dspcreate_x86 dspcreate_arm
+	@lipo -create -output $@ dspcreate_x86 dspcreate_arm
+	@echo dual architecture $@ combined sucessfully
+
 
 clean:
 	@rm -rf dspcreate libavdspencoder.dylib *.o
