@@ -1,0 +1,7 @@
+
+core
+	inputxy 16,17
+	gainy -3db
+	outputy 25
+end
+
