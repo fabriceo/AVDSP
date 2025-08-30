@@ -2,7 +2,7 @@
 core
 	input 16
 	gain -3db
-	output 24
+	output 25
 
 end
 
