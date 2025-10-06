@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i],"-dspserial") == 0) {
             i++;
             if (argc>i) {
-                defaultSerial = strtol(argv[i], &perr,10);
+                defaultSerial = strtol(argv[i], &perr,0);
                 continue; } }
         if (strcmp(argv[i],"-dspprintf") == 0) {
             i++;
@@ -216,6 +216,7 @@ int main(int argc, char **argv) {
             //eventually patch the header with the given serial hash
             dspHeader_t * head = (dspHeader_t *)opcodes;
             head->serialHash = defaultSerial;
+            fprintf(stderr,"patching with serial hash 0x%x\n",defaultSerial);
         }
         dspprintf("DSP program file successfully generated with encoder v%4X\n",DSP_ENCODER_VERSION);
         if (outFileType & 1) {
