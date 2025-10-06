@@ -37,6 +37,7 @@ void usage() {
     fprintf(stderr,"-dspformat <2..6> \n");
     fprintf(stderr,"-binfile   <filename> -hexfile <filename> -dumpfile <filename>\n");
     fprintf(stderr,"-dspload\n");
+    fprintf(stderr,"-dspserial\n");
     fprintf(stderr,"[paramaters ...]\n");
 }
 
@@ -56,6 +57,7 @@ int main(int argc, char **argv) {
     char *dspbasicProgName = NULL;
     int outFileType = 0;
     int defaultType = DSP_FORMAT_INT64;
+    unsigned defaultSerial = 0;
     int i,size=0;
     int xmosusbload = 0;
 
@@ -120,6 +122,11 @@ int main(int argc, char **argv) {
             i++;
             if (argc>i) {
                 defaultType = strtol(argv[i], &perr,10);
+                continue; } }
+        if (strcmp(argv[i],"-dspserial") == 0) {
+            i++;
+            if (argc>i) {
+                defaultSerial = strtol(argv[i], &perr,10);
                 continue; } }
         if (strcmp(argv[i],"-dspprintf") == 0) {
             i++;
@@ -205,6 +212,11 @@ int main(int argc, char **argv) {
     }
 
     if (size > 0) {
+        if (defaultSerial != 0) {
+            //eventually patch the header with the given serial hash
+            dspHeader_t * head = (dspHeader_t *)opcodes;
+            head->serialHash = defaultSerial;
+        }
         dspprintf("DSP program file successfully generated with encoder v%4X\n",DSP_ENCODER_VERSION);
         if (outFileType & 1) {
             dspCreateBuffer(binFileName, (int*)opcodes, size); // write bin file

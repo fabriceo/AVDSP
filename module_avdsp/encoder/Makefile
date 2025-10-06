@@ -56,7 +56,6 @@ dspcreate:	dspcreate_x86 dspcreate_arm
 	@lipo -create -output $@ dspcreate_x86 dspcreate_arm
 	@echo dual architecture $@ combined sucessfully
 
-
 clean:
 	@rm -rf dspcreate libavdspencoder.dylib *.o
 
