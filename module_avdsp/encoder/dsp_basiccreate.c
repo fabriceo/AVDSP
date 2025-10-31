@@ -1943,6 +1943,7 @@ nextline:
                     if (l->s.type != _empty) fatalErrorNum(12);
                     l->s.type = label_taps;
                     l->s.address = dspMem_LocationMultiple(0);
+                    gain = 1.0;  // default gain if not specified
                     int bracket = searchDelimiter( &p, "(" );
                     if (bracket) {
                         searchExpressionRangeError( &p, &gain, _tvalue64 );
